@@ -4,5 +4,7 @@ use (
 	.
 	./cmd/steward
 	./contrib/ginsteward
+	./contrib/redcache
+	./contrib/s3store
 	./example
 )
