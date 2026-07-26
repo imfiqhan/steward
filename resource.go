@@ -296,6 +296,11 @@ func (t *typedResource[T]) compile(a *Admin) error {
 			t.resolveBelongsTo(a, fd)
 		}
 	}
+	for _, n := range fm.nested {
+		if err := n.compile(a, t); err != nil {
+			return err
+		}
+	}
 
 	// Inline-editable columns must map to a form field of the same path so
 	// their writes share the form's validation and hooks.

@@ -450,6 +450,42 @@
     if (cell && !cell.querySelector("input")) { e.preventDefault(); startInlineEdit(cell); }
   });
 
+  /* ---- Nested (hasMany) form rows ------------------------------------------ */
+
+  var nestedCounter = 0;
+
+  document.addEventListener("click", function (e) {
+    var add = e.target.closest("[data-steward-nested-add]");
+    if (add) {
+      var wrap = add.closest("[data-steward-nested]");
+      var tpl = wrap.querySelector("[data-steward-nested-template]");
+      var rows = wrap.querySelector("[data-steward-nested-rows]");
+      var key = "new_" + (++nestedCounter) + "_" + Math.random().toString(36).slice(2, 7);
+      var html = tpl.innerHTML.split("__KEY__").join(key);
+      var holder = document.createElement("div");
+      holder.innerHTML = html;
+      while (holder.firstElementChild) rows.appendChild(holder.firstElementChild);
+      return;
+    }
+    var rm = e.target.closest("[data-steward-nested-remove]");
+    if (rm) {
+      var row = rm.closest("[data-steward-nested-row]");
+      var rowKey = row.getAttribute("data-key");
+      var nested = row.closest("[data-steward-nested]");
+      if (rowKey.indexOf("new_") === 0) {
+        row.remove();
+        return;
+      }
+      var input = document.createElement("input");
+      input.type = "hidden";
+      input.name = nested.getAttribute("data-steward-nested") + "[" + rowKey + "][_remove]";
+      input.value = "1";
+      row.appendChild(input);
+      row.classList.add("d-none");
+      return;
+    }
+  });
+
   /* ---- Tree grid collapse -------------------------------------------------- */
 
   document.addEventListener("click", function (e) {

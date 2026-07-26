@@ -23,6 +23,17 @@ type Post struct {
 	PublishedAt *time.Time
 	AuthorID    uint
 	Author      Author
+	Comments    []Comment
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+// Comment demonstrates hasMany nested forms on Post.
+type Comment struct {
+	ID        uint   `gorm:"primaryKey"`
+	PostID    uint   `gorm:"index"`
+	Name      string `gorm:"size:120"`
+	Body      string `gorm:"size:500"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }

@@ -42,6 +42,7 @@ type formVM struct {
 	Method    string // POST | PUT
 	Creating  bool
 	Fields    []formFieldVM
+	Nested    []nestedVM
 	CancelURL string
 }
 
@@ -161,6 +162,14 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			}
 		}
 		vm.Fields = append(vm.Fields, fv)
+	}
+	for _, n := range t.form.nested {
+		nvm, err := n.buildVM(c, row)
+		if err != nil {
+			c.Admin.log.Error("steward: nested form", "relation", n.fieldName(), "err", err)
+			continue
+		}
+		vm.Nested = append(vm.Nested, nvm)
 	}
 	return vm
 }
@@ -325,6 +334,17 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 		dirty = append(dirty, fd.path)
 	}
 
+	// Nested rows validate alongside the parent so one 422 carries all
+	// errors; their writes wait until the parent has a primary key.
+	nestedPayloads := make([]any, len(f.nested))
+	for i, n := range f.nested {
+		payload, nerrs := n.validate(c)
+		for k, v := range nerrs {
+			errs[k] = append(errs[k], v...)
+		}
+		nestedPayloads[i] = payload
+	}
+
 	if len(errs) > 0 {
 		return c.Envelope(ValidationErrors(errs))
 	}
@@ -349,6 +369,11 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	}
 	if err != nil {
 		return err
+	}
+	for i, n := range f.nested {
+		if err := n.persist(c, m, nestedPayloads[i]); err != nil {
+			return fmt.Errorf("saving %s rows: %w", n.fieldName(), err)
+		}
 	}
 	if f.savedFn != nil {
 		if err := f.savedFn(c, m, creating); err != nil {

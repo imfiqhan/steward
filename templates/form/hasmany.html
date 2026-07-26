@@ -1,0 +1,34 @@
+{{define "form/_nestedrow"}}
+<div class="card mb-2 steward-nested-row" data-steward-nested-row data-key="{{.Key}}">
+  <div class="card-body py-3">
+    <div class="row g-2 align-items-start">
+      <div class="col">
+        <div class="row g-2">
+          {{range .Fields}}
+          <div class="col-sm-6 col-lg-4">
+            {{template "form/field.html" .}}
+          </div>
+          {{end}}
+        </div>
+      </div>
+      <div class="col-auto pt-4">
+        <button type="button" class="btn btn-icon btn-ghost-danger" data-steward-nested-remove aria-label="Remove row">
+          {{icon "trash"}}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{{end}}
+<fieldset class="form-fieldset" data-steward-nested="{{.Name}}">
+  <legend>{{.Label}}</legend>
+  <div data-steward-nested-rows>
+    {{range .Rows}}{{template "form/_nestedrow" .}}{{end}}
+  </div>
+  <template data-steward-nested-template>
+    {{template "form/_nestedrow" .Template}}
+  </template>
+  <button type="button" class="btn btn-ghost-primary btn-sm" data-steward-nested-add>
+    {{icon "plus"}} Add {{.Label}}
+  </button>
+</fieldset>

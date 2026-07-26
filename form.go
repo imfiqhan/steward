@@ -54,6 +54,7 @@ var kindNames = map[FieldKind]string{
 type Form[T any] struct {
 	res    *Resource[T]
 	fields []*Field[T]
+	nested []nestedForm[T]
 
 	submittedFn func(c *Context) error
 	savingFn    func(c *Context, m *T) error

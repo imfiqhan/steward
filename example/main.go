@@ -111,6 +111,10 @@ func registerResources(app *steward.Admin) {
 			f.Markdown("Body").Rules("required")
 			f.Radio("Status").Options(steward.Options{"draft": "Draft", "published": "Published"}).Default("draft")
 			f.Switch("Featured")
+			steward.HasMany(f, "Comments", "PostID", func(cf *steward.Form[models.Comment]) {
+				cf.Text("Name").Rules("required|max:120")
+				cf.Textarea("Body").Rules("required|max:500")
+			})
 			f.Datetime("PublishedAt", "Published at").Help("Set automatically when publishing.")
 			f.BelongsTo("AuthorID", "Author", "Name", "Author").Rules("required")
 			f.Image("Cover").Dir("posts").MaxSize(2 << 20)

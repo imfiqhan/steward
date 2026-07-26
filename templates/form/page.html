@@ -17,6 +17,9 @@
             {{range .Data.Fields}}
               {{template "form/field.html" .}}
             {{end}}
+            {{range .Data.Nested}}
+              {{template "form/hasmany.html" .}}
+            {{end}}
           </div>
           <div class="card-footer d-flex">
             <a class="btn btn-link" href="{{.Data.CancelURL}}"
