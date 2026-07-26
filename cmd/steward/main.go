@@ -25,6 +25,8 @@ const usage = `steward — scaffolding for the Steward admin framework
 Usage:
   steward new <dir> --module <module-path> [--db sqlite|mysql|postgres]
   steward make:resource <Name> --fields "<spec>" [--dir <project>] [--force]
+  steward make:resource <Name> --from-db --dsn <dsn> [--db sqlite|mysql|postgres] [--table <t>]
+  steward make:resource <Name> --from-struct [<models-path>]
   steward make:migration <name> [--dir <project>]
   steward publish views|assets [--dir <target>]
 

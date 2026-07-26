@@ -257,8 +257,8 @@ func enumBadges(args string) string {
 // ---- make:resource -------------------------------------------------------------
 
 func cmdMakeResource(args []string) error {
-	var name, fields, dir string
-	force := false
+	var name, fields, dir, dsn, driver, table, structPath string
+	fromDB, fromStruct, force := false, false, false
 	rest := args
 	for i := 0; i < len(rest); i++ {
 		switch rest[i] {
@@ -270,8 +270,23 @@ func cmdMakeResource(args []string) error {
 			dir = rest[i]
 		case "--force":
 			force = true
-		case "--from-db", "--from-struct":
-			return fmt.Errorf("%s is not implemented yet — use --fields (see steward help)", rest[i])
+		case "--from-db":
+			fromDB = true
+		case "--from-struct":
+			fromStruct = true
+			if i+1 < len(rest) && !strings.HasPrefix(rest[i+1], "-") {
+				i++
+				structPath = rest[i]
+			}
+		case "--dsn":
+			i++
+			dsn = rest[i]
+		case "--db":
+			i++
+			driver = rest[i]
+		case "--table":
+			i++
+			table = rest[i]
 		default:
 			if name == "" && !strings.HasPrefix(rest[i], "-") {
 				name = rest[i]
@@ -279,10 +294,7 @@ func cmdMakeResource(args []string) error {
 		}
 	}
 	if name == "" {
-		return fmt.Errorf("usage: steward make:resource <Name> --fields \"...\"")
-	}
-	if fields == "" {
-		return fmt.Errorf("--fields is required (e.g. --fields \"title:string,body:text\")")
+		return fmt.Errorf("usage: steward make:resource <Name> --fields \"...\" | --from-db --dsn ... | --from-struct <path>")
 	}
 	if dir == "" {
 		dir = "."
@@ -291,17 +303,42 @@ func cmdMakeResource(args []string) error {
 	if err != nil {
 		return err
 	}
-	specs, err := parseFields(fields)
+
+	var specs []fieldSpec
+	switch {
+	case fromDB:
+		if dsn == "" {
+			return fmt.Errorf("--from-db needs --dsn (and optionally --db sqlite|mysql|postgres, --table)")
+		}
+		if table == "" {
+			table = inflection.Plural(toSnake(name))
+		}
+		specs, err = introspectDB(driver, dsn, table)
+	case fromStruct:
+		if structPath == "" {
+			structPath = filepath.Join(dir, "models")
+		}
+		specs, err = structFields(structPath, name)
+	case fields != "":
+		specs, err = parseFields(fields)
+	default:
+		return fmt.Errorf("pick a source: --fields \"...\", --from-db --dsn ..., or --from-struct <path>")
+	}
 	if err != nil {
 		return err
 	}
+	// From-struct generation reuses the existing model; skip writing it.
+	skipModel := fromStruct
 
 	typeName := goName(strings.ToLower(name[:1]) + name[1:])
 	if unicode.IsUpper(rune(name[0])) {
 		typeName = name
 	}
 	snake := toSnake(typeName)
-	table := inflection.Plural(snake)
+	tableName := inflection.Plural(snake)
+	if table != "" {
+		tableName = table
+	}
 
 	needsTime := false
 	var modelFields []string
@@ -328,7 +365,7 @@ type %s struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
-`, timeImport, typeName, table, typeName, strings.Join(modelFields, "\n"))
+`, timeImport, typeName, tableName, typeName, strings.Join(modelFields, "\n"))
 
 	ts := time.Now().Format("20060102150405")
 	migration := fmt.Sprintf(`package migrations
@@ -351,7 +388,7 @@ func init() {
 		},
 	})
 }
-`, module, ts, table, typeName, typeName)
+`, module, ts, tableName, typeName, typeName)
 
 	var gridLines, formLines []string
 	gridLines = append(gridLines, fmt.Sprintf("\t\tg.Column(%q).Sortable().Width(60)", "ID"))
@@ -392,14 +429,19 @@ func Register%s(a *steward.Admin) {
 %s
 		})
 }
-`, module, typeName, table, typeName, typeName,
+`, module, typeName, tableName, typeName, typeName,
 		inflection.Plural(splitCamelWords(typeName)), typeName,
 		strings.Join(gridLines, "\n"), quick, typeName, strings.Join(formLines, "\n"))
 
 	files := map[string]string{
-		filepath.Join(dir, "models", snake+".go"):                   model,
-		filepath.Join(dir, "migrations", ts+"_create_"+table+".go"): migration,
-		filepath.Join(dir, "resources", snake+".go"):                resource,
+		filepath.Join(dir, "resources", snake+".go"): resource,
+	}
+	if !skipModel {
+		files[filepath.Join(dir, "models", snake+".go")] = model
+	}
+	// From-db generation targets an existing table; no create migration.
+	if !fromDB {
+		files[filepath.Join(dir, "migrations", ts+"_create_"+tableName+".go")] = migration
 	}
 	for path, content := range files {
 		if err := writeFile(path, []byte(content), force); err != nil {
