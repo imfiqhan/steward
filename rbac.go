@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm/clause"
 )
 
 // registerBuiltins dogfoods the framework's own admin pages — users, roles,
@@ -158,7 +159,9 @@ func (a *Admin) registerRolesResource() {
 
 	permOptions := func(c *Context) Options {
 		var perms []Permission
-		if err := c.Admin.db.WithContext(c.Ctx()).Order("`order`, id").Find(&perms).Error; err != nil {
+		if err := c.Admin.db.WithContext(c.Ctx()).
+			Order(clause.OrderByColumn{Column: clause.Column{Name: "order"}}).
+			Order("id").Find(&perms).Error; err != nil {
 			return Options{}
 		}
 		o := Options{}

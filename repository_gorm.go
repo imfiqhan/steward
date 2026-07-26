@@ -62,7 +62,8 @@ func (r *GormRepository[T]) withPreloads(db *gorm.DB) *gorm.DB {
 	return db
 }
 
-// column resolves a direct (non-relation) field path to its quoted column.
+// column resolves a direct (non-relation) field path to its bare column
+// name (for GORM APIs that match field names, like Updates+Select).
 func (r *GormRepository[T]) column(path string) (string, error) {
 	info, ok := r.ft.byPath[path]
 	if !ok || info.DBName == "" {
@@ -71,8 +72,26 @@ func (r *GormRepository[T]) column(path string) (string, error) {
 	return info.DBName, nil
 }
 
+// qcolumn resolves a field path to its dialect-quoted column for hand-built
+// SQL fragments — reserved words like "order" are valid column names and
+// must never reach SQL bare.
+func (r *GormRepository[T]) qcolumn(path string) (string, error) {
+	col, err := r.column(path)
+	if err != nil {
+		return "", err
+	}
+	return quoteColumn(r.db, col), nil
+}
+
+// quoteColumn applies the dialect's identifier quoting.
+func quoteColumn(db *gorm.DB, name string) string {
+	var sb strings.Builder
+	db.Dialector.QuoteTo(&sb, name)
+	return sb.String()
+}
+
 func (r *GormRepository[T]) applyCond(db *gorm.DB, c Cond) (*gorm.DB, error) {
-	col, err := r.column(c.Path)
+	col, err := r.qcolumn(c.Path)
 	if err != nil {
 		return db, err
 	}
@@ -125,7 +144,7 @@ func (r *GormRepository[T]) List(ctx context.Context, q *ListQuery) ([]T, int64,
 		var clauses []string
 		var args []any
 		for _, p := range q.SearchPaths {
-			col, cerr := r.column(p)
+			col, cerr := r.qcolumn(p)
 			if cerr != nil {
 				continue
 			}
@@ -148,7 +167,7 @@ func (r *GormRepository[T]) List(ctx context.Context, q *ListQuery) ([]T, int64,
 	}
 
 	for _, s := range q.Sorts {
-		col, serr := r.column(s.Path)
+		col, serr := r.qcolumn(s.Path)
 		if serr != nil {
 			continue
 		}
@@ -174,7 +193,7 @@ func (r *GormRepository[T]) List(ctx context.Context, q *ListQuery) ([]T, int64,
 func (r *GormRepository[T]) Find(ctx context.Context, id string) (*T, error) {
 	var m T
 	db := r.withPreloads(r.base(ctx))
-	if err := db.Where(r.ft.pk.DBName+" = ?", id).First(&m).Error; err != nil {
+	if err := db.Where(quoteColumn(r.db, r.ft.pk.DBName)+" = ?", id).First(&m).Error; err != nil {
 		return nil, err
 	}
 	return &m, nil
@@ -210,5 +229,5 @@ func (r *GormRepository[T]) Delete(ctx context.Context, ids []string) error {
 		return nil
 	}
 	var zero T
-	return r.base(ctx).Where(r.ft.pk.DBName+" IN ?", ids).Delete(&zero).Error
+	return r.base(ctx).Where(quoteColumn(r.db, r.ft.pk.DBName)+" IN ?", ids).Delete(&zero).Error
 }

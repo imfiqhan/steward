@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+
+	"gorm.io/gorm/clause"
 )
 
 // groupCodeKey names the synthetic parent row of a sidebar group.
@@ -122,7 +124,9 @@ func (a *Admin) registerMenuResource() {
 		var items []MenuItem
 		o := Options{}
 		if err := c.Admin.db.WithContext(c.Ctx()).
-			Where("parent_id = 0").Order("`order`").Find(&items).Error; err != nil {
+			Where("parent_id = 0").
+			Order(clause.OrderByColumn{Column: clause.Column{Name: "order"}}).
+			Find(&items).Error; err != nil {
 			return o
 		}
 		for _, it := range items {
@@ -175,7 +179,9 @@ func (a *Admin) menuItems(ctx context.Context) ([]MenuItem, error) {
 		}
 	}
 	var items []MenuItem
-	if err := a.db.WithContext(ctx).Order("`order`, id").Find(&items).Error; err != nil {
+	if err := a.db.WithContext(ctx).
+		Order(clause.OrderByColumn{Column: clause.Column{Name: "order"}}).
+		Order("id").Find(&items).Error; err != nil {
 		return nil, fmt.Errorf("loading menu: %w", err)
 	}
 	if raw, err := json.Marshal(items); err == nil {
