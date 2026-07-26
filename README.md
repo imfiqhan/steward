@@ -52,13 +52,18 @@ operation log, settings KV, scheduler page, dark mode, `no_ui` builds, and
 the `steward` CLI (`new`, `make:resource`, `make:migration`, `publish`).
 
 Also: inline grid editing (`Column.Switch()` / `Column.Editable()` saving
-through the form's validation), custom row/batch/tool actions with a typed
-dispatch endpoint, and a WebKit visual-regression script (`make visual`).
+through the form's validation), custom row/batch/tool actions, hasMany
+nested forms (`steward.HasMany[T,C]`), tree grids (`Grid.Tree`), grouped
+headers (`Grid.GroupColumns`), column show/hide, drag-drop row reordering
+(`Grid.Reorderable`, dogfooded by the menu admin), cron-expression
+schedules, `make:resource --from-db/--from-struct`, Redis cache and S3
+storage drivers (`contrib/`), an in-memory full-text `Searcher`, the
+`Extension` interface (`app.Use(...)`), and a WebKit visual-regression
+script (`make visual`).
 
-**Backlog** (deliberately deferred): nested hasMany/embeds forms, tree grids,
-complex headers, column show/hide, drag-drop menu ordering,
-`make:resource --from-db/--from-struct`, Redis cache & S3 storage drivers,
-full-text Searcher, cron-expression schedules, extensions system.
+**Backlog** (deliberately deferred): embeds (JSON-column nested forms),
+File/Image/BelongsTo fields inside hasMany rows, wiring grid quick search
+through a configured Searcher, web-based scaffold generator.
 
 ## Development
 
