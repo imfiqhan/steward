@@ -9,6 +9,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -86,6 +87,21 @@ func registerResources(app *steward.Admin) {
 				f.Equal("Status").Select(steward.Options{"draft": "Draft", "published": "Published"})
 				f.Like("Title")
 				f.Between("CreatedAt", "Created").Datetime()
+			})
+		}).
+		Form(func(f *steward.Form[models.Post]) {
+			f.Text("Title").Rules("required|max:255").Placeholder("Post title")
+			f.Markdown("Body").Rules("required")
+			f.Radio("Status").Options(steward.Options{"draft": "Draft", "published": "Published"}).Default("draft")
+			f.Datetime("PublishedAt", "Published at").Help("Set automatically when publishing.")
+			f.BelongsTo("AuthorID", "Author", "Name", "Author").Rules("required")
+			f.Image("Cover").Dir("posts").MaxSize(2 << 20)
+			f.Saving(func(c *steward.Context, p *models.Post) error {
+				if p.Status == "published" && p.PublishedAt == nil {
+					now := time.Now()
+					p.PublishedAt = &now
+				}
+				return nil
 			})
 		})
 

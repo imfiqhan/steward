@@ -1,0 +1,88 @@
+{{if .Divider}}<hr class="my-3"/>{{else}}
+<div class="mb-3" data-steward-field="{{.Name}}">
+  {{if ne .Kind "hidden"}}
+  <label class="form-label {{if .Required}}required{{end}}" for="field-{{.Name}}">{{.Label}}</label>
+  {{end}}
+
+  {{if eq .Kind "textarea"}}
+    <textarea id="field-{{.Name}}" name="{{.Name}}" class="form-control" rows="5"
+      placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>
+
+  {{else if eq .Kind "markdown"}}
+    <textarea id="field-{{.Name}}" name="{{.Name}}" class="form-control font-monospace" rows="10"
+      placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>
+    <small class="form-hint">Markdown supported.</small>
+
+  {{else if eq .Kind "select"}}
+    <select id="field-{{.Name}}" name="{{.Name}}" class="form-select" {{if .Disabled}}disabled{{end}}>
+      <option value="">—</option>
+      {{range .Options}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}
+    </select>
+
+  {{else if eq .Kind "belongsto"}}
+    <select id="field-{{.Name}}" name="{{.Name}}" class="form-select" data-steward-tomselect {{if .Disabled}}disabled{{end}}>
+      <option value="">—</option>
+      {{range .Options}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}
+    </select>
+
+  {{else if eq .Kind "radio"}}
+    <div>
+      {{$f := .}}
+      {{range .Options}}
+      <label class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="{{$f.Name}}" value="{{.Value}}"
+               {{if .Selected}}checked{{end}} {{if $f.Disabled}}disabled{{end}}/>
+        <span class="form-check-label">{{.Label}}</span>
+      </label>
+      {{end}}
+    </div>
+
+  {{else if eq .Kind "switch"}}
+    <label class="form-check form-switch">
+      <input type="hidden" name="_present_{{.Name}}" value="1"/>
+      <input class="form-check-input" type="checkbox" name="{{.Name}}" {{if .Value}}checked{{end}} {{if .Disabled}}disabled{{end}}/>
+      <span class="form-check-label">{{.Placeholder}}</span>
+    </label>
+
+  {{else if eq .Kind "display"}}
+    <input id="field-{{.Name}}" type="text" class="form-control" value="{{.Value}}" disabled/>
+
+  {{else if eq .Kind "hidden"}}
+    <input type="hidden" name="{{.Name}}" value="{{.Value}}"/>
+
+  {{else if or (eq .Kind "file") (eq .Kind "image")}}
+    <input type="hidden" name="{{.Name}}" value="{{.Value}}" data-steward-upload-value/>
+    <input id="field-{{.Name}}" type="file" class="form-control" {{with .Accept}}accept="{{.}}"{{end}}
+           data-steward-upload="{{.UploadURL}}" {{if .Disabled}}disabled{{end}}/>
+    <div class="mt-2 {{if not .PreviewURL}}d-none{{end}}" data-steward-upload-preview>
+      {{if eq .Kind "image"}}
+        <img src="{{.PreviewURL}}" class="rounded border" style="max-width:200px; max-height:120px; object-fit:cover" alt="Current file"/>
+      {{else if .PreviewURL}}
+        <a href="{{.PreviewURL}}" target="_blank" rel="noopener">Current file</a>
+      {{end}}
+    </div>
+
+  {{else if eq .Kind "currency"}}
+    <div class="input-group">
+      <span class="input-group-text">$</span>
+      <input id="field-{{.Name}}" type="number" step="0.01" name="{{.Name}}" value="{{.Value}}" class="form-control"
+             placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}/>
+    </div>
+
+  {{else}}
+    <input id="field-{{.Name}}"
+      type="{{if eq .Kind "number"}}number{{else if eq .Kind "decimal"}}number{{else if eq .Kind "email"}}email{{else if eq .Kind "password"}}password{{else if eq .Kind "url"}}url{{else if eq .Kind "color"}}color{{else if eq .Kind "date"}}date{{else if eq .Kind "datetime"}}datetime-local{{else if eq .Kind "time"}}time{{else}}text{{end}}"
+      {{if eq .Kind "decimal"}}step="any"{{end}}
+      name="{{.Name}}" value="{{.Value}}"
+      class="form-control {{if eq .Kind "color"}}form-control-color{{end}}"
+      placeholder="{{.Placeholder}}"
+      {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}
+      {{if eq .Kind "password"}}autocomplete="new-password"{{end}}/>
+  {{end}}
+
+  {{with .Help}}<small class="form-hint">{{.}}</small>{{end}}
+  <div class="invalid-feedback d-block" data-steward-errors>
+    {{range .Errors}}<div>{{.}}</div>{{end}}
+  </div>
+</div>
+{{end}}

@@ -60,6 +60,13 @@ func (a *Admin) buildRoutes() *http.ServeMux {
 
 	mux.HandleFunc("GET "+p+"/_assets/", a.serveAsset)
 
+	// Local uploads are served straight from disk; other Storage backends
+	// give absolute URLs and never hit this route.
+	if ls, ok := a.cfg.Storage.(*LocalStorage); ok {
+		fileServer := http.StripPrefix(p+"/_uploads/", http.FileServer(http.Dir(ls.Dir)))
+		mux.Handle("GET "+p+"/_uploads/", fileServer)
+	}
+
 	for _, res := range a.registry {
 		res.registerRoutes(a, mux)
 	}

@@ -449,8 +449,18 @@ func (t *typedResource[T]) destroy(c *Context) error {
 	if len(ids) == 0 {
 		return c.Envelope(Error("Nothing selected.").Code(http.StatusBadRequest))
 	}
+	if t.form.deletingFn != nil {
+		if err := t.form.deletingFn(c, ids); err != nil {
+			return c.Envelope(Error(err.Error()).Code(http.StatusBadRequest))
+		}
+	}
 	if err := t.repo.Delete(c.Ctx(), ids); err != nil {
 		return err
+	}
+	if t.form.deletedFn != nil {
+		if err := t.form.deletedFn(c, ids); err != nil {
+			c.Admin.log.Error("steward: deleted hook", "err", err)
+		}
 	}
 	noun := "record"
 	if len(ids) > 1 {

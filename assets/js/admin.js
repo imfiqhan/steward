@@ -210,6 +210,91 @@
     }
   });
 
+  /* ---- Forms: envelope submit + 422 field errors + uploads --------------- */
+
+  function clearFieldErrors(form) {
+    form.querySelectorAll("[data-steward-field]").forEach(function (wrap) {
+      wrap.querySelectorAll(".is-invalid").forEach(function (el) { el.classList.remove("is-invalid"); });
+      var box = wrap.querySelector("[data-steward-errors]");
+      if (box) box.textContent = "";
+    });
+  }
+
+  function showFieldErrors(form, errors) {
+    Object.keys(errors || {}).forEach(function (name) {
+      var wrap = form.querySelector('[data-steward-field="' + CSS.escape(name) + '"]');
+      if (!wrap) return;
+      var input = wrap.querySelector(".form-control, .form-select, .form-check-input");
+      if (input) input.classList.add("is-invalid");
+      var box = wrap.querySelector("[data-steward-errors]");
+      if (box) box.textContent = errors[name].join(" ");
+    });
+    var first = form.querySelector(".is-invalid");
+    if (first) first.focus();
+  }
+
+  document.addEventListener("submit", function (e) {
+    var form = e.target.closest("[data-steward-form]");
+    if (!form) return;
+    e.preventDefault();
+    clearFieldErrors(form);
+    var btn = form.querySelector("[data-steward-submit]");
+    if (btn) { btn.disabled = true; btn.classList.add("btn-loading"); }
+    fetch(form.getAttribute("action"), {
+      method: form.getAttribute("data-method") || "POST",
+      headers: {
+        "X-CSRF-Token": csrfToken(),
+        "Accept": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      body: new FormData(form),
+      credentials: "same-origin"
+    }).then(function (resp) { return resp.json(); }).then(function (env) {
+      if (env && env.errors) {
+        showFieldErrors(form, env.errors);
+        toast("error", "Please fix the highlighted fields.");
+        return;
+      }
+      handleEnvelope(env);
+    }).catch(function () {
+      toast("error", "Request failed — check your connection and retry.");
+    }).finally(function () {
+      if (btn) { btn.disabled = false; btn.classList.remove("btn-loading"); }
+    });
+  });
+
+  document.addEventListener("change", function (e) {
+    var input = e.target.closest("[data-steward-upload]");
+    if (!input || !input.files || input.files.length === 0) return;
+    var wrap = input.closest("[data-steward-field]");
+    var hidden = wrap.querySelector("[data-steward-upload-value]");
+    var preview = wrap.querySelector("[data-steward-upload-preview]");
+    var fd = new FormData();
+    fd.append("file", input.files[0]);
+    input.disabled = true;
+    fetch(input.getAttribute("data-steward-upload"), {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken(), "Accept": "application/json" },
+      body: fd,
+      credentials: "same-origin"
+    }).then(function (resp) { return resp.json(); }).then(function (out) {
+      if (!out || out.status !== true) {
+        toast("error", (out && out.data && out.data.message) || "Upload failed.");
+        return;
+      }
+      if (hidden) hidden.value = out.path;
+      if (preview) {
+        preview.classList.remove("d-none");
+        var img = preview.querySelector("img");
+        if (img) { img.src = out.url; }
+        else { preview.innerHTML = '<a href="' + out.url + '" target="_blank" rel="noopener">Uploaded file</a>'; }
+      }
+      toast("success", "Uploaded.");
+    }).catch(function () {
+      toast("error", "Upload failed — check your connection and retry.");
+    }).finally(function () { input.disabled = false; });
+  });
+
   /* ---- Theme toggle ------------------------------------------------------ */
 
   document.addEventListener("click", function (e) {

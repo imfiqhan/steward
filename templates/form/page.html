@@ -1,0 +1,32 @@
+<div class="page-header d-print-none">
+  <div class="container-xl">
+    <div class="row g-2 align-items-center">
+      <div class="col">
+        <div class="page-pretitle">{{if .Data.Creating}}Create{{else}}Edit{{end}}</div>
+        <h2 class="page-title">{{if .Data.Creating}}New {{end}}{{.Data.Title}}</h2>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="page-body">
+  <div class="container-xl">
+    <div class="row">
+      <div class="col-lg-9">
+        <form class="card" data-steward-form action="{{.Data.Action}}" data-method="{{.Data.Method}}" method="post" novalidate>
+          <div class="card-body">
+            {{range .Data.Fields}}
+              {{template "form/field.html" .}}
+            {{end}}
+          </div>
+          <div class="card-footer d-flex">
+            <a class="btn btn-link" href="{{.Data.CancelURL}}"
+               hx-get="{{.Data.CancelURL}}" hx-target="#page-content" hx-push-url="true">Cancel</a>
+            <button type="submit" class="btn btn-primary ms-auto" data-steward-submit>
+              {{if .Data.Creating}}Create{{else}}Save changes{{end}}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

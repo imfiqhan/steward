@@ -72,7 +72,9 @@ func (f *Form[T]) add(kind FieldKind, path string, label ...string) *Field[T] {
 }
 
 // Text adds a single-line text input.
-func (f *Form[T]) Text(path string, label ...string) *Field[T] { return f.add(FieldText, path, label...) }
+func (f *Form[T]) Text(path string, label ...string) *Field[T] {
+	return f.add(FieldText, path, label...)
+}
 
 // Textarea adds a multi-line input.
 func (f *Form[T]) Textarea(path string, label ...string) *Field[T] {
@@ -142,7 +144,9 @@ func (f *Form[T]) Color(path string, label ...string) *Field[T] {
 }
 
 // Date adds a date picker (stored midnight local).
-func (f *Form[T]) Date(path string, label ...string) *Field[T] { return f.add(FieldDate, path, label...) }
+func (f *Form[T]) Date(path string, label ...string) *Field[T] {
+	return f.add(FieldDate, path, label...)
+}
 
 // Datetime adds a date+time picker.
 func (f *Form[T]) Datetime(path string, label ...string) *Field[T] {
@@ -150,10 +154,14 @@ func (f *Form[T]) Datetime(path string, label ...string) *Field[T] {
 }
 
 // Time adds a time-of-day input stored as "15:04".
-func (f *Form[T]) Time(path string, label ...string) *Field[T] { return f.add(FieldTime, path, label...) }
+func (f *Form[T]) Time(path string, label ...string) *Field[T] {
+	return f.add(FieldTime, path, label...)
+}
 
 // File adds an upload field storing the file path.
-func (f *Form[T]) File(path string, label ...string) *Field[T] { return f.add(FieldFile, path, label...) }
+func (f *Form[T]) File(path string, label ...string) *Field[T] {
+	return f.add(FieldFile, path, label...)
+}
 
 // Image adds an image upload with preview.
 func (f *Form[T]) Image(path string, label ...string) *Field[T] {
@@ -199,13 +207,22 @@ func (f *Form[T]) Submitted(fn func(c *Context) error) *Form[T] { f.submittedFn 
 func (f *Form[T]) Saving(fn func(c *Context, m *T) error) *Form[T] { f.savingFn = fn; return f }
 
 // Saved runs after successful persistence.
-func (f *Form[T]) Saved(fn func(c *Context, m *T, created bool) error) *Form[T] { f.savedFn = fn; return f }
+func (f *Form[T]) Saved(fn func(c *Context, m *T, created bool) error) *Form[T] {
+	f.savedFn = fn
+	return f
+}
 
 // Deleting runs before rows are deleted.
-func (f *Form[T]) Deleting(fn func(c *Context, ids []string) error) *Form[T] { f.deletingFn = fn; return f }
+func (f *Form[T]) Deleting(fn func(c *Context, ids []string) error) *Form[T] {
+	f.deletingFn = fn
+	return f
+}
 
 // Deleted runs after rows are deleted.
-func (f *Form[T]) Deleted(fn func(c *Context, ids []string) error) *Form[T] { f.deletedFn = fn; return f }
+func (f *Form[T]) Deleted(fn func(c *Context, ids []string) error) *Form[T] {
+	f.deletedFn = fn
+	return f
+}
 
 // Field configures one form input; methods chain.
 type Field[T any] struct {
@@ -240,8 +257,11 @@ type Field[T any] struct {
 	accept  string
 
 	// belongsTo
-	relName  string
-	relTitle string
+	relName     string
+	relTitle    string
+	relTable    string // resolved at compile
+	relPKCol    string
+	relTitleCol string
 
 	savingValue func(c *Context, raw string) (any, error)
 

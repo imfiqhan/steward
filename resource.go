@@ -28,6 +28,7 @@ type Resource[T any] struct {
 	m *resourceMeta
 
 	gridFn func(*Grid[T])
+	formFn func(*Form[T])
 	repo   Repository[T]
 }
 
@@ -90,6 +91,10 @@ func (r *Resource[T]) Group(name string) *Resource[T] { r.m.group = name; return
 // builder. Without it the grid shows every direct model field.
 func (r *Resource[T]) Grid(fn func(*Grid[T])) *Resource[T] { r.gridFn = fn; return r }
 
+// Form declares the create/edit view; without it every writable direct
+// field gets an input inferred from its type.
+func (r *Resource[T]) Form(fn func(*Form[T])) *Resource[T] { r.formFn = fn; return r }
+
 // Repository swaps the data source (default: GORM repository over Config.DB).
 func (r *Resource[T]) Repository(repo Repository[T]) *Resource[T] { r.repo = repo; return r }
 
@@ -99,6 +104,7 @@ type typedResource[T any] struct {
 	res  *Resource[T]
 	ft   *fieldTable
 	grid *Grid[T]
+	form *Form[T]
 	repo Repository[T]
 }
 
@@ -187,7 +193,93 @@ func (t *typedResource[T]) compile(a *Admin) error {
 	if g.defaultSort != nil {
 		verify("default sort", g.defaultSort.Path)
 	}
+
+	// Form.
+	fm := newForm(t.res)
+	if t.res.formFn != nil {
+		t.res.formFn(fm)
+	} else {
+		t.defaultFormFields(fm)
+	}
+	t.form = fm
+	for _, fd := range fm.fields {
+		if fd.divider {
+			continue
+		}
+		fd.info = verify("form field", fd.path)
+		if fd.info == nil {
+			continue
+		}
+		if fd.label == "" {
+			fd.label = fd.info.Label
+		}
+		if fd.kind == FieldBelongsTo {
+			t.resolveBelongsTo(a, fd)
+		}
+	}
 	return nil
+}
+
+// resolveBelongsTo fills the relation's table/pk/title columns for option
+// loading, verifying the relation and title field exist.
+func (t *typedResource[T]) resolveBelongsTo(a *Admin, fd *Field[T]) {
+	rel, ok := t.ft.model.Relationships.Relations[fd.relName]
+	if !ok || rel.FieldSchema == nil {
+		a.verifyErrs = append(a.verifyErrs,
+			fmt.Errorf("resource %q: form field %q: unknown relation %q", t.res.m.slug, fd.path, fd.relName))
+		return
+	}
+	titleField := rel.FieldSchema.LookUpField(fd.relTitle)
+	if titleField == nil {
+		a.verifyErrs = append(a.verifyErrs,
+			fmt.Errorf("resource %q: form field %q: relation %s has no field %q", t.res.m.slug, fd.path, fd.relName, fd.relTitle))
+		return
+	}
+	fd.relTable = rel.FieldSchema.Table
+	fd.relTitleCol = titleField.DBName
+	if len(rel.FieldSchema.PrimaryFields) > 0 {
+		fd.relPKCol = rel.FieldSchema.PrimaryFields[0].DBName
+	} else {
+		fd.relPKCol = "id"
+	}
+}
+
+// defaultFormFields projects the zero-config form: every writable direct
+// field, widget inferred from the field's Go type and name.
+func (t *typedResource[T]) defaultFormFields(fm *Form[T]) {
+	for _, f := range t.ft.model.Fields {
+		info, ok := t.ft.byPath[f.Name]
+		if !ok || info.Primary || info.Kind == kindBytes || info.Kind == kindOther {
+			continue
+		}
+		if f.Name == "CreatedAt" || f.Name == "UpdatedAt" || f.Name == "DeletedAt" {
+			continue
+		}
+		lower := strings.ToLower(f.Name)
+		switch {
+		case info.Kind == kindBool:
+			fm.Switch(f.Name)
+		case info.Kind == kindTime:
+			fm.Datetime(f.Name)
+		case info.Kind == kindInt || info.Kind == kindUint:
+			fm.Number(f.Name)
+		case info.Kind == kindFloat:
+			fm.Decimal(f.Name)
+		case strings.Contains(lower, "password"):
+			fm.Password(f.Name)
+		case strings.Contains(lower, "email"):
+			fm.Email(f.Name)
+		case strings.Contains(lower, "url") || strings.Contains(lower, "link"):
+			fm.URL(f.Name)
+		case strings.Contains(lower, "color"):
+			fm.Color(f.Name)
+		case info.Kind == kindString && f.Size == 0:
+			// TEXT columns (no size limit) read better as textareas.
+			fm.Textarea(f.Name)
+		default:
+			fm.Text(f.Name)
+		}
+	}
 }
 
 // defaultColumns projects the zero-config grid: every direct field in struct
@@ -207,8 +299,20 @@ func (t *typedResource[T]) defaultColumns(g *Grid[T]) {
 
 func (t *typedResource[T]) registerRoutes(a *Admin, mux *http.ServeMux) {
 	m := t.res.m
-	mux.HandleFunc("GET "+a.url(m.slug), a.h(t.index))
-	mux.HandleFunc("DELETE "+a.url(m.slug)+"/{id}", a.h(t.destroy))
+	base := a.url(m.slug)
+	mux.HandleFunc("GET "+base, a.h(t.index))
+	mux.HandleFunc("POST "+base, a.h(t.store))
+	mux.HandleFunc("GET "+base+"/create", a.h(t.createPage))
+	// Special endpoints use single literal segments (+ ?field=) — two-segment
+	// wildcards like "_options/{field}" would be ambiguous against
+	// "{id}/edit" for the Go 1.22 mux.
+	mux.HandleFunc("GET "+base+"/_schema", a.h(t.schemaJSON))
+	mux.HandleFunc("GET "+base+"/_options", a.h(t.optionsJSON))
+	mux.HandleFunc("POST "+base+"/_upload", a.h(t.uploadFile))
+	mux.HandleFunc("GET "+base+"/{id}/edit", a.h(t.editPage))
+	mux.HandleFunc("PUT "+base+"/{id}", a.h(t.update))
+	mux.HandleFunc("PATCH "+base+"/{id}", a.h(t.update))
+	mux.HandleFunc("DELETE "+base+"/{id}", a.h(t.destroy))
 }
 
 // toSnake converts CamelCase to snake_case ("BlogPost" → "blog_post").
