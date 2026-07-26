@@ -47,10 +47,10 @@ func TestParse(t *testing.T) {
 
 func TestMatches(t *testing.T) {
 	cases := []struct {
-		name         string
+		name           string
 		methods, paths string
-		method, path string
-		want         bool
+		method, path   string
+		want           bool
 	}{
 		{"exact", "", "/auth/users", "GET", "/auth/users", true},
 		{"exact wrong path", "", "/auth/users", "GET", "/auth/user", false},

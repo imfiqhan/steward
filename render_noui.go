@@ -31,3 +31,13 @@ func (a *Admin) noUI(c *Context) error {
 func (a *Admin) serveAsset(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
+
+type emptyFS struct{}
+
+func (emptyFS) Open(string) (fs.File, error) { return nil, fs.ErrNotExist }
+
+// BuiltinTemplates is empty under the no_ui tag.
+func BuiltinTemplates() fs.FS { return emptyFS{} }
+
+// BuiltinAssets is empty under the no_ui tag.
+func BuiltinAssets() fs.FS { return emptyFS{} }

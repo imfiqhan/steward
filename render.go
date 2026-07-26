@@ -309,6 +309,25 @@ func (a *Admin) renderStandalone(c *Context, name string, data any) error {
 	return a.renderer.execute(c.W, name, a.pageMetaFor(c, a.cfg.Brand), data)
 }
 
+// BuiltinTemplates exposes the embedded template tree — the source for
+// `steward publish views` and the reference for override paths.
+func BuiltinTemplates() fs.FS {
+	sub, err := fs.Sub(templatesFS, "templates")
+	if err != nil {
+		panic(err) // embed layout is fixed at compile time
+	}
+	return sub
+}
+
+// BuiltinAssets exposes the embedded static assets.
+func BuiltinAssets() fs.FS {
+	sub, err := fs.Sub(assetsFS, "assets")
+	if err != nil {
+		panic(err)
+	}
+	return sub
+}
+
 // overlayFS exposes the layer chain as one fs.FS (first hit wins).
 type overlayFS []fs.FS
 
