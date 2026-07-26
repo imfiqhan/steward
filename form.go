@@ -34,6 +34,7 @@ const (
 	FieldImage
 	FieldMarkdown
 	FieldBelongsTo
+	FieldMultiSelect
 )
 
 // kindNames map kinds to template partials and schema strings.
@@ -45,6 +46,7 @@ var kindNames = map[FieldKind]string{
 	FieldSwitch: "switch", FieldColor: "color", FieldDate: "date",
 	FieldDatetime: "datetime", FieldTime: "time", FieldFile: "file",
 	FieldImage: "image", FieldMarkdown: "markdown", FieldBelongsTo: "belongsto",
+	FieldMultiSelect: "multiselect",
 }
 
 // Form configures a resource's create/edit view; write-only until Build.
@@ -184,6 +186,17 @@ func (f *Form[T]) BelongsTo(fkPath, relation, titleField string, label ...string
 	return fd
 }
 
+// MultiSelect adds a multiple-choice select. It is virtual by default: the
+// submitted values never write to a model column — read them in a Saved
+// hook via c.R.Form[name] (used for pivot syncing, tags, etc.). Supply the
+// current selection with ValuesFunc.
+func (f *Form[T]) MultiSelect(name string, label ...string) *Field[T] {
+	fd := f.add(FieldMultiSelect, name, label...)
+	fd.virtual = true
+	fd.ignored = true
+	return fd
+}
+
 // Divider inserts a horizontal rule between fields.
 func (f *Form[T]) Divider() {
 	f.fields = append(f.fields, &Field[T]{form: f, kind: FieldDisplay, divider: true, ignored: true})
@@ -265,6 +278,10 @@ type Field[T any] struct {
 
 	savingValue func(c *Context, raw string) (any, error)
 
+	// virtual fields render and submit but never touch a model column.
+	virtual  bool
+	valuesFn func(c *Context, m any) []string
+
 	info *fieldInfo
 }
 
@@ -329,6 +346,13 @@ func (fd *Field[T]) Accept(mimes string) *Field[T] { fd.accept = mimes; return f
 // per-field escape hatch (hashing passwords, normalizing input).
 func (fd *Field[T]) SavingValue(fn func(c *Context, raw string) (any, error)) *Field[T] {
 	fd.savingValue = fn
+	return fd
+}
+
+// ValuesFunc supplies the selected values for a MultiSelect on the edit
+// form; m is the typed row (assert to *T).
+func (fd *Field[T]) ValuesFunc(fn func(c *Context, m any) []string) *Field[T] {
+	fd.valuesFn = fn
 	return fd
 }
 

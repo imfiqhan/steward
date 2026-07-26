@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -104,7 +105,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			vm.Fields = append(vm.Fields, formFieldVM{Divider: true})
 			continue
 		}
-		if fd.info == nil || !fd.visible(creating) {
+		if (fd.info == nil && !fd.virtual) || !fd.visible(creating) {
 			continue
 		}
 		fv := formFieldVM{
@@ -138,6 +139,18 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			}
 			for val, label := range opts {
 				fv.Options = append(fv.Options, optionVM{Value: val, Label: label, Selected: val == fv.Value})
+			}
+		case FieldMultiSelect:
+			opts := fd.options
+			if fd.optionsFn != nil {
+				opts = fd.optionsFn(c)
+			}
+			var selected []string
+			if fd.valuesFn != nil && row != nil {
+				selected = fd.valuesFn(c, row)
+			}
+			for val, label := range opts {
+				fv.Options = append(fv.Options, optionVM{Value: val, Label: label, Selected: slices.Contains(selected, val)})
 			}
 		case FieldBelongsTo:
 			fv.Options = t.belongsToOptions(c, fd, fv.Value)

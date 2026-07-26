@@ -19,10 +19,12 @@ const (
 )
 
 // wrap composes the fixed middleware chain around the route table:
-// recover → access log → session → CSRF → auth → routes.
-// The permission and operation-log layers slot in here with milestone M5.
+// recover → access log → session → CSRF → auth → permission →
+// operation log → routes.
 func (a *Admin) wrap(next http.Handler) http.Handler {
-	h := a.withAuth(next)
+	h := a.withOperationLog(next)
+	h = a.withPermission(h)
+	h = a.withAuth(h)
 	h = a.withCSRF(h)
 	h = a.withSession(h)
 	h = a.withLogging(h)

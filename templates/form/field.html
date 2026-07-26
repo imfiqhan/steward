@@ -25,6 +25,11 @@
       {{range .Options}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}
     </select>
 
+  {{else if eq .Kind "multiselect"}}
+    <select id="field-{{.Name}}" name="{{.Name}}" class="form-select" multiple data-steward-tomselect {{if .Disabled}}disabled{{end}}>
+      {{range .Options}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}
+    </select>
+
   {{else if eq .Kind "radio"}}
     <div>
       {{$f := .}}

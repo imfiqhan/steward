@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/imfiqhan/steward/internal/httpmatch"
 	"github.com/imfiqhan/steward/internal/session"
 )
 
@@ -20,7 +21,8 @@ type Context struct {
 	// User is the authenticated account, nil on public routes (login).
 	User *AdminUser
 
-	sess *session.Data
+	sess      *session.Data
+	permRules []httpmatch.Rule // memoized parsed permissions
 }
 
 // Ctx returns the request's context.Context for repository calls.

@@ -213,6 +213,12 @@ func (t *typedResource[T]) compile(a *Admin) error {
 		if fd.divider {
 			continue
 		}
+		if fd.virtual {
+			if fd.label == "" {
+				fd.label = splitCamel(fd.path)
+			}
+			continue
+		}
 		fd.info = verify("form field", fd.path)
 		if fd.info == nil {
 			continue

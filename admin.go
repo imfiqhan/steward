@@ -185,6 +185,8 @@ func (a *Admin) Verify() error {
 }
 
 func (a *Admin) build() error {
+	a.registerBuiltins()
+
 	for _, jt := range []struct {
 		model any
 		field string
@@ -208,6 +210,10 @@ func (a *Admin) build() error {
 		if err := r.compile(a); err != nil {
 			return fmt.Errorf("steward: compiling resource %q: %w", r.meta().slug, err)
 		}
+	}
+
+	if err := a.syncMenu(context.Background()); err != nil {
+		return fmt.Errorf("steward: menu sync: %w", err)
 	}
 
 	rend, err := newRenderer(a)

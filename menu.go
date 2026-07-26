@@ -1,57 +1,83 @@
 package steward
 
-import "strings"
+import (
+	"strings"
 
-// MenuNode is one rendered sidebar entry. Until milestone M5 wires the
-// admin_menu table and policies in, the sidebar derives directly from the
-// registered resources: groups become section headers, resources become
-// links, Dashboard is always first.
+	"github.com/imfiqhan/steward/internal/httpmatch"
+)
+
+// MenuNode is one rendered sidebar entry.
 type MenuNode struct {
 	Title    string
 	Icon     string
-	URI      string // absolute path
+	URI      string // absolute path ("" for group headers)
 	Active   bool
 	Children []MenuNode
 }
 
+// buildMenu renders the sidebar from admin_menu (kept in sync with the
+// registered resources at Build, editable at auth/menu). Visibility derives
+// from the same permission rules that guard the routes: an entry the user
+// cannot GET is not shown — no separate role↔menu bookkeeping.
 func (a *Admin) buildMenu(c *Context) []MenuNode {
-	current := c.R.URL.Path
-	nodes := []MenuNode{{
-		Title:  "Dashboard",
-		Icon:   "home",
-		URI:    a.cfg.Prefix + "/",
-		Active: current == a.cfg.Prefix+"/" || current == a.cfg.Prefix,
-	}}
+	items, err := a.menuItems(c.Ctx())
+	if err != nil {
+		a.log.Error("steward: menu", "err", err)
+		return nil
+	}
 
-	grouped := map[string][]MenuNode{}
-	var groupOrder []string
-	for _, entry := range a.registry {
-		m := entry.meta()
-		node := MenuNode{
-			Title:  m.title,
-			Icon:   m.icon,
-			URI:    a.url(m.slug),
-			Active: current == a.url(m.slug) || strings.HasPrefix(current, a.url(m.slug)+"/"),
+	isAdmin := c.User != nil && c.User.IsAdministrator()
+	allowed := func(uri string) bool {
+		if uri == "" {
+			return false
 		}
-		if m.group == "" {
-			nodes = append(nodes, node)
+		if uri == "/" || isAdmin {
+			return true
+		}
+		return httpmatch.Matches(c.permissionRules(), "GET", uri)
+	}
+
+	current := c.R.URL.Path
+	toNode := func(it *MenuItem) MenuNode {
+		abs := a.cfg.Prefix + "/" + strings.TrimLeft(it.URI, "/")
+		if it.URI == "/" || it.URI == "" {
+			abs = a.cfg.Prefix + "/"
+		}
+		active := it.URI != "" && (current == abs || (abs != a.cfg.Prefix+"/" && strings.HasPrefix(current, abs+"/")))
+		if it.URI == "/" {
+			active = current == a.cfg.Prefix+"/" || current == a.cfg.Prefix
+		}
+		return MenuNode{Title: it.Title, Icon: it.Icon, URI: abs, Active: active}
+	}
+
+	var roots []MenuNode
+	for i := range items {
+		it := &items[i]
+		if it.ParentID != 0 || !it.Show {
 			continue
 		}
-		if _, seen := grouped[m.group]; !seen {
-			groupOrder = append(groupOrder, m.group)
-		}
-		grouped[m.group] = append(grouped[m.group], node)
-	}
-	for _, g := range groupOrder {
-		children := grouped[g]
-		active := false
-		for _, ch := range children {
-			if ch.Active {
-				active = true
-				break
+		// Collect visible children.
+		var children []MenuNode
+		childActive := false
+		for j := range items {
+			ch := &items[j]
+			if ch.ParentID != it.ID || !ch.Show || !allowed(ch.URI) {
+				continue
 			}
+			node := toNode(ch)
+			childActive = childActive || node.Active
+			children = append(children, node)
 		}
-		nodes = append(nodes, MenuNode{Title: g, Icon: "folder", Active: active, Children: children})
+		switch {
+		case len(children) > 0:
+			node := toNode(it)
+			node.URI = "" // groups render as disclosure, not links
+			node.Active = childActive
+			node.Children = children
+			roots = append(roots, node)
+		case it.URI != "" && allowed(it.URI):
+			roots = append(roots, toNode(it))
+		}
 	}
-	return nodes
+	return roots
 }
