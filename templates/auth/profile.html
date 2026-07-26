@@ -1,0 +1,61 @@
+<div class="page-header d-print-none">
+  <div class="container-xl">
+    <div class="row g-2 align-items-center">
+      <div class="col">
+        <div class="page-pretitle">Account</div>
+        <h2 class="page-title">Profile</h2>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="page-body">
+  <div class="container-xl">
+    <div class="row row-cards">
+      <div class="col-lg-8">
+        <form class="card" method="post" action="{{url "auth/profile"}}">
+          <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+          <div class="card-header"><h3 class="card-title">Account details</h3></div>
+          <div class="card-body">
+            <div class="mb-3">
+              <label class="form-label" for="profile-username">Username</label>
+              <input id="profile-username" type="text" class="form-control" value="{{.Page.User.Username}}" disabled/>
+              <small class="form-hint">Usernames cannot be changed.</small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label required" for="profile-name">Name</label>
+              <input id="profile-name" name="name" type="text"
+                     class="form-control {{if .Data.Errors.name}}is-invalid{{end}}"
+                     value="{{if .Data.Name}}{{.Data.Name}}{{else}}{{.Page.User.Name}}{{end}}" required/>
+              {{with .Data.Errors.name}}<div class="invalid-feedback">{{.}}</div>{{end}}
+            </div>
+            <fieldset class="form-fieldset">
+              <legend>Change password</legend>
+              <div class="mb-3">
+                <label class="form-label" for="profile-old-password">Current password</label>
+                <input id="profile-old-password" name="old_password" type="password"
+                       class="form-control {{if .Data.Errors.old_password}}is-invalid{{end}}" autocomplete="current-password"/>
+                {{with .Data.Errors.old_password}}<div class="invalid-feedback">{{.}}</div>{{end}}
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="profile-password">New password</label>
+                <input id="profile-password" name="password" type="password"
+                       class="form-control {{if .Data.Errors.password}}is-invalid{{end}}" autocomplete="new-password"/>
+                {{with .Data.Errors.password}}<div class="invalid-feedback">{{.}}</div>{{end}}
+                <small class="form-hint">Leave blank to keep your current password.</small>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="profile-password-confirm">Confirm new password</label>
+                <input id="profile-password-confirm" name="password_confirmation" type="password"
+                       class="form-control {{if .Data.Errors.password_confirmation}}is-invalid{{end}}" autocomplete="new-password"/>
+                {{with .Data.Errors.password_confirmation}}<div class="invalid-feedback">{{.}}</div>{{end}}
+              </div>
+            </fieldset>
+          </div>
+          <div class="card-footer text-end">
+            <button type="submit" class="btn btn-primary">Save changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

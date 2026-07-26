@@ -1,0 +1,13 @@
+# binaries
+/steward
+/example/steward-example
+dist/
+
+# local data
+*.db
+*.sqlite
+uploads/
+
+# tooling
+.DS_Store
+coverage.out

@@ -1,0 +1,33 @@
+<div class="card-header">
+  <div class="row w-100 g-2 align-items-center">
+    <div class="col">
+      {{if .Data.Features.quicksearch}}
+      <form method="get" action="{{.Data.BaseURL}}"
+            hx-get="{{.Data.BaseURL}}" hx-target="#page-content" hx-push-url="true">
+        <div class="input-icon" style="max-width: 24rem">
+          <span class="input-icon-addon">{{icon "search"}}</span>
+          <input type="text" name="{{.Data.SearchParam}}" value="{{.Data.Search}}" class="form-control"
+                 placeholder="Search… (field:value, >n, %contains%)" aria-label="Quick search"/>
+        </div>
+      </form>
+      {{end}}
+    </div>
+    <div class="col-auto">
+      <div class="btn-list">
+        {{if .Data.Features.selector}}
+        <button type="button" class="btn btn-ghost-danger d-none" data-steward-batch-delete
+                data-url="{{.Data.DeleteURLBase}}">
+          {{icon "trash"}} Delete selected (<span data-steward-selected-count>0</span>)
+        </button>
+        {{end}}
+        {{if .Data.Features.filter}}
+        <button type="button" class="btn btn-ghost-secondary" data-bs-toggle="collapse" data-bs-target="#grid-filters"
+                aria-expanded="{{if .Data.ActiveFilters}}true{{else}}false{{end}}" aria-controls="grid-filters">
+          {{icon "filter"}} Filters
+          {{if .Data.ActiveFilters}}<span class="badge bg-primary-lt ms-1">{{.Data.ActiveFilters}}</span>{{end}}
+        </button>
+        {{end}}
+      </div>
+    </div>
+  </div>
+</div>

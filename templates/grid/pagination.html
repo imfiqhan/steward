@@ -1,0 +1,36 @@
+{{if .Data.Features.pagination}}
+<div class="card-footer d-flex align-items-center">
+  <p class="m-0 text-secondary">
+    {{if .Data.Rows}}Showing {{.Data.From}}–{{.Data.To}} of {{.Data.Total}}{{else}}No entries{{end}}
+  </p>
+  <form class="ms-3" method="get" action="{{.Data.BaseURL}}"
+        hx-get="{{.Data.BaseURL}}" hx-target="#page-content" hx-push-url="true">
+    <select name="{{.Data.PerParam}}" class="form-select form-select-sm" aria-label="Rows per page"
+            onchange="this.form.requestSubmit()">
+      {{$per := .Data.PerPage}}
+      {{range .Data.PerPageOptions}}
+      <option value="{{.}}" {{if eq . $per}}selected{{end}}>{{.}} / page</option>
+      {{end}}
+    </select>
+  </form>
+  {{if gt .Data.Pages 1}}
+  <ul class="pagination m-0 ms-auto">
+    {{range .Data.Pagination}}
+    <li class="page-item {{if .Active}}active{{end}} {{if .Disabled}}disabled{{end}}">
+      {{if eq .Label "prev"}}
+        <a class="page-link" href="{{.URL}}" {{if not .Disabled}}hx-get="{{.URL}}" hx-target="#page-content" hx-push-url="true"{{end}} aria-label="Previous">
+          {{icon "chevron-left"}}
+        </a>
+      {{else if eq .Label "next"}}
+        <a class="page-link" href="{{.URL}}" {{if not .Disabled}}hx-get="{{.URL}}" hx-target="#page-content" hx-push-url="true"{{end}} aria-label="Next">
+          {{icon "chevron-right"}}
+        </a>
+      {{else}}
+        <a class="page-link" href="{{.URL}}" hx-get="{{.URL}}" hx-target="#page-content" hx-push-url="true">{{.Label}}</a>
+      {{end}}
+    </li>
+    {{end}}
+  </ul>
+  {{end}}
+</div>
+{{end}}

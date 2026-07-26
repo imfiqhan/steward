@@ -1,0 +1,64 @@
+<div class="table-responsive">
+  <table class="table table-vcenter card-table">
+    <thead>
+      <tr>
+        {{if .Data.Features.selector}}
+        <th class="w-1">
+          <input class="form-check-input m-0 align-middle" type="checkbox" data-steward-check-all aria-label="Select all rows"/>
+        </th>
+        {{end}}
+        {{range .Data.Columns}}
+          {{if not .Hidden}}
+          <th {{if .Width}}style="width:{{.Width}}px"{{end}}>
+            {{if .Sortable}}
+              <a href="{{.SortURL}}" class="table-sort {{if .SortState}}{{.SortState}}{{end}}"
+                 hx-get="{{.SortURL}}" hx-target="#page-content" hx-push-url="true">{{.Label}}</a>
+            {{else}}
+              {{.Label}}
+            {{end}}
+            {{if .Help}}<span title="{{.Help}}" data-bs-toggle="tooltip">{{icon "info-circle" "icon-sm text-secondary"}}</span>{{end}}
+          </th>
+          {{end}}
+        {{end}}
+        {{if .Data.Features.actions}}<th class="w-1"></th>{{end}}
+      </tr>
+    </thead>
+    <tbody>
+      {{if not .Data.Rows}}
+      <tr>
+        <td colspan="100">
+          <div class="empty py-5">
+            <div class="empty-icon">{{icon "database" "icon-lg"}}</div>
+            <p class="empty-title">Nothing here yet</p>
+            <p class="empty-subtitle text-secondary">No records match the current view.</p>
+          </div>
+        </td>
+      </tr>
+      {{end}}
+      {{range .Data.Rows}}
+      <tr>
+        {{if $.Data.Features.selector}}
+        <td>
+          <input class="form-check-input m-0 align-middle" type="checkbox" data-steward-row-check value="{{.Key}}" aria-label="Select row"/>
+        </td>
+        {{end}}
+        {{range $i, $cell := .Cells}}
+          {{with index $.Data.Columns $i}}{{if not .Hidden}}<td>{{$cell}}</td>{{end}}{{end}}
+        {{end}}
+        {{if $.Data.Features.actions}}
+        <td>
+          <div class="btn-list flex-nowrap justify-content-end">
+            {{if $.Data.Features.delete}}
+            <button type="button" class="btn btn-icon btn-ghost-danger btn-sm" title="Delete"
+                    data-steward-delete data-url="{{$.Data.DeleteURLBase}}/{{.Key}}">
+              {{icon "trash"}}
+            </button>
+            {{end}}
+          </div>
+        </td>
+        {{end}}
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>

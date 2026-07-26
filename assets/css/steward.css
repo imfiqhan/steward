@@ -1,0 +1,16 @@
+/* Steward chrome on top of Tabler. */
+
+.htmx-request #page-content {
+  opacity: 0.6;
+  transition: opacity 120ms ease-in;
+}
+
+/* Theme-toggle button shows the icon for the theme you can switch to. */
+[data-bs-theme="dark"] .steward-theme-light { display: none; }
+[data-bs-theme="light"] .steward-theme-dark { display: none; }
+:root:not([data-bs-theme="dark"]) .steward-theme-dark { display: none; }
+
+/* Sidebar dropdown stays visible when a child is active. */
+.navbar-vertical .nav-item.dropdown.active > .dropdown-menu {
+  display: block;
+}

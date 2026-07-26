@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en" data-bs-theme="{{.Page.Theme}}">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Sign in — {{.Page.Brand}}</title>
+  <link rel="stylesheet" href="{{asset "css/tabler.min.css"}}"/>
+  <link rel="stylesheet" href="{{asset "css/steward.css"}}"/>
+</head>
+<body class="d-flex flex-column">
+  <div class="page page-center">
+    <div class="container container-tight py-4">
+      <div class="text-center mb-4">
+        <h1 class="navbar-brand navbar-brand-autodark fs-1">{{.Page.Brand}}</h1>
+      </div>
+      <div class="card card-md">
+        <div class="card-body">
+          <h2 class="h2 text-center mb-4">Sign in to your account</h2>
+          {{if .Data.Error}}
+          <div class="alert alert-danger" role="alert">{{.Data.Error}}</div>
+          {{end}}
+          <form action="{{url "auth/login"}}" method="post" autocomplete="off" novalidate>
+            <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+            <div class="mb-3">
+              <label class="form-label" for="login-username">Username</label>
+              <input id="login-username" name="username" type="text" class="form-control" placeholder="Your username"
+                     value="{{.Data.Username}}" autocomplete="username" autofocus required/>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="login-password">Password</label>
+              <input id="login-password" name="password" type="password" class="form-control" placeholder="Your password"
+                     autocomplete="current-password" required/>
+            </div>
+            <div class="form-footer">
+              <button type="submit" class="btn btn-primary w-100">Sign in</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

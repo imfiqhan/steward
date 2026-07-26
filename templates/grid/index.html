@@ -1,0 +1,35 @@
+<div class="page-header d-print-none">
+  <div class="container-xl">
+    <div class="row g-2 align-items-center">
+      <div class="col">
+        <h2 class="page-title">{{.Data.Title}}</h2>
+        <div class="text-secondary mt-1">{{.Data.Total}} total</div>
+      </div>
+      <div class="col-auto ms-auto d-print-none">
+        <div class="btn-list">
+          {{if .Data.Features.export}}
+          <a href="{{.Data.ExportURL}}" class="btn btn-ghost-secondary" title="Export CSV">
+            {{icon "download"}} Export
+          </a>
+          {{end}}
+          {{if .Data.Features.create}}
+          <a href="{{.Data.BaseURL}}/create" class="btn btn-primary"
+             hx-get="{{.Data.BaseURL}}/create" hx-target="#page-content" hx-push-url="true">
+            {{icon "plus"}} New {{.Data.Title}}
+          </a>
+          {{end}}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="page-body">
+  <div class="container-xl">
+    <div class="card">
+      {{template "grid/toolbar.html" .}}
+      {{template "grid/filter.html" .}}
+      {{template "grid/table.html" .}}
+      {{template "grid/pagination.html" .}}
+    </div>
+  </div>
+</div>

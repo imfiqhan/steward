@@ -1,0 +1,8 @@
+{{range .Page.Flashes}}
+<div class="container-xl mt-3">
+  <div class="alert alert-{{if eq .Type "error"}}danger{{else if eq .Type "success"}}success{{else if eq .Type "warning"}}warning{{else}}info{{end}} alert-dismissible" role="alert">
+    <div>{{.Message}}</div>
+    <a class="btn-close" data-bs-dismiss="alert" aria-label="Close"></a>
+  </div>
+</div>
+{{end}}

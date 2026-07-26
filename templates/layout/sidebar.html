@@ -1,0 +1,40 @@
+<aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
+  <div class="container-fluid">
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu" aria-controls="sidebar-menu" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <h1 class="navbar-brand navbar-brand-autodark">
+      <a href="{{.Page.Prefix}}/">{{.Page.Brand}}</a>
+    </h1>
+    <div class="collapse navbar-collapse" id="sidebar-menu">
+      <ul class="navbar-nav pt-lg-3">
+        {{range .Page.Menu}}
+          {{if .Children}}
+            <li class="nav-item dropdown {{if .Active}}active{{end}}">
+              <a class="nav-link dropdown-toggle" href="#navbar-{{.Title}}" data-bs-toggle="dropdown" data-bs-auto-close="false" role="button" aria-expanded="{{if .Active}}true{{else}}false{{end}}">
+                <span class="nav-link-icon d-md-none d-lg-inline-block">{{icon .Icon}}</span>
+                <span class="nav-link-title">{{.Title}}</span>
+              </a>
+              <div class="dropdown-menu {{if .Active}}show{{end}}">
+                {{range .Children}}
+                  <a class="dropdown-item {{if .Active}}active{{end}}" href="{{.URI}}"
+                     hx-get="{{.URI}}" hx-target="#page-content" hx-push-url="true" hx-swap="innerHTML show:window:top">
+                    {{.Title}}
+                  </a>
+                {{end}}
+              </div>
+            </li>
+          {{else}}
+            <li class="nav-item {{if .Active}}active{{end}}">
+              <a class="nav-link" href="{{.URI}}"
+                 hx-get="{{.URI}}" hx-target="#page-content" hx-push-url="true" hx-swap="innerHTML show:window:top">
+                <span class="nav-link-icon d-md-none d-lg-inline-block">{{icon .Icon}}</span>
+                <span class="nav-link-title">{{.Title}}</span>
+              </a>
+            </li>
+          {{end}}
+        {{end}}
+      </ul>
+    </div>
+  </div>
+</aside>

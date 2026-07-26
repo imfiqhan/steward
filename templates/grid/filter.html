@@ -1,0 +1,47 @@
+{{if .Data.Features.filter}}
+<div class="collapse {{if .Data.ActiveFilters}}show{{end}}" id="grid-filters">
+  <div class="card-body border-bottom bg-surface-secondary">
+    <form method="get" action="{{.Data.BaseURL}}"
+          hx-get="{{.Data.BaseURL}}" hx-target="#page-content" hx-push-url="true">
+      <div class="row g-3 align-items-end">
+        {{range .Data.Filters}}
+        <div class="col-sm-6 col-lg-3">
+          <label class="form-label" for="filter-{{.Param}}">{{.Label}}</label>
+          {{if eq .Input "select"}}
+            <select id="filter-{{.Param}}" name="{{.Param}}" class="form-select">
+              <option value="">Any</option>
+              {{range .Options}}
+              <option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>
+              {{end}}
+            </select>
+          {{else if eq .Input "between"}}
+            <div class="input-group">
+              <input id="filter-{{.Param}}" type="text" name="{{.Param}}" value="{{.Value}}" class="form-control" placeholder="min"/>
+              <input type="text" name="{{.Param}}_to" value="{{.Value2}}" class="form-control" placeholder="max" aria-label="{{.Label}} max"/>
+            </div>
+          {{else if eq .Input "datebetween"}}
+            <div class="input-group">
+              <input id="filter-{{.Param}}" type="date" name="{{.Param}}" value="{{.Value}}" class="form-control"/>
+              <input type="date" name="{{.Param}}_to" value="{{.Value2}}" class="form-control" aria-label="{{.Label}} end"/>
+            </div>
+          {{else if eq .Input "date"}}
+            <input id="filter-{{.Param}}" type="date" name="{{.Param}}" value="{{.Value}}" class="form-control"/>
+          {{else if eq .Input "datetime"}}
+            <input id="filter-{{.Param}}" type="datetime-local" name="{{.Param}}" value="{{.Value}}" class="form-control"/>
+          {{else}}
+            <input id="filter-{{.Param}}" type="text" name="{{.Param}}" value="{{.Value}}" class="form-control" placeholder="{{.Placeholder}}"/>
+          {{end}}
+        </div>
+        {{end}}
+        <div class="col-auto">
+          <div class="btn-list">
+            <button type="submit" class="btn btn-primary">{{icon "filter"}} Apply</button>
+            <a class="btn btn-link" href="{{.Data.ResetURL}}"
+               hx-get="{{.Data.ResetURL}}" hx-target="#page-content" hx-push-url="true">Reset</a>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{{end}}

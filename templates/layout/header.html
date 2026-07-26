@@ -1,0 +1,32 @@
+<header class="navbar navbar-expand-md d-none d-lg-flex d-print-none">
+  <div class="container-xl">
+    <div class="navbar-nav flex-row order-md-last align-items-center">
+      <div class="nav-item me-2">
+        <button type="button" class="btn btn-icon btn-ghost-secondary" data-steward-theme-toggle aria-label="Toggle color scheme">
+          <span class="steward-theme-light">{{icon "moon"}}</span>
+          <span class="steward-theme-dark">{{icon "sun"}}</span>
+        </button>
+      </div>
+      {{if .Page.User}}
+      <div class="nav-item dropdown">
+        <a href="#" class="nav-link d-flex lh-1 p-0 px-2" data-bs-toggle="dropdown" aria-label="Open user menu">
+          <span class="avatar avatar-sm">{{icon "user"}}</span>
+          <div class="d-none d-xl-block ps-2">
+            <div>{{if .Page.User.Name}}{{.Page.User.Name}}{{else}}{{.Page.User.Username}}{{end}}</div>
+            <div class="mt-1 small text-secondary">{{.Page.User.Username}}</div>
+          </div>
+        </a>
+        <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+          <a href="{{url "auth/profile"}}" class="dropdown-item"
+             hx-get="{{url "auth/profile"}}" hx-target="#page-content" hx-push-url="true">Profile</a>
+          <div class="dropdown-divider"></div>
+          <form method="post" action="{{url "auth/logout"}}">
+            <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+            <button type="submit" class="dropdown-item">Sign out</button>
+          </form>
+        </div>
+      </div>
+      {{end}}
+    </div>
+  </div>
+</header>
