@@ -5,8 +5,16 @@
   transition: opacity 120ms ease-in;
 }
 
-/* Grid action buttons live in a width-squeezed (w-1) cell; without this
-   the flex children shrink below icon size and overlap. */
+/* Grid action buttons live in a width-squeezed (w-1) table cell. Flex
+   min-content doesn't reliably propagate through auto-layout cells in
+   WebKit, so pin the row to its natural width and keep it right-aligned;
+   the cell then can't collapse below the buttons. */
+.table td .btn-list.flex-nowrap {
+  flex-wrap: nowrap;
+  width: max-content;
+  margin-left: auto;
+}
+
 .table td .btn-list.flex-nowrap .btn {
   flex-shrink: 0;
 }
