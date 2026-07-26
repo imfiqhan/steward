@@ -18,6 +18,7 @@ type Post struct {
 	Title       string `gorm:"size:255"`
 	Body        string `gorm:"type:text"`
 	Status      string `gorm:"size:20;default:draft"` // draft | published
+	Featured    bool   `gorm:"default:false"`
 	Cover       string `gorm:"size:255"`
 	PublishedAt *time.Time
 	AuthorID    uint

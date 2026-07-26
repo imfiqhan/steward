@@ -356,6 +356,10 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 		}
 	}
 
+	// Inline single-field edits stay on the page: toast only, no redirect.
+	if c.R.FormValue("_inline") == "1" {
+		return c.Envelope(Success("Saved."))
+	}
 	verb := "updated"
 	if creating {
 		verb = "created"

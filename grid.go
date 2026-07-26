@@ -14,6 +14,10 @@ type Grid[T any] struct {
 	filters     []*FilterItem[T]
 	quickSearch []string
 
+	rowActions   []*Action
+	batchActions []*Action
+	toolActions  []*Action
+
 	perPage        int
 	perPageOptions []int
 	defaultSort    *Sort
@@ -105,6 +109,15 @@ func (g *Grid[T]) DisableQuickSearch() *Grid[T] { g.off["quicksearch"] = true; r
 
 func (g *Grid[T]) enabled(feature string) bool { return !g.off[feature] }
 
+// inlineKind marks a column as live-editable from the grid.
+type inlineKind int
+
+const (
+	inlineNone inlineKind = iota
+	inlineSwitch
+	inlineText
+)
+
 // Column configures one grid column; every method returns the column for
 // chaining. Display callbacks receive the typed row — never a map.
 type Column[T any] struct {
@@ -116,6 +129,7 @@ type Column[T any] struct {
 	hidden   bool
 	width    int
 	help     string
+	inline   inlineKind
 
 	// transform mutates the raw value before presentation (Limit, Using).
 	transform []func(v any, row *T) any
@@ -124,6 +138,15 @@ type Column[T any] struct {
 
 	info *fieldInfo // resolved at compile
 }
+
+// Switch renders a live toggle that saves immediately through the form
+// pipeline. The resource's form must declare a Switch field for the same
+// path — its rules and hooks apply to inline edits too.
+func (c *Column[T]) Switch() *Column[T] { c.inline = inlineSwitch; return c }
+
+// Editable renders a click-to-edit text cell saving through the form
+// pipeline; the form must declare a field for the same path.
+func (c *Column[T]) Editable() *Column[T] { c.inline = inlineText; return c }
 
 // Sortable makes the header clickable.
 func (c *Column[T]) Sortable() *Column[T] { c.sortable = true; return c }

@@ -167,7 +167,7 @@
 
   function refreshBatchUI() {
     var keys = selectedKeys();
-    document.querySelectorAll("[data-steward-batch-delete]").forEach(function (btn) {
+    document.querySelectorAll("[data-steward-batch-delete], [data-steward-action][data-batch]").forEach(function (btn) {
       btn.classList.toggle("d-none", keys.length === 0);
       var count = btn.querySelector("[data-steward-selected-count]");
       if (count) count.textContent = String(keys.length);
@@ -207,6 +207,35 @@
       navigator.clipboard.writeText(copy.getAttribute("data-steward-copy")).then(function () {
         toast("success", "Copied to clipboard.");
       });
+      return;
+    }
+    var action = e.target.closest("[data-steward-action]");
+    if (action) {
+      var ids = [];
+      if (action.hasAttribute("data-batch")) {
+        ids = selectedKeys();
+        if (ids.length === 0) return;
+      } else if (action.getAttribute("data-ids")) {
+        ids = [action.getAttribute("data-ids")];
+      }
+      var confirmMsg = action.getAttribute("data-confirm");
+      if (confirmMsg && !window.confirm(confirmMsg)) return;
+      var body = new URLSearchParams();
+      if (ids.length > 0) body.set("ids", ids.join(","));
+      action.disabled = true;
+      fetch(action.getAttribute("data-url"), {
+        method: "POST",
+        headers: {
+          "X-CSRF-Token": csrfToken(),
+          "Accept": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: body.toString(),
+        credentials: "same-origin"
+      }).then(function (resp) { return resp.json(); }).then(handleEnvelope).catch(function () {
+        toast("error", "Action failed — check your connection and retry.");
+      }).finally(function () { action.disabled = false; });
     }
   });
 
@@ -293,6 +322,96 @@
     }).catch(function () {
       toast("error", "Upload failed — check your connection and retry.");
     }).finally(function () { input.disabled = false; });
+  });
+
+  /* ---- Inline grid editing ----------------------------------------------- */
+
+  function putField(url, field, params) {
+    var body = new URLSearchParams(params);
+    body.set("_inline", "1");
+    return fetch(url, {
+      method: "PUT",
+      headers: {
+        "X-CSRF-Token": csrfToken(),
+        "Accept": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: body.toString(),
+      credentials: "same-origin"
+    }).then(function (resp) { return resp.json(); });
+  }
+
+  document.addEventListener("change", function (e) {
+    var sw = e.target.closest("[data-steward-inline-switch]");
+    if (!sw) return;
+    var field = sw.getAttribute("data-field");
+    var params = {};
+    params["_present_" + field] = "1";
+    if (sw.checked) params[field] = "on";
+    sw.disabled = true;
+    putField(sw.getAttribute("data-url"), field, params).then(function (env) {
+      if (env && env.errors) {
+        sw.checked = !sw.checked;
+        toast("error", Object.values(env.errors).flat().join(" "));
+        return;
+      }
+      handleEnvelope(env);
+    }).catch(function () {
+      sw.checked = !sw.checked;
+      toast("error", "Save failed — check your connection and retry.");
+    }).finally(function () { sw.disabled = false; });
+  });
+
+  function startInlineEdit(cell) {
+    if (cell.querySelector("input")) return;
+    var original = cell.textContent;
+    var input = document.createElement("input");
+    input.type = "text";
+    input.className = "form-control form-control-sm d-inline-block";
+    input.style.width = Math.max(120, cell.offsetWidth + 24) + "px";
+    input.value = original;
+    cell.textContent = "";
+    cell.appendChild(input);
+    input.focus();
+    input.select();
+
+    var done = false;
+    function finish(save) {
+      if (done) return;
+      done = true;
+      var next = input.value;
+      cell.textContent = original;
+      if (!save || next === original) return;
+      var field = cell.getAttribute("data-field");
+      var params = {};
+      params[field] = next;
+      putField(cell.getAttribute("data-url"), field, params).then(function (env) {
+        if (env && env.errors) {
+          toast("error", Object.values(env.errors).flat().join(" "));
+          return;
+        }
+        cell.textContent = next;
+        handleEnvelope(env);
+      }).catch(function () {
+        toast("error", "Save failed — check your connection and retry.");
+      });
+    }
+    input.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") { ev.preventDefault(); finish(true); }
+      if (ev.key === "Escape") finish(false);
+    });
+    input.addEventListener("blur", function () { finish(true); });
+  }
+
+  document.addEventListener("click", function (e) {
+    var cell = e.target.closest("[data-steward-editable]");
+    if (cell) startInlineEdit(cell);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+    var cell = e.target.closest && e.target.closest("[data-steward-editable]");
+    if (cell && !cell.querySelector("input")) { e.preventDefault(); startInlineEdit(cell); }
   });
 
   /* ---- Theme toggle ------------------------------------------------------ */

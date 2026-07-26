@@ -231,6 +231,32 @@ func (t *typedResource[T]) compile(a *Admin) error {
 		}
 	}
 
+	// Inline-editable columns must map to a form field of the same path so
+	// their writes share the form's validation and hooks.
+	for _, col := range g.columns {
+		if col.inline == inlineNone || col.computed {
+			continue
+		}
+		var match *Field[T]
+		for _, fd := range fm.fields {
+			if fd.path == col.path && !fd.virtual && !fd.ignored {
+				match = fd
+				break
+			}
+		}
+		switch {
+		case match == nil:
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"resource %q: inline column %q has no matching form field", t.res.m.slug, col.path))
+			col.inline = inlineNone
+		case col.inline == inlineSwitch && match.kind != FieldSwitch:
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"resource %q: inline switch column %q needs a form Switch field", t.res.m.slug, col.path))
+			col.inline = inlineNone
+		}
+	}
+
+	t.verifyActions(a)
 	t.compileDetail(a)
 	return nil
 }
@@ -324,6 +350,7 @@ func (t *typedResource[T]) registerRoutes(a *Admin, mux *http.ServeMux) {
 	mux.HandleFunc("GET "+base+"/_schema", a.h(t.schemaJSON))
 	mux.HandleFunc("GET "+base+"/_options", a.h(t.optionsJSON))
 	mux.HandleFunc("POST "+base+"/_upload", a.h(t.uploadFile))
+	mux.HandleFunc("POST "+base+"/_action/{name}", a.h(t.dispatchAction))
 	mux.HandleFunc("GET "+base+"/{id}", a.h(t.show))
 	mux.HandleFunc("GET "+base+"/{id}/edit", a.h(t.editPage))
 	mux.HandleFunc("PUT "+base+"/{id}", a.h(t.update))

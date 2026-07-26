@@ -14,10 +14,24 @@
     </div>
     <div class="col-auto">
       <div class="btn-list">
-        {{if .Data.Features.selector}}
+        {{range .Data.BatchActions}}
+        <button type="button" class="btn d-none {{if .Danger}}btn-ghost-danger{{else}}btn-ghost-secondary{{end}}"
+                data-steward-action data-batch data-url="{{.URL}}"
+                {{with .Confirm}}data-confirm="{{.}}"{{end}}>
+          {{if .Icon}}{{icon .Icon}}{{end}} {{.Label}}
+        </button>
+        {{end}}
+        {{if and .Data.Features.selector .Data.Features.delete}}
         <button type="button" class="btn btn-ghost-danger d-none" data-steward-batch-delete
                 data-url="{{.Data.DeleteURLBase}}">
           {{icon "trash"}} Delete selected (<span data-steward-selected-count>0</span>)
+        </button>
+        {{end}}
+        {{range .Data.ToolActions}}
+        <button type="button" class="btn {{if .Danger}}btn-ghost-danger{{else}}btn-ghost-secondary{{end}}"
+                data-steward-action data-url="{{.URL}}"
+                {{with .Confirm}}data-confirm="{{.}}"{{end}}>
+          {{if .Icon}}{{icon .Icon}}{{end}} {{.Label}}
         </button>
         {{end}}
         {{if .Data.Features.filter}}

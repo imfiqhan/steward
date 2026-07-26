@@ -25,6 +25,16 @@
   margin-left: auto;
 }
 
+/* Click-to-edit grid cells. */
+.steward-editable {
+  cursor: pointer;
+  border-bottom: 1px dashed var(--tblr-border-color);
+}
+.steward-editable:hover,
+.steward-editable:focus-visible {
+  border-bottom-color: var(--tblr-primary);
+}
+
 /* Sidebar dropdown stays visible when a child is active. */
 .navbar-vertical .nav-item.dropdown.active > .dropdown-menu {
   display: block;

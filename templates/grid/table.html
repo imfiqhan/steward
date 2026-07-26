@@ -47,7 +47,15 @@
         {{end}}
         {{if $.Data.Features.actions}}
         <td>
+          {{$key := .Key}}
           <div class="btn-list flex-nowrap justify-content-end">
+            {{range $.Data.RowActions}}
+            <button type="button" class="btn btn-sm {{if .Danger}}btn-ghost-danger{{else}}btn-ghost-secondary{{end}}"
+                    data-steward-action data-url="{{.URL}}" data-ids="{{$key}}"
+                    {{with .Confirm}}data-confirm="{{.}}"{{end}}>
+              {{if .Icon}}{{icon .Icon}}{{end}} {{.Label}}
+            </button>
+            {{end}}
             {{if $.Data.Features.view}}
             <a class="btn btn-icon btn-ghost-secondary btn-sm" title="View" href="{{$.Data.BaseURL}}/{{.Key}}"
                hx-get="{{$.Data.BaseURL}}/{{.Key}}" hx-target="#page-content" hx-push-url="true">

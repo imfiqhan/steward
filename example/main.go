@@ -76,8 +76,9 @@ func registerResources(app *steward.Admin) {
 		Group("Content").
 		Grid(func(g *steward.Grid[models.Post]) {
 			g.Column("ID").Sortable().Width(60)
-			g.Column("Title").Limit(40).Sortable()
+			g.Column("Title").Sortable().Editable()
 			g.Column("Status").Badge(map[any]string{"draft": "secondary", "published": "green"})
+			g.Column("Featured").Switch().Width(80)
 			g.Column("Author.Name", "Author")
 			g.Column("PublishedAt", "Published").Sortable()
 			g.Column("CreatedAt", "Created").Sortable()
@@ -88,11 +89,27 @@ func registerResources(app *steward.Admin) {
 				f.Like("Title")
 				f.Between("CreatedAt", "Created").Datetime()
 			})
+			publish := func(c *steward.Context, ids []string) (*steward.Envelope, error) {
+				if len(ids) == 0 {
+					return steward.Error("Nothing selected."), nil
+				}
+				err := c.Admin.DB().WithContext(c.Ctx()).
+					Model(&models.Post{}).Where("id IN ?", ids).
+					Updates(map[string]any{"status": "published", "published_at": time.Now()}).Error
+				if err != nil {
+					return nil, err
+				}
+				return steward.Success("Published.").Refresh(), nil
+			}
+			g.RowAction(steward.NewAction("publish", "Publish", publish).Icon("upload"))
+			g.BatchAction(steward.NewAction("publish-selected", "Publish selected", publish).
+				Icon("upload").Confirm("Publish all selected posts?"))
 		}).
 		Form(func(f *steward.Form[models.Post]) {
 			f.Text("Title").Rules("required|max:255").Placeholder("Post title")
 			f.Markdown("Body").Rules("required")
 			f.Radio("Status").Options(steward.Options{"draft": "Draft", "published": "Published"}).Default("draft")
+			f.Switch("Featured")
 			f.Datetime("PublishedAt", "Published at").Help("Set automatically when publishing.")
 			f.BelongsTo("AuthorID", "Author", "Name", "Author").Rules("required")
 			f.Image("Cover").Dir("posts").MaxSize(2 << 20)

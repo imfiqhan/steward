@@ -228,6 +228,9 @@ type gridVM struct {
 	ResetURL       string
 	Features       map[string]bool
 	DeleteURLBase  string
+	RowActions     []actionVM
+	BatchActions   []actionVM
+	ToolActions    []actionVM
 }
 
 // urlWith rebuilds the current URL with parameter overrides ("" deletes).
@@ -261,6 +264,9 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		ExportURL:      urlWith(c, map[string]string{t.param("export"): "all"}),
 		ResetURL:       c.URL(m.slug),
 		DeleteURLBase:  c.URL(m.slug),
+		RowActions:     actionVMs(c.URL(m.slug), g.rowActions),
+		BatchActions:   actionVMs(c.URL(m.slug), g.batchActions),
+		ToolActions:    actionVMs(c.URL(m.slug), g.toolActions),
 		Features: map[string]bool{
 			"create":      g.enabled("create"),
 			"delete":      g.enabled("delete"),
@@ -268,10 +274,10 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 			"view":        g.enabled("view"),
 			"filter":      g.enabled("filter") && len(g.filters) > 0,
 			"export":      g.enabled("export"),
-			"selector":    g.enabled("selector") && g.enabled("delete"),
+			"selector":    g.enabled("selector") && (g.enabled("delete") || len(g.batchActions) > 0),
 			"pagination":  g.enabled("pagination"),
 			"quicksearch": g.enabled("quicksearch") && len(g.quickSearch) > 0,
-			"actions":     g.enabled("delete") || g.enabled("edit") || g.enabled("view"),
+			"actions":     g.enabled("delete") || g.enabled("edit") || g.enabled("view") || len(g.rowActions) > 0,
 		},
 	}
 
@@ -366,6 +372,9 @@ func (t *typedResource[T]) renderCell(col *Column[T], row *T) template.HTML {
 			val = v
 		}
 	}
+	if col.inline != inlineNone && !col.computed {
+		return t.renderInlineCell(col, row, val)
+	}
 	for _, tr := range col.transform {
 		val = tr(val, row)
 	}
@@ -373,6 +382,34 @@ func (t *typedResource[T]) renderCell(col *Column[T], row *T) template.HTML {
 		return col.present(val, row)
 	}
 	return defaultCell(val)
+}
+
+// renderInlineCell emits live-edit controls that PUT the single field to the
+// standard update route (validated by the matching form field).
+func (t *typedResource[T]) renderInlineCell(col *Column[T], row *T, val any) template.HTML {
+	url := template.HTMLEscapeString("/" + strings.TrimLeft(t.res.a.url(t.res.m.slug, t.rowKey(row)), "/"))
+	field := template.HTMLEscapeString(col.path)
+	switch col.inline {
+	case inlineSwitch:
+		checked := ""
+		if truthy(val) {
+			checked = "checked"
+		}
+		return template.HTML(fmt.Sprintf(
+			`<label class="form-check form-switch m-0"><input type="checkbox" class="form-check-input" %s data-steward-inline-switch data-url="%s" data-field="%s" aria-label="Toggle %s"/></label>`,
+			checked, url, field, field))
+	case inlineText:
+		s := ""
+		if val != nil {
+			s = fmt.Sprint(val)
+		}
+		esc := template.HTMLEscapeString(s)
+		return template.HTML(fmt.Sprintf(
+			`<span class="steward-editable" tabindex="0" role="button" data-steward-editable data-url="%s" data-field="%s" title="Click to edit">%s</span>`,
+			url, field, esc))
+	default:
+		return defaultCell(val)
+	}
 }
 
 // defaultCell formats a raw value for display.

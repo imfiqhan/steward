@@ -51,11 +51,14 @@ role/permission/user admin), menu administration with sync-from-code,
 operation log, settings KV, scheduler page, dark mode, `no_ui` builds, and
 the `steward` CLI (`new`, `make:resource`, `make:migration`, `publish`).
 
+Also: inline grid editing (`Column.Switch()` / `Column.Editable()` saving
+through the form's validation), custom row/batch/tool actions with a typed
+dispatch endpoint, and a WebKit visual-regression script (`make visual`).
+
 **Backlog** (deliberately deferred): nested hasMany/embeds forms, tree grids,
-inline cell editing, custom row/batch actions, complex headers, column
-show/hide, drag-drop menu ordering, `make:resource --from-db/--from-struct`,
-Redis cache & S3 storage drivers, full-text Searcher, cron-expression
-schedules, extensions system.
+complex headers, column show/hide, drag-drop menu ordering,
+`make:resource --from-db/--from-struct`, Redis cache & S3 storage drivers,
+full-text Searcher, cron-expression schedules, extensions system.
 
 ## Development
 

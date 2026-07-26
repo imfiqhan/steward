@@ -24,6 +24,11 @@ run:
 e2e:
 	./scripts/e2e.sh
 
+# Requires: npm i playwright && npx playwright install webkit,
+# plus a running example server (make run).
+visual:
+	node scripts/visual.mjs
+
 tidy:
 	$(GO) mod tidy
 	cd example && $(GO) mod tidy
