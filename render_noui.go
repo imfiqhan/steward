@@ -2,7 +2,10 @@
 
 package steward
 
-import "net/http"
+import (
+	"io/fs"
+	"net/http"
+)
 
 // With the no_ui build tag the embedded templates and assets are compiled
 // out entirely (smaller binaries for headless/API-only deployments). Every

@@ -117,7 +117,8 @@ func (a *Admin) withCSRF(next http.Handler) http.Handler {
 func (a *Admin) publicPath(p string) bool {
 	rel := strings.TrimPrefix(p, a.cfg.Prefix)
 	rel = "/" + strings.TrimLeft(rel, "/")
-	if rel == "/auth/login" || strings.HasPrefix(rel, "/_assets/") || strings.HasPrefix(rel, "/_uploads/") {
+	if rel == "/auth/login" || rel == "/auth/forgot" || rel == "/auth/reset" ||
+		strings.HasPrefix(rel, "/_assets/") || strings.HasPrefix(rel, "/_uploads/") {
 		return true
 	}
 	for _, pat := range a.cfg.AuthExcept {

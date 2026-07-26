@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en" data-bs-theme="{{.Page.Theme}}">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Reset password — {{.Page.Brand}}</title>
+  <link rel="stylesheet" href="{{asset "css/tabler.min.css"}}"/>
+</head>
+<body class="d-flex flex-column">
+  <div class="page page-center">
+    <div class="container container-tight py-4">
+      <div class="card card-md">
+        <div class="card-body">
+          <h2 class="h2 text-center mb-4">Choose a new password</h2>
+          {{if .Data.Invalid}}
+          <div class="alert alert-danger" role="alert">
+            This reset link is invalid or has expired. Request a new one.
+          </div>
+          <div class="text-center"><a href="{{url "auth/forgot"}}">Request new link</a></div>
+          {{else}}
+          {{with .Data.Error}}<div class="alert alert-danger" role="alert">{{.}}</div>{{end}}
+          <form action="{{url "auth/reset"}}" method="post" novalidate>
+            <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+            <input type="hidden" name="token" value="{{.Data.Token}}"/>
+            <div class="mb-3">
+              <label class="form-label" for="reset-password">New password</label>
+              <input id="reset-password" name="password" type="password" class="form-control" autocomplete="new-password" autofocus required/>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="reset-confirm">Confirm password</label>
+              <input id="reset-confirm" name="password_confirmation" type="password" class="form-control" autocomplete="new-password" required/>
+            </div>
+            <div class="form-footer">
+              <button type="submit" class="btn btn-primary w-100">Reset password</button>
+            </div>
+          </form>
+          {{end}}
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

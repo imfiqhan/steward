@@ -41,6 +41,22 @@ ginsteward.Mount(router, app) // or mount app as a plain http.Handler
 - **Scaffolding CLI** — `steward new`, `steward make:resource` (from a field
   spec, a live database, or a Go struct) with DB-type → field-type inference.
 
+## What's here today
+
+Working end-to-end: auth (sessions, CSRF, password reset via SMTP), versioned
+migrations with seeding, Grid (filters, quick-search DSL, CSV export, batch
+delete, JSON API), Form (21 field kinds, Laravel-style rules, uploads, typed
+hooks), Detail (+ relation grids), RBAC (permission matcher, policies,
+role/permission/user admin), menu administration with sync-from-code,
+operation log, settings KV, scheduler page, dark mode, `no_ui` builds, and
+the `steward` CLI (`new`, `make:resource`, `make:migration`, `publish`).
+
+**Backlog** (deliberately deferred): nested hasMany/embeds forms, tree grids,
+inline cell editing, custom row/batch actions, complex headers, column
+show/hide, drag-drop menu ordering, `make:resource --from-db/--from-struct`,
+Redis cache & S3 storage drivers, full-text Searcher, cron-expression
+schedules, extensions system.
+
 ## Development
 
 ```sh

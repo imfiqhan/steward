@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en" data-bs-theme="{{.Page.Theme}}">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Forgot password — {{.Page.Brand}}</title>
+  <link rel="stylesheet" href="{{asset "css/tabler.min.css"}}"/>
+</head>
+<body class="d-flex flex-column">
+  <div class="page page-center">
+    <div class="container container-tight py-4">
+      <div class="card card-md">
+        <div class="card-body">
+          <h2 class="h2 text-center mb-4">Forgot your password?</h2>
+          {{if .Data.Sent}}
+          <div class="alert alert-success" role="alert">
+            If an account exists for that address, a reset link is on its way. Check your inbox.
+          </div>
+          <div class="text-center"><a href="{{url "auth/login"}}">Back to sign in</a></div>
+          {{else}}
+          <p class="text-secondary mb-3">Enter the email on your account and we'll send a reset link.</p>
+          <form action="{{url "auth/forgot"}}" method="post" novalidate>
+            <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+            <div class="mb-3">
+              <label class="form-label" for="forgot-email">Email address</label>
+              <input id="forgot-email" name="email" type="email" class="form-control" placeholder="you@example.com" autofocus required/>
+            </div>
+            <div class="form-footer">
+              <button type="submit" class="btn btn-primary w-100">Send reset link</button>
+            </div>
+          </form>
+          <div class="text-center mt-3"><a href="{{url "auth/login"}}">Back to sign in</a></div>
+          {{end}}
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

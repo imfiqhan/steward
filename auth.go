@@ -3,17 +3,24 @@ package steward
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+
+	"github.com/imfiqhan/steward/internal/session"
 )
 
 func (a *Admin) loginPage(c *Context) error {
 	if c.User != nil {
 		return c.Redirect(a.url("/"))
 	}
-	return a.renderStandalone(c, "auth/login.html", map[string]any{"Error": ""})
+	return a.renderStandalone(c, "auth/login.html", map[string]any{
+		"Error":    "",
+		"CanReset": a.cfg.Mailer != nil,
+	})
 }
 
 func (a *Admin) loginSubmit(c *Context) error {
@@ -28,6 +35,7 @@ func (a *Admin) loginSubmit(c *Context) error {
 		return a.renderStandalone(c, "auth/login.html", map[string]any{
 			"Error":    "These credentials do not match our records.",
 			"Username": username,
+			"CanReset": a.cfg.Mailer != nil,
 		})
 	}
 	if username == "" || password == "" {
@@ -66,6 +74,117 @@ func displayName(u *AdminUser) string {
 		return u.Name
 	}
 	return u.Username
+}
+
+// ---- password reset (enabled when Config.Mailer is set) ---------------------
+//
+// The reset token is a sealed session payload with a sentinel CSRF value —
+// stateless, expiring, and invalidated by rotating the secret key.
+
+const resetPurpose = "steward-password-reset"
+
+func (a *Admin) makeResetToken(uid uint) (string, error) {
+	return a.codec.Encode(&session.Data{UID: uid, CSRF: resetPurpose})
+}
+
+// parseResetToken accepts tokens younger than an hour.
+func (a *Admin) parseResetToken(token string) (uint, bool) {
+	d, err := a.codec.Decode(token)
+	if err != nil || d.CSRF != resetPurpose || d.UID == 0 {
+		return 0, false
+	}
+	if time.Since(time.Unix(d.IssuedAt, 0)) > time.Hour {
+		return 0, false
+	}
+	return d.UID, true
+}
+
+func (a *Admin) forgotPage(c *Context) error {
+	return a.renderStandalone(c, "auth/forgot.html", map[string]any{"Sent": false})
+}
+
+func (a *Admin) forgotSubmit(c *Context) error {
+	if err := c.R.ParseForm(); err != nil {
+		return err
+	}
+	email := strings.TrimSpace(c.R.PostFormValue("email"))
+	// Constant response whether or not the account exists.
+	respond := func() error {
+		return a.renderStandalone(c, "auth/forgot.html", map[string]any{"Sent": true, "Email": email})
+	}
+	if email == "" {
+		return respond()
+	}
+	var user AdminUser
+	err := a.db.WithContext(c.Ctx()).Where("email = ?", email).First(&user).Error
+	if err != nil {
+		return respond()
+	}
+	token, err := a.makeResetToken(user.ID)
+	if err != nil {
+		return err
+	}
+	link := requestOrigin(c.R) + a.url("auth/reset") + "?token=" + url.QueryEscape(token)
+	mail := Mail{
+		To:      []string{email},
+		Subject: a.cfg.Brand + ": reset your password",
+		Text: "Someone requested a password reset for your " + a.cfg.Brand + " account.\n\n" +
+			"Reset it within one hour: " + link + "\n\nIf this wasn't you, ignore this message.",
+	}
+	if err := a.cfg.Mailer.Send(c.Ctx(), mail); err != nil {
+		a.log.Error("steward: reset mail", "err", err)
+	}
+	return respond()
+}
+
+// requestOrigin reconstructs scheme://host for building absolute links.
+func requestOrigin(r *http.Request) string {
+	scheme := "http"
+	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+		scheme = "https"
+	}
+	return scheme + "://" + r.Host
+}
+
+func (a *Admin) resetPage(c *Context) error {
+	token := c.R.URL.Query().Get("token")
+	if _, ok := a.parseResetToken(token); !ok {
+		c.W.WriteHeader(http.StatusForbidden)
+		return a.renderStandalone(c, "auth/reset.html", map[string]any{"Invalid": true})
+	}
+	return a.renderStandalone(c, "auth/reset.html", map[string]any{"Token": token})
+}
+
+func (a *Admin) resetSubmit(c *Context) error {
+	if err := c.R.ParseForm(); err != nil {
+		return err
+	}
+	token := c.R.PostFormValue("token")
+	uid, ok := a.parseResetToken(token)
+	if !ok {
+		c.W.WriteHeader(http.StatusForbidden)
+		return a.renderStandalone(c, "auth/reset.html", map[string]any{"Invalid": true})
+	}
+	password := c.R.PostFormValue("password")
+	confirm := c.R.PostFormValue("password_confirmation")
+	if len(password) < 5 || len(password) > 72 {
+		return a.renderStandalone(c, "auth/reset.html", map[string]any{
+			"Token": token, "Error": "Password must be between 5 and 72 characters."})
+	}
+	if password != confirm {
+		return a.renderStandalone(c, "auth/reset.html", map[string]any{
+			"Token": token, "Error": "Password confirmation does not match."})
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	if err := a.db.WithContext(c.Ctx()).Model(&AdminUser{}).Where("id = ?", uid).
+		Update("password", string(hash)).Error; err != nil {
+		return err
+	}
+	c.Flash("success", "Password updated — sign in with your new password.")
+	return c.Redirect(a.url("auth/login"))
 }
 
 func (a *Admin) profilePage(c *Context) error {
