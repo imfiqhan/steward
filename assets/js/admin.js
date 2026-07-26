@@ -300,6 +300,7 @@
   document.addEventListener("click", function (e) {
     var btn = e.target.closest("[data-steward-theme-toggle]");
     if (!btn) return;
+    e.preventDefault();
     var html = document.documentElement;
     var next = html.getAttribute("data-bs-theme") === "dark" ? "light" : "dark";
     html.setAttribute("data-bs-theme", next);
