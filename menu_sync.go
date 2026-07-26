@@ -120,6 +120,7 @@ func (a *Admin) registerMenuResource() {
 		g.DefaultSort("Order", false)
 		g.DisableExport()
 		g.DisablePagination()
+		g.Tree("ParentID")
 		g.Reorderable(a.url("auth/menu", "_order"))
 	})
 

@@ -18,10 +18,13 @@ type Grid[T any] struct {
 	batchActions []*Action
 	toolActions  []*Action
 
+	headerGroups []headerGroup
+
 	perPage        int
 	perPageOptions []int
 	defaultSort    *Sort
 	reorderURL     string
+	treePath       string
 
 	off map[string]bool // feature switches (create, delete, filter, ...)
 }
@@ -84,6 +87,30 @@ func (g *Grid[T]) DefaultSort(path string, desc bool) *Grid[T] {
 // with a Resource.Page handler that persists the order.
 func (g *Grid[T]) Reorderable(url string) *Grid[T] {
 	g.reorderURL = url
+	return g
+}
+
+// Tree renders rows as a collapsible hierarchy over the given parent-key
+// field ("ParentID"). The whole tree loads at once (up to 1000 rows) in
+// depth-first order; quick search and filters fall back to the flat list.
+func (g *Grid[T]) Tree(parentPath string) *Grid[T] {
+	g.treePath = parentPath
+	return g
+}
+
+// headerGroup spans a label over contiguous columns (complex headers).
+type headerGroup struct {
+	label string
+	paths []string
+	start int // resolved at compile
+	span  int
+}
+
+// GroupColumns spans a header label over the named columns, which must be
+// contiguous in declaration order (verified at Build). The column picker is
+// disabled on grids with grouped headers.
+func (g *Grid[T]) GroupColumns(label string, paths ...string) *Grid[T] {
+	g.headerGroups = append(g.headerGroups, headerGroup{label: label, paths: paths})
 	return g
 }
 

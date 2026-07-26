@@ -1,6 +1,41 @@
+{{define "grid/_th"}}
+  {{if .Col.Sortable}}
+    <a href="{{.Col.SortURL}}" class="table-sort {{if .Col.SortState}}{{.Col.SortState}}{{end}}"
+       hx-get="{{.Col.SortURL}}" hx-target="#page-content" hx-push-url="true">{{.Col.Label}}</a>
+  {{else}}
+    {{.Col.Label}}
+  {{end}}
+  {{if .Col.Help}}<span title="{{.Col.Help}}" data-bs-toggle="tooltip">{{icon "info-circle" "icon-sm text-secondary"}}</span>{{end}}
+{{end}}
 <div class="table-responsive">
   <table class="table table-vcenter card-table" data-steward-grid="{{.Data.Slug}}">
     <thead>
+      {{if .Data.HeaderTop}}
+      <tr>
+        {{if .Data.Features.selector}}
+        <th class="w-1" rowspan="2">
+          <input class="form-check-input m-0 align-middle" type="checkbox" data-steward-check-all aria-label="Select all rows"/>
+        </th>
+        {{end}}
+        {{range .Data.HeaderTop}}
+          {{if .Group}}
+          <th colspan="{{.Colspan}}" class="text-center">{{.Label}}</th>
+          {{else if not .Col.Hidden}}
+          <th rowspan="2" data-col="{{.ColIdx}}" {{if .Col.Width}}style="width:{{.Col.Width}}px"{{end}}>
+            {{template "grid/_th" .}}
+          </th>
+          {{end}}
+        {{end}}
+        {{if .Data.Features.actions}}<th class="w-1" rowspan="2"></th>{{end}}
+      </tr>
+      <tr>
+        {{range .Data.HeaderSub}}
+        <th data-col="{{.ColIdx}}" {{if .Col.Width}}style="width:{{.Col.Width}}px"{{end}}>
+          {{template "grid/_th" .}}
+        </th>
+        {{end}}
+      </tr>
+      {{else}}
       <tr>
         {{if .Data.Features.selector}}
         <th class="w-1">
@@ -10,18 +45,13 @@
         {{range $i, $col := .Data.Columns}}
           {{if not $col.Hidden}}
           <th data-col="{{$i}}" {{if $col.Width}}style="width:{{$col.Width}}px"{{end}}>
-            {{if $col.Sortable}}
-              <a href="{{$col.SortURL}}" class="table-sort {{if $col.SortState}}{{$col.SortState}}{{end}}"
-                 hx-get="{{$col.SortURL}}" hx-target="#page-content" hx-push-url="true">{{$col.Label}}</a>
-            {{else}}
-              {{$col.Label}}
-            {{end}}
-            {{if $col.Help}}<span title="{{$col.Help}}" data-bs-toggle="tooltip">{{icon "info-circle" "icon-sm text-secondary"}}</span>{{end}}
+            {{template "grid/_th" (dict "Col" $col)}}
           </th>
           {{end}}
         {{end}}
         {{if .Data.Features.actions}}<th class="w-1"></th>{{end}}
       </tr>
+      {{end}}
     </thead>
     <tbody {{with .Data.ReorderURL}}data-steward-reorder="{{.}}"{{end}}>
       {{if not .Data.Rows}}
@@ -36,7 +66,7 @@
       </tr>
       {{end}}
       {{range .Data.Rows}}
-      <tr data-key="{{.Key}}" {{if $.Data.ReorderURL}}draggable="true" class="steward-draggable"{{end}}>
+      <tr data-key="{{.Key}}" data-depth="{{.Depth}}" {{if $.Data.ReorderURL}}draggable="true" class="steward-draggable"{{end}}>
         {{if $.Data.Features.selector}}
         <td>
           <input class="form-check-input m-0 align-middle" type="checkbox" data-steward-row-check value="{{.Key}}" aria-label="Select row"/>

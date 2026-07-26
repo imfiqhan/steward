@@ -215,6 +215,57 @@ func (t *typedResource[T]) compile(a *Admin) error {
 	if g.defaultSort != nil {
 		verify("default sort", g.defaultSort.Path)
 	}
+	if g.treePath != "" {
+		if info := verify("tree parent", g.treePath); info != nil && info.Relation != "" {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"resource %q: tree parent %q must be a direct column", t.res.m.slug, g.treePath))
+		}
+	}
+
+	// Header groups must cover contiguous, non-hidden columns.
+	colIdx := map[string]int{}
+	for i, col := range g.columns {
+		colIdx[col.path] = i
+	}
+	for gi := range g.headerGroups {
+		hg := &g.headerGroups[gi]
+		indexes := make([]int, 0, len(hg.paths))
+		bad := false
+		for _, p := range hg.paths {
+			idx, ok := colIdx[p]
+			if !ok {
+				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+					"resource %q: header group %q references unknown column %q", t.res.m.slug, hg.label, p))
+				bad = true
+				break
+			}
+			if g.columns[idx].hidden {
+				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+					"resource %q: header group %q includes hidden column %q", t.res.m.slug, hg.label, p))
+				bad = true
+				break
+			}
+			indexes = append(indexes, idx)
+		}
+		if bad || len(indexes) == 0 {
+			hg.span = 0
+			continue
+		}
+		slices.Sort(indexes)
+		contiguous := true
+		for i := 1; i < len(indexes); i++ {
+			if indexes[i] != indexes[i-1]+1 {
+				contiguous = false
+				break
+			}
+		}
+		if !contiguous {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"resource %q: header group %q columns must be contiguous", t.res.m.slug, hg.label))
+			continue
+		}
+		hg.start, hg.span = indexes[0], len(indexes)
+	}
 
 	// Form.
 	fm := newForm(t.res)

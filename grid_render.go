@@ -183,6 +183,7 @@ type gridColVM struct {
 type gridRowVM struct {
 	Key   string
 	Cells []template.HTML
+	Depth int
 }
 
 type pageLinkVM struct {
@@ -232,6 +233,23 @@ type gridVM struct {
 	BatchActions   []actionVM
 	ToolActions    []actionVM
 	ReorderURL     string
+	HeaderTop      []headTopVM // non-empty → two-row grouped header
+	HeaderSub      []headSubVM
+}
+
+// headTopVM is one first-row header cell: a group label spanning columns,
+// or a normal column header with rowspan 2.
+type headTopVM struct {
+	Group   bool
+	Label   string
+	Colspan int
+	Col     gridColVM
+	ColIdx  int
+}
+
+type headSubVM struct {
+	Col    gridColVM
+	ColIdx int
 }
 
 // urlWith rebuilds the current URL with parameter overrides ("" deletes).
@@ -307,6 +325,37 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 			rv.Cells = append(rv.Cells, t.renderCell(col, row))
 		}
 		vm.Rows = append(vm.Rows, rv)
+	}
+
+	// Grouped headers (complex headers).
+	activeGroups := make([]headerGroup, 0, len(g.headerGroups))
+	for _, hg := range g.headerGroups {
+		if hg.span > 0 {
+			activeGroups = append(activeGroups, hg)
+		}
+	}
+	if len(activeGroups) > 0 {
+		vm.Features["colpick"] = false
+		groupAt := map[int]headerGroup{}
+		inGroup := map[int]bool{}
+		for _, hg := range activeGroups {
+			groupAt[hg.start] = hg
+			for i := hg.start; i < hg.start+hg.span; i++ {
+				inGroup[i] = true
+			}
+		}
+		for i, col := range vm.Columns {
+			if hg, ok := groupAt[i]; ok {
+				vm.HeaderTop = append(vm.HeaderTop, headTopVM{Group: true, Label: hg.label, Colspan: hg.span})
+			}
+			if inGroup[i] {
+				vm.HeaderSub = append(vm.HeaderSub, headSubVM{Col: col, ColIdx: i})
+				continue
+			}
+			vm.HeaderTop = append(vm.HeaderTop, headTopVM{Col: col, ColIdx: i})
+		}
+	} else {
+		vm.Features["colpick"] = true
 	}
 
 	// Filter panel state.
@@ -466,12 +515,107 @@ func (t *typedResource[T]) index(c *Context) error {
 		})
 	}
 
+	// Tree mode: whole hierarchy in depth-first order, unless the user is
+	// searching/filtering (flat results make more sense there).
+	if t.grid.treePath != "" && st.search == "" && len(st.query.Conds) == 0 {
+		items, depths, total, err := t.loadTree(c, st)
+		if err != nil {
+			return err
+		}
+		vm := t.buildVM(c, st, items, total)
+		t.decorateTree(vm, depths)
+		return c.Admin.render(c, "grid/index.html", t.res.m.title, vm)
+	}
+
 	items, total, err := t.repo.List(c.Ctx(), st.query)
 	if err != nil {
 		return err
 	}
 	vm := t.buildVM(c, st, items, total)
 	return c.Admin.render(c, "grid/index.html", t.res.m.title, vm)
+}
+
+// loadTree fetches every row and orders it depth-first under the parent key.
+func (t *typedResource[T]) loadTree(c *Context, st *gridState) ([]T, []int, int64, error) {
+	q := *st.query
+	q.Page, q.PerPage = 1, 1000
+	items, total, err := t.repo.List(c.Ctx(), &q)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	parentInfo, ok := t.ft.byPath[t.grid.treePath]
+	if !ok {
+		return items, nil, total, nil
+	}
+
+	children := map[string][]int{} // parent key → item indexes, keeps sort order
+	for i := range items {
+		pv, _ := parentInfo.value(reflect.ValueOf(&items[i]))
+		parent := fmt.Sprint(pv)
+		if pv == nil {
+			parent = "0"
+		}
+		children[parent] = append(children[parent], i)
+	}
+
+	var orderedIdx []int
+	var depths []int
+	seen := make(map[int]bool, len(items))
+	var walk func(parent string, depth int)
+	walk = func(parent string, depth int) {
+		for _, idx := range children[parent] {
+			if seen[idx] {
+				continue // cycles never recurse forever
+			}
+			seen[idx] = true
+			orderedIdx = append(orderedIdx, idx)
+			depths = append(depths, depth)
+			walk(t.rowKey(&items[idx]), depth+1)
+		}
+	}
+	for _, root := range []string{"0", "", "<nil>"} {
+		walk(root, 0)
+	}
+	// Orphans (parent not in the result set) append at root level.
+	for i := range items {
+		if !seen[i] {
+			orderedIdx = append(orderedIdx, i)
+			depths = append(depths, 0)
+		}
+	}
+
+	ordered := make([]T, len(orderedIdx))
+	for pos, idx := range orderedIdx {
+		ordered[pos] = items[idx]
+	}
+	return ordered, depths, total, nil
+}
+
+// decorateTree injects depth attributes and carets into the built rows.
+func (t *typedResource[T]) decorateTree(vm *gridVM, depths []int) {
+	if len(depths) != len(vm.Rows) {
+		return
+	}
+	vm.Features["pagination"] = false
+	firstCol := 0
+	for i, col := range vm.Columns {
+		if !col.Hidden {
+			firstCol = i
+			break
+		}
+	}
+	for i := range vm.Rows {
+		vm.Rows[i].Depth = depths[i]
+		hasChildren := i+1 < len(depths) && depths[i+1] > depths[i]
+		if len(vm.Rows[i].Cells) <= firstCol {
+			continue
+		}
+		prefix := fmt.Sprintf(`<span class="steward-tree-pad" style="display:inline-block;width:%dpx"></span>`, depths[i]*24)
+		if hasChildren {
+			prefix += `<button type="button" class="btn btn-icon btn-sm btn-ghost-secondary steward-tree-toggle" data-steward-tree-toggle aria-label="Collapse children" aria-expanded="true">▾</button> `
+		}
+		vm.Rows[i].Cells[firstCol] = template.HTML(prefix) + vm.Rows[i].Cells[firstCol]
+	}
 }
 
 func (t *typedResource[T]) destroy(c *Context) error {

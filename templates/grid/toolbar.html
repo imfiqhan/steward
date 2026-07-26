@@ -41,6 +41,7 @@
           {{if .Data.ActiveFilters}}<span class="badge bg-primary-lt ms-1">{{.Data.ActiveFilters}}</span>{{end}}
         </button>
         {{end}}
+        {{if .Data.Features.colpick}}
         <div class="dropdown">
           <button type="button" class="btn btn-ghost-secondary" data-bs-toggle="dropdown"
                   data-bs-auto-close="outside" aria-expanded="false" aria-label="Choose columns">
@@ -57,6 +58,7 @@
             {{end}}
           </div>
         </div>
+        {{end}}
       </div>
     </div>
   </div>

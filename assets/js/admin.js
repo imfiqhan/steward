@@ -450,6 +450,39 @@
     if (cell && !cell.querySelector("input")) { e.preventDefault(); startInlineEdit(cell); }
   });
 
+  /* ---- Tree grid collapse -------------------------------------------------- */
+
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-steward-tree-toggle]");
+    if (!btn) return;
+    var row = btn.closest("tr");
+    var depth = parseInt(row.getAttribute("data-depth") || "0", 10);
+    var expanded = btn.getAttribute("aria-expanded") !== "false";
+    btn.setAttribute("aria-expanded", expanded ? "false" : "true");
+    btn.textContent = expanded ? "▸" : "▾";
+    var sib = row.nextElementSibling;
+    while (sib && parseInt(sib.getAttribute("data-depth") || "0", 10) > depth) {
+      if (expanded) {
+        sib.classList.add("d-none");
+      } else {
+        sib.classList.remove("d-none");
+        // Re-collapse children whose own toggle is closed.
+        var t = sib.querySelector("[data-steward-tree-toggle]");
+        if (t && t.getAttribute("aria-expanded") === "false") {
+          var d = parseInt(sib.getAttribute("data-depth") || "0", 10);
+          var inner = sib.nextElementSibling;
+          while (inner && parseInt(inner.getAttribute("data-depth") || "0", 10) > d) {
+            inner.classList.add("d-none");
+            inner = inner.nextElementSibling;
+          }
+          sib = inner;
+          continue;
+        }
+      }
+      sib = sib.nextElementSibling;
+    }
+  });
+
   /* ---- Row reordering (HTML5 drag and drop) ------------------------------- */
 
   var dragRow = null;

@@ -84,6 +84,7 @@ func registerResources(app *steward.Admin) {
 			g.Column("CreatedAt", "Created").Sortable()
 			g.QuickSearch("Title", "Body")
 			g.DefaultSort("ID", true)
+			g.GroupColumns("Publishing", "Status", "Featured")
 			g.Filter(func(f *steward.Filters[models.Post]) {
 				f.Equal("Status").Select(steward.Options{"draft": "Draft", "published": "Published"})
 				f.Like("Title")
