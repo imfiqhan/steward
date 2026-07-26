@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"gorm.io/gorm/clause"
 )
@@ -118,6 +119,32 @@ func (a *Admin) registerMenuResource() {
 		g.Column("Source").Badge(map[any]string{"code": "azure", "db": "secondary"})
 		g.DefaultSort("Order", false)
 		g.DisableExport()
+		g.DisablePagination()
+		g.Reorderable(a.url("auth/menu", "_order"))
+	})
+
+	// Drag-drop persistence: rows arrive top-to-bottom; order is global
+	// (parents keep grouping children in the sidebar regardless).
+	res.Page("POST", "_order", func(c *Context) error {
+		if err := c.R.ParseForm(); err != nil {
+			return err
+		}
+		ids := strings.Split(c.R.FormValue("ids"), ",")
+		for i, id := range ids {
+			id = strings.TrimSpace(id)
+			if id == "" {
+				continue
+			}
+			err := a.db.WithContext(c.Ctx()).Model(&MenuItem{}).Where("id = ?", id).
+				Updates(map[string]any{"order": (i + 1) * 10, "overridden": true}).Error
+			if err != nil {
+				return err
+			}
+		}
+		if err := a.flushMenuCache(c.Ctx()); err != nil {
+			return err
+		}
+		return c.Envelope(Success("Menu order saved."))
 	})
 
 	parentOptions := func(c *Context) Options {

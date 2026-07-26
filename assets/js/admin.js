@@ -324,6 +324,42 @@
     }).finally(function () { input.disabled = false; });
   });
 
+  /* ---- Column show/hide (persisted in localStorage per grid) -------------- */
+
+  function hiddenCols(slug) {
+    try { return JSON.parse(localStorage.getItem("steward-cols-" + slug)) || []; }
+    catch (e) { return []; }
+  }
+
+  function applyColumnPrefs(root) {
+    (root || document).querySelectorAll("[data-steward-grid]").forEach(function (table) {
+      var slug = table.getAttribute("data-steward-grid");
+      var hidden = hiddenCols(slug);
+      table.querySelectorAll("[data-col]").forEach(function (el) {
+        el.classList.toggle("d-none", hidden.indexOf(el.getAttribute("data-col")) >= 0);
+      });
+      var pick = document.querySelector('[data-steward-colpick="' + CSS.escape(slug) + '"]');
+      if (pick) {
+        pick.querySelectorAll("input[type=checkbox]").forEach(function (cb) {
+          cb.checked = hidden.indexOf(cb.value) < 0;
+        });
+      }
+    });
+  }
+
+  document.addEventListener("change", function (e) {
+    var pick = e.target.closest("[data-steward-colpick]");
+    if (!pick || !e.target.matches("input[type=checkbox]")) return;
+    var slug = pick.getAttribute("data-steward-colpick");
+    var hidden = hiddenCols(slug).filter(function (v) { return v !== e.target.value; });
+    if (!e.target.checked) hidden.push(e.target.value);
+    localStorage.setItem("steward-cols-" + slug, JSON.stringify(hidden));
+    applyColumnPrefs(document);
+  });
+
+  document.addEventListener("DOMContentLoaded", function () { applyColumnPrefs(document); });
+  document.body.addEventListener("htmx:afterSettle", function () { applyColumnPrefs(document); });
+
   /* ---- Inline grid editing ----------------------------------------------- */
 
   function putField(url, field, params) {
@@ -412,6 +448,56 @@
     if (e.key !== "Enter") return;
     var cell = e.target.closest && e.target.closest("[data-steward-editable]");
     if (cell && !cell.querySelector("input")) { e.preventDefault(); startInlineEdit(cell); }
+  });
+
+  /* ---- Row reordering (HTML5 drag and drop) ------------------------------- */
+
+  var dragRow = null;
+
+  document.addEventListener("dragstart", function (e) {
+    var row = e.target.closest && e.target.closest("tbody[data-steward-reorder] > tr[draggable]");
+    if (!row) return;
+    dragRow = row;
+    row.classList.add("steward-dragging");
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", row.getAttribute("data-key") || "");
+  });
+
+  document.addEventListener("dragover", function (e) {
+    if (!dragRow) return;
+    var over = e.target.closest && e.target.closest("tbody[data-steward-reorder] > tr[draggable]");
+    if (!over || over === dragRow || over.parentNode !== dragRow.parentNode) return;
+    e.preventDefault();
+    var rect = over.getBoundingClientRect();
+    var after = e.clientY > rect.top + rect.height / 2;
+    over.parentNode.insertBefore(dragRow, after ? over.nextSibling : over);
+  });
+
+  document.addEventListener("dragend", function () {
+    if (!dragRow) return;
+    var tbody = dragRow.closest("tbody[data-steward-reorder]");
+    dragRow.classList.remove("steward-dragging");
+    dragRow = null;
+    if (!tbody) return;
+    var keys = Array.prototype.map.call(
+      tbody.querySelectorAll("tr[data-key]"),
+      function (tr) { return tr.getAttribute("data-key"); }
+    ).filter(Boolean);
+    if (keys.length === 0) return;
+    var body = new URLSearchParams();
+    body.set("ids", keys.join(","));
+    fetch(tbody.getAttribute("data-steward-reorder"), {
+      method: "POST",
+      headers: {
+        "X-CSRF-Token": csrfToken(),
+        "Accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: body.toString(),
+      credentials: "same-origin"
+    }).then(function (resp) { return resp.json(); }).then(handleEnvelope).catch(function () {
+      toast("error", "Reorder failed — reload and retry.");
+    });
   });
 
   /* ---- Theme toggle ------------------------------------------------------ */

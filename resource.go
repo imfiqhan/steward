@@ -31,6 +31,13 @@ type Resource[T any] struct {
 	formFn   func(*Form[T])
 	detailFn func(*Detail[T])
 	repo     Repository[T]
+	pages    []customPage
+}
+
+type customPage struct {
+	method string
+	rel    string
+	h      handlerFunc
 }
 
 // Register adds the model T to the panel. With no further configuration the
@@ -100,6 +107,14 @@ func (r *Resource[T]) Form(fn func(*Form[T])) *Resource[T] { r.formFn = fn; retu
 // Detail declares the show view; without it every direct field renders with
 // its type default.
 func (r *Resource[T]) Detail(fn func(*Detail[T])) *Resource[T] { r.detailFn = fn; return r }
+
+// Page mounts a custom route under the resource ("_order" →
+// {prefix}/{slug}/_order). The handler runs inside the standard middleware
+// chain (auth, CSRF, permissions).
+func (r *Resource[T]) Page(method, rel string, h func(c *Context) error) *Resource[T] {
+	r.pages = append(r.pages, customPage{method: strings.ToUpper(method), rel: strings.Trim(rel, "/"), h: h})
+	return r
+}
 
 // Repository swaps the data source (default: GORM repository over Config.DB).
 func (r *Resource[T]) Repository(repo Repository[T]) *Resource[T] { r.repo = repo; return r }
@@ -351,6 +366,9 @@ func (t *typedResource[T]) registerRoutes(a *Admin, mux *http.ServeMux) {
 	mux.HandleFunc("GET "+base+"/_options", a.h(t.optionsJSON))
 	mux.HandleFunc("POST "+base+"/_upload", a.h(t.uploadFile))
 	mux.HandleFunc("POST "+base+"/_action/{name}", a.h(t.dispatchAction))
+	for _, p := range t.res.pages {
+		mux.HandleFunc(p.method+" "+base+"/"+p.rel, a.h(p.h))
+	}
 	mux.HandleFunc("GET "+base+"/{id}", a.h(t.show))
 	mux.HandleFunc("GET "+base+"/{id}/edit", a.h(t.editPage))
 	mux.HandleFunc("PUT "+base+"/{id}", a.h(t.update))

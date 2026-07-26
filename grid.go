@@ -21,6 +21,7 @@ type Grid[T any] struct {
 	perPage        int
 	perPageOptions []int
 	defaultSort    *Sort
+	reorderURL     string
 
 	off map[string]bool // feature switches (create, delete, filter, ...)
 }
@@ -75,6 +76,14 @@ func (g *Grid[T]) PerPage(def int, options ...int) *Grid[T] {
 // DefaultSort orders the grid before the user picks a column.
 func (g *Grid[T]) DefaultSort(path string, desc bool) *Grid[T] {
 	g.defaultSort = &Sort{Path: path, Desc: desc}
+	return g
+}
+
+// Reorderable makes rows draggable; on drop the new order posts the row
+// keys (form field "ids", comma-separated, top to bottom) to url. Pair it
+// with a Resource.Page handler that persists the order.
+func (g *Grid[T]) Reorderable(url string) *Grid[T] {
+	g.reorderURL = url
 	return g
 }
 

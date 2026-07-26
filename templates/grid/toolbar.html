@@ -41,6 +41,22 @@
           {{if .Data.ActiveFilters}}<span class="badge bg-primary-lt ms-1">{{.Data.ActiveFilters}}</span>{{end}}
         </button>
         {{end}}
+        <div class="dropdown">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-toggle="dropdown"
+                  data-bs-auto-close="outside" aria-expanded="false" aria-label="Choose columns">
+            {{icon "columns"}}
+          </button>
+          <div class="dropdown-menu dropdown-menu-end p-2" data-steward-colpick="{{.Data.Slug}}">
+            {{range $i, $col := .Data.Columns}}
+              {{if not $col.Hidden}}
+              <label class="dropdown-item form-check mb-0">
+                <input class="form-check-input me-2" type="checkbox" value="{{$i}}" checked/>
+                <span class="form-check-label">{{$col.Label}}</span>
+              </label>
+              {{end}}
+            {{end}}
+          </div>
+        </div>
       </div>
     </div>
   </div>

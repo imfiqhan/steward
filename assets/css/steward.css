@@ -25,6 +25,10 @@
   margin-left: auto;
 }
 
+/* Draggable rows (grid reordering). */
+tr.steward-draggable { cursor: grab; }
+tr.steward-dragging { opacity: 0.5; }
+
 /* Click-to-edit grid cells. */
 .steward-editable {
   cursor: pointer;

@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-// IntervalScheduler is a minimal Scheduler running each job on a fixed
-// interval. Specs: "@every 10m" (any time.ParseDuration string), "@hourly",
-// "@daily", "@weekly". Full cron expressions are a documented non-goal for
-// v1 — implement Scheduler over a cron library if you need them.
+// IntervalScheduler runs jobs on intervals or cron expressions. Specs:
+// "@every 10m" (any time.ParseDuration string), "@hourly", "@daily",
+// "@weekly", or a standard five-field cron expression ("30 2 * * 1-5",
+// minute resolution).
 type IntervalScheduler struct {
 	mu      sync.Mutex
 	jobs    []*intervalJob
@@ -24,6 +24,7 @@ type intervalJob struct {
 	name     string
 	spec     string
 	interval time.Duration
+	cron     *cronExpr
 	fn       func(context.Context) error
 
 	mu      sync.Mutex
@@ -36,13 +37,12 @@ func NewIntervalScheduler() *IntervalScheduler { return &IntervalScheduler{} }
 
 // Add implements Scheduler.
 func (s *IntervalScheduler) Add(spec, name string, fn func(context.Context) error) error {
-	d, err := parseSpec(spec)
-	if err != nil {
+	job := &intervalJob{name: name, spec: spec, fn: fn}
+	if err := parseSpec(spec, job); err != nil {
 		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	job := &intervalJob{name: name, spec: spec, interval: d, fn: fn}
 	s.jobs = append(s.jobs, job)
 	if s.started {
 		go s.runJob(s.ctx, job)
@@ -50,19 +50,32 @@ func (s *IntervalScheduler) Add(spec, name string, fn func(context.Context) erro
 	return nil
 }
 
-func parseSpec(spec string) (time.Duration, error) {
+func parseSpec(spec string, job *intervalJob) error {
 	switch spec {
 	case "@hourly":
-		return time.Hour, nil
+		job.interval = time.Hour
+		return nil
 	case "@daily":
-		return 24 * time.Hour, nil
+		job.interval = 24 * time.Hour
+		return nil
 	case "@weekly":
-		return 7 * 24 * time.Hour, nil
+		job.interval = 7 * 24 * time.Hour
+		return nil
 	}
 	if rest, ok := strings.CutPrefix(spec, "@every "); ok {
-		return time.ParseDuration(strings.TrimSpace(rest))
+		d, err := time.ParseDuration(strings.TrimSpace(rest))
+		if err != nil {
+			return err
+		}
+		job.interval = d
+		return nil
 	}
-	return 0, fmt.Errorf("steward: unsupported schedule %q (use @every <duration>, @hourly, @daily, @weekly)", spec)
+	expr, err := parseCron(spec)
+	if err != nil {
+		return fmt.Errorf("steward: unsupported schedule %q (use @every <duration>, @hourly, @daily, @weekly, or a five-field cron expression): %w", spec, err)
+	}
+	job.cron = expr
+	return nil
 }
 
 // Start launches all jobs until ctx is done.
@@ -83,6 +96,10 @@ func (s *IntervalScheduler) runJob(ctx context.Context, j *intervalJob) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if j.cron != nil {
+		s.runCronJob(ctx, j)
+		return
+	}
 	t := time.NewTicker(j.interval)
 	defer t.Stop()
 	for {
@@ -90,16 +107,36 @@ func (s *IntervalScheduler) runJob(ctx context.Context, j *intervalJob) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			err := j.fn(ctx)
-			j.mu.Lock()
-			j.lastRun = time.Now()
-			j.lastErr = ""
-			if err != nil {
-				j.lastErr = err.Error()
-			}
-			j.mu.Unlock()
+			j.execute(ctx)
 		}
 	}
+}
+
+// runCronJob wakes at each minute boundary and fires on matches.
+func (s *IntervalScheduler) runCronJob(ctx context.Context, j *intervalJob) {
+	for {
+		now := time.Now()
+		next := now.Truncate(time.Minute).Add(time.Minute)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Until(next)):
+			if j.cron.matches(next) {
+				j.execute(ctx)
+			}
+		}
+	}
+}
+
+func (j *intervalJob) execute(ctx context.Context) {
+	err := j.fn(ctx)
+	j.mu.Lock()
+	j.lastRun = time.Now()
+	j.lastErr = ""
+	if err != nil {
+		j.lastErr = err.Error()
+	}
+	j.mu.Unlock()
 }
 
 // Jobs implements Scheduler.

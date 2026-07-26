@@ -1,5 +1,5 @@
 <div class="table-responsive">
-  <table class="table table-vcenter card-table">
+  <table class="table table-vcenter card-table" data-steward-grid="{{.Data.Slug}}">
     <thead>
       <tr>
         {{if .Data.Features.selector}}
@@ -7,23 +7,23 @@
           <input class="form-check-input m-0 align-middle" type="checkbox" data-steward-check-all aria-label="Select all rows"/>
         </th>
         {{end}}
-        {{range .Data.Columns}}
-          {{if not .Hidden}}
-          <th {{if .Width}}style="width:{{.Width}}px"{{end}}>
-            {{if .Sortable}}
-              <a href="{{.SortURL}}" class="table-sort {{if .SortState}}{{.SortState}}{{end}}"
-                 hx-get="{{.SortURL}}" hx-target="#page-content" hx-push-url="true">{{.Label}}</a>
+        {{range $i, $col := .Data.Columns}}
+          {{if not $col.Hidden}}
+          <th data-col="{{$i}}" {{if $col.Width}}style="width:{{$col.Width}}px"{{end}}>
+            {{if $col.Sortable}}
+              <a href="{{$col.SortURL}}" class="table-sort {{if $col.SortState}}{{$col.SortState}}{{end}}"
+                 hx-get="{{$col.SortURL}}" hx-target="#page-content" hx-push-url="true">{{$col.Label}}</a>
             {{else}}
-              {{.Label}}
+              {{$col.Label}}
             {{end}}
-            {{if .Help}}<span title="{{.Help}}" data-bs-toggle="tooltip">{{icon "info-circle" "icon-sm text-secondary"}}</span>{{end}}
+            {{if $col.Help}}<span title="{{$col.Help}}" data-bs-toggle="tooltip">{{icon "info-circle" "icon-sm text-secondary"}}</span>{{end}}
           </th>
           {{end}}
         {{end}}
         {{if .Data.Features.actions}}<th class="w-1"></th>{{end}}
       </tr>
     </thead>
-    <tbody>
+    <tbody {{with .Data.ReorderURL}}data-steward-reorder="{{.}}"{{end}}>
       {{if not .Data.Rows}}
       <tr>
         <td colspan="100">
@@ -36,14 +36,14 @@
       </tr>
       {{end}}
       {{range .Data.Rows}}
-      <tr>
+      <tr data-key="{{.Key}}" {{if $.Data.ReorderURL}}draggable="true" class="steward-draggable"{{end}}>
         {{if $.Data.Features.selector}}
         <td>
           <input class="form-check-input m-0 align-middle" type="checkbox" data-steward-row-check value="{{.Key}}" aria-label="Select row"/>
         </td>
         {{end}}
         {{range $i, $cell := .Cells}}
-          {{with index $.Data.Columns $i}}{{if not .Hidden}}<td>{{$cell}}</td>{{end}}{{end}}
+          {{with index $.Data.Columns $i}}{{if not .Hidden}}<td data-col="{{$i}}">{{$cell}}</td>{{end}}{{end}}
         {{end}}
         {{if $.Data.Features.actions}}
         <td>

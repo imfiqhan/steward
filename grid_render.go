@@ -231,6 +231,7 @@ type gridVM struct {
 	RowActions     []actionVM
 	BatchActions   []actionVM
 	ToolActions    []actionVM
+	ReorderURL     string
 }
 
 // urlWith rebuilds the current URL with parameter overrides ("" deletes).
@@ -267,6 +268,7 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		RowActions:     actionVMs(c.URL(m.slug), g.rowActions),
 		BatchActions:   actionVMs(c.URL(m.slug), g.batchActions),
 		ToolActions:    actionVMs(c.URL(m.slug), g.toolActions),
+		ReorderURL:     g.reorderURL,
 		Features: map[string]bool{
 			"create":      g.enabled("create"),
 			"delete":      g.enabled("delete"),
