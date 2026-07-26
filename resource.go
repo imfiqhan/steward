@@ -27,9 +27,10 @@ type Resource[T any] struct {
 	a *Admin
 	m *resourceMeta
 
-	gridFn func(*Grid[T])
-	formFn func(*Form[T])
-	repo   Repository[T]
+	gridFn   func(*Grid[T])
+	formFn   func(*Form[T])
+	detailFn func(*Detail[T])
+	repo     Repository[T]
 }
 
 // Register adds the model T to the panel. With no further configuration the
@@ -58,6 +59,7 @@ func Register[T any](a *Admin) *Resource[T] {
 	entry := &typedResource[T]{res: res}
 	a.registry = append(a.registry, entry)
 	a.bySlug[m.slug] = entry
+	a.byType[t] = entry
 	return res
 }
 
@@ -95,17 +97,22 @@ func (r *Resource[T]) Grid(fn func(*Grid[T])) *Resource[T] { r.gridFn = fn; retu
 // field gets an input inferred from its type.
 func (r *Resource[T]) Form(fn func(*Form[T])) *Resource[T] { r.formFn = fn; return r }
 
+// Detail declares the show view; without it every direct field renders with
+// its type default.
+func (r *Resource[T]) Detail(fn func(*Detail[T])) *Resource[T] { r.detailFn = fn; return r }
+
 // Repository swaps the data source (default: GORM repository over Config.DB).
 func (r *Resource[T]) Repository(repo Repository[T]) *Resource[T] { r.repo = repo; return r }
 
 // typedResource is the erased registry entry; the any→T boundary lives here
 // and nowhere else.
 type typedResource[T any] struct {
-	res  *Resource[T]
-	ft   *fieldTable
-	grid *Grid[T]
-	form *Form[T]
-	repo Repository[T]
+	res    *Resource[T]
+	ft     *fieldTable
+	grid   *Grid[T]
+	form   *Form[T]
+	detail *Detail[T]
+	repo   Repository[T]
 }
 
 func (t *typedResource[T]) meta() *resourceMeta { return t.res.m }
@@ -217,6 +224,8 @@ func (t *typedResource[T]) compile(a *Admin) error {
 			t.resolveBelongsTo(a, fd)
 		}
 	}
+
+	t.compileDetail(a)
 	return nil
 }
 
@@ -309,6 +318,7 @@ func (t *typedResource[T]) registerRoutes(a *Admin, mux *http.ServeMux) {
 	mux.HandleFunc("GET "+base+"/_schema", a.h(t.schemaJSON))
 	mux.HandleFunc("GET "+base+"/_options", a.h(t.optionsJSON))
 	mux.HandleFunc("POST "+base+"/_upload", a.h(t.uploadFile))
+	mux.HandleFunc("GET "+base+"/{id}", a.h(t.show))
 	mux.HandleFunc("GET "+base+"/{id}/edit", a.h(t.editPage))
 	mux.HandleFunc("PUT "+base+"/{id}", a.h(t.update))
 	mux.HandleFunc("PATCH "+base+"/{id}", a.h(t.update))

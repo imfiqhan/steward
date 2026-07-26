@@ -70,7 +70,7 @@ func run(addr, dbPath string) error {
 }
 
 func registerResources(app *steward.Admin) {
-	steward.Register[models.Post](app).
+	posts := steward.Register[models.Post](app).
 		Title("Posts").
 		Icon("news").
 		Group("Content").
@@ -105,9 +105,28 @@ func registerResources(app *steward.Admin) {
 			})
 		})
 
-	// Authors stay zero-config: every direct field, derived labels.
+	posts.Detail(func(d *steward.Detail[models.Post]) {
+		d.Field("ID")
+		d.Field("Title")
+		d.Field("Status").Badge(map[any]string{"draft": "secondary", "published": "green"})
+		d.Field("Author.Name", "Author")
+		d.Field("Body").Markdown()
+		d.Field("PublishedAt", "Published")
+		d.Field("CreatedAt", "Created")
+	})
+
+	// Authors stay zero-config for grid/form; detail embeds their posts.
 	steward.Register[models.Author](app).
 		Title("Authors").
 		Icon("users").
-		Group("Content")
+		Group("Content").
+		Detail(func(d *steward.Detail[models.Author]) {
+			d.Field("ID")
+			d.Field("Name")
+			d.Field("Email").Link()
+			steward.RelationGrid[models.Author, models.Post](d, "Posts by this author",
+				func(q *steward.ListQuery, a *models.Author) {
+					q.Conds = append(q.Conds, steward.Cond{Path: "AuthorID", Op: steward.OpEq, Val: a.ID})
+				})
+		})
 }

@@ -1,0 +1,5 @@
+{{/* Alert: pass (dict "Type" "success|danger|warning|info" "Title" ... "Text" ...) */}}
+<div class="alert alert-{{.Type}}" role="alert">
+  {{with .Title}}<h4 class="alert-title">{{.}}</h4>{{end}}
+  <div class="text-secondary">{{.Text}}</div>
+</div>

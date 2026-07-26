@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -84,6 +85,7 @@ type Admin struct {
 
 	registry []resourceEntry
 	bySlug   map[string]resourceEntry
+	byType   map[reflect.Type]resourceEntry
 
 	mux          *http.ServeMux
 	handler      http.Handler
@@ -100,6 +102,7 @@ type resourceEntry interface {
 	meta() *resourceMeta
 	compile(a *Admin) error
 	registerRoutes(a *Admin, mux *http.ServeMux)
+	renderRelation(c *Context, title string, q *ListQuery) (*detailRelVM, error)
 }
 
 // New validates the config and returns an unbuilt Admin. Resource
@@ -146,6 +149,7 @@ func New(cfg Config) (*Admin, error) {
 		log:    cfg.Logger,
 		codec:  codec,
 		bySlug: map[string]resourceEntry{},
+		byType: map[reflect.Type]resourceEntry{},
 	}
 	return a, nil
 }

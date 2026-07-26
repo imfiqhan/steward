@@ -1,0 +1,67 @@
+<div class="page-header d-print-none">
+  <div class="container-xl">
+    <div class="row g-2 align-items-center">
+      <div class="col">
+        <div class="page-pretitle">{{.Data.Title}}</div>
+        <h2 class="page-title">{{.Data.Title}} #{{.Data.Key}}</h2>
+      </div>
+      <div class="col-auto ms-auto d-print-none">
+        <div class="btn-list">
+          <a href="{{.Data.ListURL}}" class="btn btn-ghost-secondary"
+             hx-get="{{.Data.ListURL}}" hx-target="#page-content" hx-push-url="true">
+            {{icon "list"}} List
+          </a>
+          {{if .Data.CanEdit}}
+          <a href="{{.Data.EditURL}}" class="btn btn-primary"
+             hx-get="{{.Data.EditURL}}" hx-target="#page-content" hx-push-url="true">
+            {{icon "pencil"}} Edit
+          </a>
+          {{end}}
+          {{if .Data.CanDelete}}
+          <button type="button" class="btn btn-ghost-danger" data-steward-delete data-url="{{.Data.DeleteURL}}">
+            {{icon "trash"}} Delete
+          </button>
+          {{end}}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="page-body">
+  <div class="container-xl">
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="datagrid">
+          {{range .Data.Rows}}
+          <div class="datagrid-item">
+            <div class="datagrid-title">{{.Label}}</div>
+            <div class="datagrid-content">{{.HTML}}</div>
+          </div>
+          {{end}}
+        </div>
+      </div>
+    </div>
+    {{range .Data.Relations}}
+    <div class="card mb-3">
+      <div class="card-header">
+        <h3 class="card-title">{{.Title}}</h3>
+        {{if .More}}
+        <div class="card-actions">
+          <a href="{{.More}}" class="btn btn-sm btn-ghost-secondary"
+             hx-get="{{.More}}" hx-target="#page-content" hx-push-url="true">View all</a>
+        </div>
+        {{end}}
+      </div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead><tr>{{range .Columns}}<th>{{.}}</th>{{end}}</tr></thead>
+          <tbody>
+            {{if not .Rows}}<tr><td colspan="100" class="text-secondary">No related records.</td></tr>{{end}}
+            {{range .Rows}}<tr>{{range .}}<td>{{.}}</td>{{end}}</tr>{{end}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {{end}}
+  </div>
+</div>

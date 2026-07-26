@@ -138,6 +138,22 @@ func (r *renderer) funcs() template.FuncMap {
 		},
 		"icon": r.icon,
 		"safe": func(s string) template.HTML { return template.HTML(s) },
+		// dict builds a map inline for widget partials:
+		// {{template "widgets/metric.html" (dict "Label" "Users" "Value" 42)}}
+		"dict": func(pairs ...any) (map[string]any, error) {
+			if len(pairs)%2 != 0 {
+				return nil, fmt.Errorf("dict: odd number of arguments")
+			}
+			m := make(map[string]any, len(pairs)/2)
+			for i := 0; i < len(pairs); i += 2 {
+				k, ok := pairs[i].(string)
+				if !ok {
+					return nil, fmt.Errorf("dict: key %v is not a string", pairs[i])
+				}
+				m[k] = pairs[i+1]
+			}
+			return m, nil
+		},
 	}
 }
 

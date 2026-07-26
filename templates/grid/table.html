@@ -48,6 +48,12 @@
         {{if $.Data.Features.actions}}
         <td>
           <div class="btn-list flex-nowrap justify-content-end">
+            {{if $.Data.Features.view}}
+            <a class="btn btn-icon btn-ghost-secondary btn-sm" title="View" href="{{$.Data.BaseURL}}/{{.Key}}"
+               hx-get="{{$.Data.BaseURL}}/{{.Key}}" hx-target="#page-content" hx-push-url="true">
+              {{icon "eye"}}
+            </a>
+            {{end}}
             {{if $.Data.Features.edit}}
             <a class="btn btn-icon btn-ghost-secondary btn-sm" title="Edit" href="{{$.Data.BaseURL}}/{{.Key}}/edit"
                hx-get="{{$.Data.BaseURL}}/{{.Key}}/edit" hx-target="#page-content" hx-push-url="true">
