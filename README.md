@@ -24,7 +24,7 @@ posts.Form(func(f *steward.Form[Post]) {
 ginsteward.Mount(router, app) // or mount app as a plain http.Handler
 ```
 
-## Features
+## Highlights
 
 - **Fluent, typed builders** — Grid / Form / Detail declared in Go; callbacks
   receive your model type, never `map[string]any`.
@@ -44,29 +44,94 @@ ginsteward.Mount(router, app) // or mount app as a plain http.Handler
 - **Scaffolding CLI** — `steward new`, `steward make:resource` (from a field
   spec, a live database, or a Go struct) with DB-type → field-type inference.
 
-## What's here today
+## Features
 
-Working end-to-end: auth (sessions, CSRF, password reset via SMTP), versioned
-migrations with seeding, Grid (filters, quick-search DSL, CSV export, batch
-delete, JSON API), Form (21 field kinds, Laravel-style rules, uploads, typed
-hooks), Detail (+ relation grids), RBAC (permission matcher, policies,
-role/permission/user admin), menu administration with sync-from-code,
-operation log, settings KV, scheduler page, dark mode, `no_ui` builds, and
-the `steward` CLI (`new`, `make:resource`, `make:migration`, `publish`).
+Checked items work end-to-end today; unchecked items are on the roadmap.
 
-Also: inline grid editing (`Column.Switch()` / `Column.Editable()` saving
-through the form's validation), custom row/batch/tool actions, hasMany
-nested forms (`steward.HasMany[T,C]`), tree grids (`Grid.Tree`), grouped
-headers (`Grid.GroupColumns`), column show/hide, drag-drop row reordering
-(`Grid.Reorderable`, dogfooded by the menu admin), cron-expression
-schedules, `make:resource --from-db/--from-struct`, Redis cache and S3
-storage drivers (`contrib/`), an in-memory full-text `Searcher`, the
-`Extension` interface (`app.Use(...)`), and a WebKit visual-regression
-script (`make visual`).
+### Resources
 
-**Backlog** (deliberately deferred): embeds (JSON-column nested forms),
-File/Image/BelongsTo fields inside hasMany rows, wiring grid quick search
-through a configured Searcher, web-based scaffold generator.
+- [x] Typed `Grid[T]` / `Form[T]` / `Detail[T]` builders on any GORM model
+- [x] Zero-config CRUD — `steward.Register[User](app)` alone is a working resource
+- [x] `Repository[T]` seam (GORM default; SQLite, MySQL, Postgres) with
+      preloads and base scopes
+- [x] Boot-time `Verify()` — every column reference checked at startup,
+      not at click time
+- [x] Headless JSON API on every resource endpoint
+      (`Accept: application/json`) plus a `_schema` endpoint
+- [x] HTMX fragment navigation (SPA feel, server-rendered)
+
+### Grid
+
+- [x] Sortable columns and display helpers (badge, bool, link, image,
+      truncate, copyable, custom `Display`)
+- [x] Quick-search DSL (`field:value`, `>n`, `%contains%`)
+- [x] Filter panel (equals, like, greater/less, between, date range, select)
+- [x] Windowed pagination (`1 … 18 19 20 … 37`) with per-page selector
+- [x] CSV export
+- [x] Batch delete and custom row/batch/tool actions, confirmed via
+      alert dialogs
+- [x] Inline editing (`Column.Editable()`, `Column.Switch()`) routed through
+      form validation
+- [x] Tree grids (`Grid.Tree`) and grouped column headers
+- [x] Column show/hide picker (persisted per grid)
+- [x] Drag-and-drop row reordering (`Grid.Reorderable`)
+- [ ] Fixed (pinned) columns
+- [ ] Quick-create row
+- [ ] Quick search backed by a `Searcher` (SQL `LIKE` today)
+
+### Form
+
+- [x] 21 field kinds, including File/Image uploads via the `Storage` interface
+- [x] Declarative validation rules (`required|max:255|unique:posts,title,{id}`)
+      with separate creation/update rules
+- [x] Typed hooks — `Submitted` / `Saving` / `Saved` / `Deleting` / `Deleted`
+      receive `*T`, never maps
+- [x] `BelongsTo` searchable select and `MultiSelect` pivot sync
+- [x] hasMany nested row forms (`steward.HasMany[T,C]`, dcat protocol)
+- [x] Fieldset and divider layout
+- [x] Dirty-field-only updates; 422 inline errors in both HTML and JSON
+- [ ] Embeds (JSON-column nested forms)
+- [ ] File/Image/BelongsTo fields inside hasMany rows
+- [ ] Tabbed form layout and `When()` conditional fields
+
+### Detail
+
+- [x] Field renderers (badge, bool, image, link, custom `As`)
+- [x] Embedded relation grids (`steward.RelationGrid[T,C]`)
+
+### Auth, RBAC & administration
+
+- [x] Encrypted cookie sessions, CSRF protection, bcrypt passwords
+- [x] Password reset flow via the SMTP `Mailer`
+- [x] Roles and permissions with dcat-compatible HTTP path matching
+- [x] `Policy[T]` per action plus `RowScoper` row-level scoping;
+      menu visibility derives from policies
+- [x] Menu administration — drag-and-drop tree, sync-from-code
+- [x] Operation log (passwords masked) and settings key-value store
+- [x] Profile page and `admin:create-user`
+- [ ] Permission definitions synced from registered resources (the
+      menu-sync pattern: code owns the canonical entries, roles are
+      granted in the DB; hand-written path rules stay as the escape hatch)
+
+### Platform & tooling
+
+- [x] Versioned migrations (batches, up/down/status) — no silent AutoMigrate
+      drift
+- [x] `steward` CLI — `new`, `make:resource` (from a field spec, a live
+      database, or a Go struct, with type inference), `make:migration`,
+      `publish`
+- [x] App runtime commands — `serve`, `worker`, `migrate`, `menu:sync`,
+      `admin:create-user`
+- [x] Cron scheduler (`@every 10m`, `@daily`, five-field cron) running in a
+      separate worker process, deployable independently of the panel
+- [ ] Background job queue (enqueue from the panel, process in the worker)
+- [x] `Cache` (in-memory built in, Redis in `contrib/`), `Storage` (local
+      built in, S3 in `contrib/`), SMTP `Mailer`
+- [x] `Searcher` interface with an in-memory full-text implementation
+- [x] Template overlay (override any view by dropping a file), embedded
+      Lucide icons, dark mode, `no_ui` build tag
+- [x] Node-free asset pipeline — esbuild Go API + Tailwind standalone binary
+- [x] Mount under Gin (`contrib/ginsteward`) or any `http.Handler` router
 
 ## Development
 
@@ -77,7 +142,13 @@ make lint    # golangci-lint
 make run     # run the example app (SQLite, http://localhost:8080/admin)
 ```
 
+The example app seeds a default panel account, **admin / admin** — change it
+immediately on any instance that isn't a local sandbox (or create your own
+with `go run . admin:create-user` and delete the seeded one).
+
 ## License
 
 MIT — see [LICENSE](LICENSE). Vendored frontend assets keep their own
-(MIT/0BSD/Apache-2.0) licenses.
+licenses: [Basecoat](frontend/vendor/basecoat/LICENSE.md) (MIT),
+[htmx](frontend/vendor/htmx/LICENSE) (0BSD),
+[Lucide](assets/icons/LICENSE) (ISC).
