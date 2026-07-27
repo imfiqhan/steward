@@ -3,7 +3,6 @@ package steward
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -150,18 +149,4 @@ func (s *IntervalScheduler) Jobs() []JobInfo {
 		j.mu.Unlock()
 	}
 	return out
-}
-
-// schedulerPage renders the read-only jobs table when a Scheduler is
-// configured; mounted at {prefix}/scheduler.
-func (a *Admin) schedulerPage(c *Context) error {
-	jobs := a.cfg.Scheduler.Jobs()
-	return a.render(c, "pages/scheduler.html", "Scheduler", map[string]any{"Jobs": jobs})
-}
-
-func (a *Admin) registerSchedulerRoute(mux *http.ServeMux) {
-	if a.cfg.Scheduler == nil {
-		return
-	}
-	mux.HandleFunc("GET "+a.cfg.Prefix+"/scheduler", a.h(a.schedulerPage))
 }

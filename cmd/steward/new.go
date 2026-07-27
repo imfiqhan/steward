@@ -71,6 +71,13 @@ func main() {
 	steward.CLI(steward.App{
 		Build:      app.Build,
 		Migrations: migrations.All,
+		// Jobs run in a separate process ("go run . worker"), deployed
+		// alongside "serve" so background work never blocks the panel.
+		// Jobs: func(a *steward.Admin, s steward.Scheduler) error {
+		// 	return s.Add("@every 10m", "cleanup", func(ctx context.Context) error {
+		// 		return a.DB().WithContext(ctx).Exec("...").Error
+		// 	})
+		// },
 	})
 }
 `, module, module),

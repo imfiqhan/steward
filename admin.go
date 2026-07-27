@@ -60,10 +60,9 @@ type Config struct {
 	// (default "./uploads").
 	UploadDir string
 
-	Cache     Cache     // default: in-process MemoryCache
-	Storage   Storage   // default: LocalStorage at UploadDir
-	Mailer    Mailer    // optional; enables password reset
-	Scheduler Scheduler // optional; enables the scheduler page
+	Cache   Cache   // default: in-process MemoryCache
+	Storage Storage // default: LocalStorage at UploadDir
+	Mailer  Mailer  // optional; enables password reset
 
 	// AuthExcept lists extra path patterns (relative to Prefix, * globs)
 	// that skip authentication and permission checks.

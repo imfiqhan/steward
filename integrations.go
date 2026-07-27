@@ -53,7 +53,9 @@ type JobInfo struct {
 	LastErr string
 }
 
-// Scheduler runs recurring jobs and reports them to the scheduler admin page.
+// Scheduler runs recurring jobs. It is deliberately not wired into the
+// Admin: run it in a worker process (see steward.CLI's worker command) so
+// the panel and background jobs deploy and scale independently.
 type Scheduler interface {
 	Add(cronSpec, name string, fn func(context.Context) error) error
 	Jobs() []JobInfo

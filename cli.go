@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
@@ -32,11 +34,18 @@ type App struct {
 
 	// Migrations are the app's own migrations, registered under "app".
 	Migrations []migrate.Migration
+
+	// Jobs registers recurring jobs on the scheduler. They run only in the
+	// `worker` command — a separate process from `serve` — so the panel and
+	// background work deploy, restart, and scale independently. Use a.DB()
+	// for database access.
+	Jobs func(a *Admin, s Scheduler) error
 }
 
 // CLI parses os.Args and runs one command:
 //
 //	serve                     start the admin (default)
+//	worker                    run App.Jobs on the scheduler (no HTTP)
 //	migrate up                apply pending migrations
 //	migrate down [-steps N]   roll back (default: last batch)
 //	migrate status            list migrations
@@ -89,6 +98,22 @@ func runCLI(app App, args []string) error {
 		mux.Handle("/", http.RedirectHandler(a.Prefix()+"/", http.StatusFound))
 		a.log.Info("steward: serving", "addr", *addr, "panel", a.Prefix())
 		return http.ListenAndServe(*addr, mux)
+
+	case "worker":
+		if app.Jobs == nil {
+			return fmt.Errorf("no jobs registered — set App.Jobs to use the worker")
+		}
+		s := NewIntervalScheduler()
+		if err := app.Jobs(a, s); err != nil {
+			return err
+		}
+		wctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		s.Start(wctx)
+		a.log.Info("steward: worker running", "jobs", len(s.Jobs()))
+		<-wctx.Done()
+		a.log.Info("steward: worker stopping")
+		return nil
 
 	case "migrate":
 		sub := "up"
@@ -181,11 +206,11 @@ func runCLI(app App, args []string) error {
 		return nil
 
 	case "help", "-h", "--help":
-		fmt.Println("commands: serve [-addr], migrate up|down|status, menu:sync, admin:create-user")
+		fmt.Println("commands: serve [-addr], worker, migrate up|down|status, menu:sync, admin:create-user")
 		return nil
 
 	default:
-		return fmt.Errorf("unknown command %q — try: serve, migrate up|down|status, menu:sync, admin:create-user", cmd)
+		return fmt.Errorf("unknown command %q — try: serve, worker, migrate up|down|status, menu:sync, admin:create-user", cmd)
 	}
 }
 

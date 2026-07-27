@@ -59,7 +59,6 @@ func (a *Admin) buildRoutes() *http.ServeMux {
 		mux.HandleFunc("GET "+p+"/auth/reset", a.h(a.resetPage))
 		mux.HandleFunc("POST "+p+"/auth/reset", a.h(a.resetSubmit))
 	}
-	a.registerSchedulerRoute(mux)
 	mux.HandleFunc("POST "+p+"/auth/logout", a.h(a.logoutHandler))
 	mux.HandleFunc("GET "+p+"/auth/profile", a.h(a.profilePage))
 	mux.HandleFunc("POST "+p+"/auth/profile", a.h(a.profileSubmit))
