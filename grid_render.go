@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -193,6 +194,50 @@ type pageLinkVM struct {
 	Disabled bool
 }
 
+// perPageOptions folds the active per-page into the selector's options: any
+// value can arrive by URL, and the select component blanks its label when
+// the current value matches no option.
+func perPageOptions(opts []int, per int) []int {
+	if per <= 0 || slices.Contains(opts, per) {
+		return opts
+	}
+	merged := append(slices.Clone(opts), per)
+	slices.Sort(merged)
+	return merged
+}
+
+// pageWindow picks the page numbers to render: the first and last page are
+// always reachable, with a window around the current page; 0 marks an
+// ellipsis. A gap of exactly one page collapses to that page (never "…"
+// hiding a single number).
+func pageWindow(cur, last int) []int {
+	if last <= 7 {
+		pages := make([]int, last)
+		for i := range pages {
+			pages[i] = i + 1
+		}
+		return pages
+	}
+	pages := []int{1}
+	lo, hi := max(2, cur-1), min(last-1, cur+1)
+	switch {
+	case lo == 3:
+		pages = append(pages, 2)
+	case lo > 3:
+		pages = append(pages, 0)
+	}
+	for p := lo; p <= hi; p++ {
+		pages = append(pages, p)
+	}
+	switch {
+	case hi == last-2:
+		pages = append(pages, last-1)
+	case hi < last-2:
+		pages = append(pages, 0)
+	}
+	return append(pages, last)
+}
+
 type filterVM struct {
 	Param       string
 	Label       string
@@ -276,7 +321,7 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		Total:          total,
 		Page:           st.page,
 		PerPage:        st.per,
-		PerPageOptions: g.perPageOptions,
+		PerPageOptions: perPageOptions(g.perPageOptions, st.per),
 		PerParam:       t.param("per"),
 		SearchParam:    t.param("q"),
 		Search:         st.search,
@@ -392,8 +437,11 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 			return urlWith(c, map[string]string{t.param("page"): strconv.Itoa(p)})
 		}
 		vm.Pagination = append(vm.Pagination, pageLinkVM{Label: "prev", URL: pageURL(st.page - 1), Disabled: st.page <= 1})
-		lo, hi := max(1, st.page-3), min(vm.Pages, st.page+3)
-		for p := lo; p <= hi; p++ {
+		for _, p := range pageWindow(st.page, vm.Pages) {
+			if p == 0 {
+				vm.Pagination = append(vm.Pagination, pageLinkVM{Label: "gap", Disabled: true})
+				continue
+			}
 			vm.Pagination = append(vm.Pagination, pageLinkVM{Label: strconv.Itoa(p), URL: pageURL(p), Active: p == st.page})
 		}
 		vm.Pagination = append(vm.Pagination, pageLinkVM{Label: "next", URL: pageURL(st.page + 1), Disabled: st.page >= vm.Pages})

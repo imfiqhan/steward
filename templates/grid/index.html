@@ -18,7 +18,9 @@
       {{end}}
     </div>
   </div>
-  <div class="card" data-size="sm">
+  {{/* overflow-visible: the column-picker popover must escape the card
+       (Basecoat clips cards for image corners, which grids never have) */}}
+  <div class="card overflow-visible" data-size="sm">
     {{template "grid/toolbar.html" .}}
     {{template "grid/filter.html" .}}
     <section class="px-0">

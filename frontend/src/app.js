@@ -185,21 +185,72 @@ window.htmx = htmx;
     }
   });
 
+  // Basecoat JS selects (div.select) update their hidden input and fire a
+  // bubbling change event, but unlike native selects never submit a form;
+  // data-steward-submit opts a select into submitting the form it sits in.
+  document.addEventListener("change", function (e) {
+    if (!(e.target instanceof Element)) return;
+    var sel = e.target.closest("div.select[data-steward-submit]");
+    if (!sel) return;
+    var form = sel.closest("form");
+    if (form) form.requestSubmit();
+  });
+
+  /* ---- Confirmation modal (alert-dialog in layout/base.html) --------------- */
+
+  // Replaces window.confirm with the Basecoat alert-dialog; resolves to
+  // true only when the primary action is chosen (Esc/Cancel → false).
+  function confirmDialog(opts) {
+    var dlg = document.getElementById("steward-confirm");
+    if (!dlg || typeof dlg.showModal !== "function") {
+      var msg = opts.description ? opts.title + " " + opts.description : opts.title;
+      return Promise.resolve(window.confirm(msg));
+    }
+    document.getElementById("steward-confirm-title").textContent = opts.title || "Are you sure?";
+    var desc = document.getElementById("steward-confirm-desc");
+    desc.textContent = opts.description || "";
+    desc.classList.toggle("hidden", !opts.description);
+    var ok = dlg.querySelector("[data-steward-confirm-ok]");
+    ok.textContent = opts.action || "Confirm";
+    if (opts.danger) ok.setAttribute("data-variant", "destructive");
+    else ok.removeAttribute("data-variant");
+    return new Promise(function (resolve) {
+      var confirmed = false;
+      function onOk() { confirmed = true; dlg.close(); }
+      ok.addEventListener("click", onOk);
+      dlg.addEventListener("close", function () {
+        ok.removeEventListener("click", onOk);
+        resolve(confirmed);
+      }, { once: true });
+      dlg.showModal();
+    });
+  }
+
   document.addEventListener("click", function (e) {
     var del = e.target.closest("[data-steward-delete]");
     if (del) {
-      if (window.confirm("Delete this record? This cannot be undone.")) {
-        request("DELETE", del.getAttribute("data-url"));
-      }
+      confirmDialog({
+        title: "Delete this record?",
+        description: "This cannot be undone.",
+        action: "Delete",
+        danger: true
+      }).then(function (yes) {
+        if (yes) request("DELETE", del.getAttribute("data-url"));
+      });
       return;
     }
     var batch = e.target.closest("[data-steward-batch-delete]");
     if (batch) {
       var keys = selectedKeys();
       if (keys.length === 0) return;
-      if (window.confirm("Delete " + keys.length + " selected record(s)? This cannot be undone.")) {
-        request("DELETE", batch.getAttribute("data-url") + "/" + keys.join(","));
-      }
+      confirmDialog({
+        title: "Delete " + keys.length + " selected record(s)?",
+        description: "This cannot be undone.",
+        action: "Delete",
+        danger: true
+      }).then(function (yes) {
+        if (yes) request("DELETE", batch.getAttribute("data-url") + "/" + keys.join(","));
+      });
       return;
     }
     var copy = e.target.closest("[data-steward-copy]");
@@ -219,23 +270,28 @@ window.htmx = htmx;
         ids = [action.getAttribute("data-ids")];
       }
       var confirmMsg = action.getAttribute("data-confirm");
-      if (confirmMsg && !window.confirm(confirmMsg)) return;
-      var body = new URLSearchParams();
-      if (ids.length > 0) body.set("ids", ids.join(","));
-      action.disabled = true;
-      fetch(action.getAttribute("data-url"), {
-        method: "POST",
-        headers: {
-          "X-CSRF-Token": csrfToken(),
-          "Accept": "application/json",
-          "X-Requested-With": "XMLHttpRequest",
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: body.toString(),
-        credentials: "same-origin"
-      }).then(function (resp) { return resp.json(); }).then(handleEnvelope).catch(function () {
-        toast("error", "Action failed — check your connection and retry.");
-      }).finally(function () { action.disabled = false; });
+      var proceed = confirmMsg
+        ? confirmDialog({ title: confirmMsg, danger: action.getAttribute("data-variant") === "destructive" })
+        : Promise.resolve(true);
+      proceed.then(function (yes) {
+        if (!yes) return;
+        var body = new URLSearchParams();
+        if (ids.length > 0) body.set("ids", ids.join(","));
+        action.disabled = true;
+        fetch(action.getAttribute("data-url"), {
+          method: "POST",
+          headers: {
+            "X-CSRF-Token": csrfToken(),
+            "Accept": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+            "Content-Type": "application/x-www-form-urlencoded"
+          },
+          body: body.toString(),
+          credentials: "same-origin"
+        }).then(function (resp) { return resp.json(); }).then(handleEnvelope).catch(function () {
+          toast("error", "Action failed — check your connection and retry.");
+        }).finally(function () { action.disabled = false; });
+      });
     }
   });
 

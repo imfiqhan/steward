@@ -3,15 +3,30 @@
   <p class="text-sm text-muted-foreground">
     {{if .Data.Rows}}Showing {{.Data.From}}–{{.Data.To}} of {{.Data.Total}}{{else}}No entries{{end}}
   </p>
+  {{$per := .Data.PerPage}}
   <form method="get" action="{{.Data.BaseURL}}"
         hx-get="{{.Data.BaseURL}}" hx-target="#page-content" hx-push-url="true">
-    <select name="{{.Data.PerParam}}" class="select" data-size="sm" aria-label="Rows per page"
-            onchange="this.form.requestSubmit()">
-      {{$per := .Data.PerPage}}
-      {{range .Data.PerPageOptions}}
-      <option value="{{.}}" {{if eq . $per}}selected{{end}}>{{.}} / page</option>
-      {{end}}
-    </select>
+    {{/* Basecoat JS select: trigger + listbox popover + hidden input as
+         direct children; data-steward-submit makes its change event
+         submit the surrounding form (see app.js) */}}
+    <div id="{{.Data.Slug}}-perpage" class="select" data-steward-submit>
+      <button type="button" class="btn" data-variant="outline"
+              aria-haspopup="listbox" aria-expanded="false"
+              aria-controls="{{.Data.Slug}}-perpage-listbox" aria-label="Rows per page">
+        <span>{{$per}} / page</span>
+        {{icon "chevron-down"}}
+      </button>
+      {{/* the footer sits at the page bottom, so open upward */}}
+      <div data-popover data-side="top" aria-hidden="true">
+        <div role="listbox" id="{{.Data.Slug}}-perpage-listbox" aria-orientation="vertical"
+             aria-label="Rows per page">
+          {{range .Data.PerPageOptions}}
+          <div role="option" data-value="{{.}}" {{if eq . $per}}aria-selected="true"{{end}}>{{.}} / page</div>
+          {{end}}
+        </div>
+      </div>
+      <input type="hidden" name="{{.Data.PerParam}}" value="{{$per}}"/>
+    </div>
   </form>
   {{if gt .Data.Pages 1}}
   <nav role="navigation" aria-label="pagination" class="ms-auto">
@@ -32,6 +47,8 @@
           <a href="{{.URL}}" class="btn" data-variant="ghost" data-size="icon" aria-label="Next page"
              hx-get="{{.URL}}" hx-target="#page-content" hx-push-url="true">{{icon "chevron-right"}}</a>
           {{end}}
+        {{else if eq .Label "gap"}}
+          <span class="flex size-9 items-center justify-center text-muted-foreground" aria-hidden="true">…</span>
         {{else}}
           <a href="{{.URL}}" class="btn" data-variant="{{if .Active}}outline{{else}}ghost{{end}}" data-size="icon"
              {{if .Active}}aria-current="page"{{end}}

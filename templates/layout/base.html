@@ -20,6 +20,22 @@
     </footer>
   </main>
   <div id="toaster" class="toaster"></div>
+  {{/* shared confirmation modal, driven by confirmDialog() in app.js; no
+       close button or backdrop dismiss — the user must pick an action */}}
+  <dialog id="steward-confirm" class="alert-dialog"
+          aria-labelledby="steward-confirm-title" aria-describedby="steward-confirm-desc">
+    <div>
+      <header>
+        <h2 id="steward-confirm-title">Are you sure?</h2>
+        <p id="steward-confirm-desc"></p>
+      </header>
+      <footer>
+        <button type="button" class="btn" data-variant="outline"
+                onclick="this.closest('dialog').close()">Cancel</button>
+        <button type="button" class="btn" data-steward-confirm-ok>Confirm</button>
+      </footer>
+    </div>
+  </dialog>
   <script src="{{asset "dist/app.js"}}" defer></script>
 </body>
 </html>

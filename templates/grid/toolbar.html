@@ -40,7 +40,7 @@
               class="btn" data-variant="outline" data-size="icon" aria-label="Choose columns">
         {{icon "columns"}}
       </button>
-      <div id="grid-colpick-popover" data-popover aria-hidden="true" data-align="end" class="w-56 p-2">
+      <div id="grid-colpick-popover" data-popover aria-hidden="true" data-align="end" class="w-56 p-2 max-h-80 overflow-y-auto">
         <div class="grid gap-1" data-steward-colpick="{{.Data.Slug}}">
           {{range $i, $col := .Data.Columns}}
             {{if not $col.Hidden}}

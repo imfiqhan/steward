@@ -1,5 +1,8 @@
 {{if .Data.Features.filter}}
-<div id="grid-filters" class="{{if not .Data.ActiveFilters}}hidden{{end}} border-y bg-muted/40 -mx-6 px-6 py-4">
+{{/* a plain div child spans the card's full width (cards pad only
+     header/section/footer), so no negative margins: px-4 matches the
+     sm card's child padding so content lines up with the toolbar */}}
+<div id="grid-filters" class="{{if not .Data.ActiveFilters}}hidden{{end}} border-y bg-muted/40 px-4 py-4">
   <form method="get" action="{{.Data.BaseURL}}"
         hx-get="{{.Data.BaseURL}}" hx-target="#page-content" hx-push-url="true">
     <div class="flex flex-wrap items-end gap-4">
@@ -7,7 +10,7 @@
       <div class="grid gap-2 min-w-40">
         <label class="label" for="filter-{{.Param}}">{{.Label}}</label>
         {{if eq .Input "select"}}
-          <select id="filter-{{.Param}}" name="{{.Param}}" class="select" data-size="sm">
+          <select id="filter-{{.Param}}" name="{{.Param}}" class="select">
             <option value="">Any</option>
             {{range .Options}}
             <option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>

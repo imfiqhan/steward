@@ -30,7 +30,7 @@ type Grid[T any] struct {
 }
 
 func newGrid[T any](res *Resource[T]) *Grid[T] {
-	return &Grid[T]{res: res, perPage: 20, perPageOptions: []int{10, 20, 50, 100}, off: map[string]bool{}}
+	return &Grid[T]{res: res, perPage: 10, perPageOptions: []int{10, 20, 50, 100}, off: map[string]bool{}}
 }
 
 // Column adds a model field column ("Title", "Author.Name"); the optional
