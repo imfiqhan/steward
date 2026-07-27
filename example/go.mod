@@ -1,4 +1,4 @@
-module github.com/imfiqhan/steward-example
+module github.com/imfiqhan/steward/example
 
 go 1.26.3
 

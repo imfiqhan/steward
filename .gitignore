@@ -1,7 +1,8 @@
 # binaries
 /steward
-/example/steward-example
-dist/
+/example/example
+/cmd/steward/steward
+/tools/assets/assets
 
 # local data
 *.db
@@ -13,3 +14,6 @@ uploads/
 coverage.out
 frontend/.bin/
 frontend/node_modules/
+.claude/
+
+# note: assets/dist/ stays committed — go:embed ships it in the binary

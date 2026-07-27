@@ -13,6 +13,14 @@ linters:
   settings:
     staticcheck:
       checks: ["all", "-ST1000"]
+  exclusions:
+    rules:
+      # hasManyForm[T,C] is only ever called through the generic
+      # nestedForm[T] interface (form_render.go, resource.go); staticcheck's
+      # unused pass cannot trace method usage through generic interface
+      # dispatch and flags the whole implementation.
+      - path: form_nested\.go
+        linters: [unused]
 
 issues:
   max-issues-per-linter: 0

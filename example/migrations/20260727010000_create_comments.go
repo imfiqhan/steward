@@ -3,7 +3,7 @@ package migrations
 import (
 	"gorm.io/gorm"
 
-	"github.com/imfiqhan/steward-example/models"
+	"github.com/imfiqhan/steward/example/models"
 	"github.com/imfiqhan/steward/migrate"
 )
 

@@ -37,6 +37,11 @@ func main() {
 		MinifySyntax:      !*watch,
 		Target:            api.ES2020,
 		LogLevel:          api.LogLevelInfo,
+		// htmx uses direct eval on purpose (hx-on:, event filters, js:
+		// prefixes); esbuild already disables identifier renaming in that
+		// one scope, so its warning is noise for a vendored file we won't
+		// change. Anything louder than a warning still gets through.
+		LogOverride: map[string]api.LogLevel{"direct-eval": api.LogLevelSilent},
 	}
 
 	tw := tailwindCmd(root, *watch)

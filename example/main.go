@@ -18,8 +18,8 @@ import (
 	steward "github.com/imfiqhan/steward"
 	"github.com/imfiqhan/steward/contrib/ginsteward"
 
-	"github.com/imfiqhan/steward-example/migrations"
-	"github.com/imfiqhan/steward-example/models"
+	"github.com/imfiqhan/steward/example/migrations"
+	"github.com/imfiqhan/steward/example/models"
 )
 
 func main() {
