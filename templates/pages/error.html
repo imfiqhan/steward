@@ -1,15 +1,13 @@
-<div class="page-body">
-  <div class="container-xl d-flex flex-column justify-content-center">
-    <div class="empty">
-      <div class="empty-header">{{.Data.Code}}</div>
-      <p class="empty-title">{{.Data.Title}}</p>
-      {{if .Data.Detail}}<p class="empty-subtitle text-secondary">{{.Data.Detail}}</p>{{end}}
-      <div class="empty-action">
-        <a href="{{.Page.Prefix}}/" class="btn btn-primary"
-           hx-get="{{.Page.Prefix}}/" hx-target="#page-content" hx-push-url="true">
-          {{icon "chevron-left"}} Back to dashboard
-        </a>
-      </div>
+<div class="min-h-[60vh] grid place-items-center p-6">
+  <div class="grid gap-3 text-center max-w-md">
+    <p class="text-6xl font-bold text-muted-foreground">{{.Data.Code}}</p>
+    <h2 class="text-xl font-semibold">{{.Data.Title}}</h2>
+    {{if .Data.Detail}}<p class="text-sm text-muted-foreground">{{.Data.Detail}}</p>{{end}}
+    <div>
+      <a href="{{.Page.Prefix}}/" class="btn"
+         hx-get="{{.Page.Prefix}}/" hx-target="#page-content" hx-push-url="true">
+        {{icon "chevron-left"}} Back to dashboard
+      </a>
     </div>
   </div>
 </div>

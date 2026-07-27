@@ -1,11 +1,11 @@
 {{if .Data.Features.pagination}}
-<div class="card-footer d-flex align-items-center">
-  <p class="m-0 text-secondary">
+<footer class="flex flex-wrap items-center gap-3">
+  <p class="text-sm text-muted-foreground">
     {{if .Data.Rows}}Showing {{.Data.From}}–{{.Data.To}} of {{.Data.Total}}{{else}}No entries{{end}}
   </p>
-  <form class="ms-3" method="get" action="{{.Data.BaseURL}}"
+  <form method="get" action="{{.Data.BaseURL}}"
         hx-get="{{.Data.BaseURL}}" hx-target="#page-content" hx-push-url="true">
-    <select name="{{.Data.PerParam}}" class="form-select form-select-sm" aria-label="Rows per page"
+    <select name="{{.Data.PerParam}}" class="select" data-size="sm" aria-label="Rows per page"
             onchange="this.form.requestSubmit()">
       {{$per := .Data.PerPage}}
       {{range .Data.PerPageOptions}}
@@ -14,23 +14,33 @@
     </select>
   </form>
   {{if gt .Data.Pages 1}}
-  <ul class="pagination m-0 ms-auto">
-    {{range .Data.Pagination}}
-    <li class="page-item {{if .Active}}active{{end}} {{if .Disabled}}disabled{{end}}">
-      {{if eq .Label "prev"}}
-        <a class="page-link" href="{{.URL}}" {{if not .Disabled}}hx-get="{{.URL}}" hx-target="#page-content" hx-push-url="true"{{end}} aria-label="Previous">
-          {{icon "chevron-left"}}
-        </a>
-      {{else if eq .Label "next"}}
-        <a class="page-link" href="{{.URL}}" {{if not .Disabled}}hx-get="{{.URL}}" hx-target="#page-content" hx-push-url="true"{{end}} aria-label="Next">
-          {{icon "chevron-right"}}
-        </a>
-      {{else}}
-        <a class="page-link" href="{{.URL}}" hx-get="{{.URL}}" hx-target="#page-content" hx-push-url="true">{{.Label}}</a>
+  <nav role="navigation" aria-label="pagination" class="ms-auto">
+    <ul class="flex flex-row items-center gap-1">
+      {{range .Data.Pagination}}
+      <li>
+        {{if eq .Label "prev"}}
+          {{if .Disabled}}
+          <span class="btn opacity-50 pointer-events-none" data-variant="ghost" data-size="icon" aria-hidden="true">{{icon "chevron-left"}}</span>
+          {{else}}
+          <a href="{{.URL}}" class="btn" data-variant="ghost" data-size="icon" aria-label="Previous page"
+             hx-get="{{.URL}}" hx-target="#page-content" hx-push-url="true">{{icon "chevron-left"}}</a>
+          {{end}}
+        {{else if eq .Label "next"}}
+          {{if .Disabled}}
+          <span class="btn opacity-50 pointer-events-none" data-variant="ghost" data-size="icon" aria-hidden="true">{{icon "chevron-right"}}</span>
+          {{else}}
+          <a href="{{.URL}}" class="btn" data-variant="ghost" data-size="icon" aria-label="Next page"
+             hx-get="{{.URL}}" hx-target="#page-content" hx-push-url="true">{{icon "chevron-right"}}</a>
+          {{end}}
+        {{else}}
+          <a href="{{.URL}}" class="btn" data-variant="{{if .Active}}outline{{else}}ghost{{end}}" data-size="icon"
+             {{if .Active}}aria-current="page"{{end}}
+             hx-get="{{.URL}}" hx-target="#page-content" hx-push-url="true">{{.Label}}</a>
+        {{end}}
+      </li>
       {{end}}
-    </li>
-    {{end}}
-  </ul>
+    </ul>
+  </nav>
   {{end}}
-</div>
+</footer>
 {{end}}

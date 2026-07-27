@@ -1,67 +1,61 @@
-<div class="page-header d-print-none">
-  <div class="container-xl">
-    <div class="row g-2 align-items-center">
-      <div class="col">
-        <div class="page-pretitle">{{.Data.Title}}</div>
-        <h2 class="page-title">{{.Data.Title}} #{{.Data.Key}}</h2>
-      </div>
-      <div class="col-auto ms-auto d-print-none">
-        <div class="btn-list">
-          <a href="{{.Data.ListURL}}" class="btn btn-ghost-secondary"
-             hx-get="{{.Data.ListURL}}" hx-target="#page-content" hx-push-url="true">
-            {{icon "list"}} List
-          </a>
-          {{if .Data.CanEdit}}
-          <a href="{{.Data.EditURL}}" class="btn btn-primary"
-             hx-get="{{.Data.EditURL}}" hx-target="#page-content" hx-push-url="true">
-            {{icon "pencil"}} Edit
-          </a>
-          {{end}}
-          {{if .Data.CanDelete}}
-          <button type="button" class="btn btn-ghost-danger" data-steward-delete data-url="{{.Data.DeleteURL}}">
-            {{icon "trash"}} Delete
-          </button>
-          {{end}}
-        </div>
-      </div>
+<div class="p-6 grid gap-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <div>
+      <p class="text-sm text-muted-foreground">{{.Data.Title}}</p>
+      <h2 class="text-2xl font-semibold">{{.Data.Title}} #{{.Data.Key}}</h2>
+    </div>
+    <div class="ms-auto flex items-center gap-2">
+      <a href="{{.Data.ListURL}}" class="btn" data-variant="outline"
+         hx-get="{{.Data.ListURL}}" hx-target="#page-content" hx-push-url="true">
+        {{icon "list"}} List
+      </a>
+      {{if .Data.CanEdit}}
+      <a href="{{.Data.EditURL}}" class="btn"
+         hx-get="{{.Data.EditURL}}" hx-target="#page-content" hx-push-url="true">
+        {{icon "pencil"}} Edit
+      </a>
+      {{end}}
+      {{if .Data.CanDelete}}
+      <button type="button" class="btn" data-variant="destructive" data-steward-delete data-url="{{.Data.DeleteURL}}">
+        {{icon "trash"}} Delete
+      </button>
+      {{end}}
     </div>
   </div>
-</div>
-<div class="page-body">
-  <div class="container-xl">
-    <div class="card mb-3">
-      <div class="card-body">
-        <div class="datagrid">
-          {{range .Data.Rows}}
-          <div class="datagrid-item">
-            <div class="datagrid-title">{{.Label}}</div>
-            <div class="datagrid-content">{{.HTML}}</div>
-          </div>
-          {{end}}
-        </div>
-      </div>
-    </div>
-    {{range .Data.Relations}}
-    <div class="card mb-3">
-      <div class="card-header">
-        <h3 class="card-title">{{.Title}}</h3>
-        {{if .More}}
-        <div class="card-actions">
-          <a href="{{.More}}" class="btn btn-sm btn-ghost-secondary"
-             hx-get="{{.More}}" hx-target="#page-content" hx-push-url="true">View all</a>
+  <div class="card">
+    <section>
+      <dl class="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+        {{range .Data.Rows}}
+        <div class="grid gap-1">
+          <dt class="text-sm text-muted-foreground">{{.Label}}</dt>
+          <dd>{{.HTML}}</dd>
         </div>
         {{end}}
+      </dl>
+    </section>
+  </div>
+  {{range .Data.Relations}}
+  <div class="card" data-size="sm">
+    <header>
+      <h2>{{.Title}}</h2>
+      {{if .More}}
+      <div class="card-action">
+        <a href="{{.More}}" class="btn" data-variant="ghost" data-size="sm"
+           hx-get="{{.More}}" hx-target="#page-content" hx-push-url="true">View all</a>
       </div>
-      <div class="table-responsive">
-        <table class="table table-vcenter card-table">
+      {{end}}
+    </header>
+    <section class="px-0">
+      <div class="table-container">
+        <table class="table">
           <thead><tr>{{range .Columns}}<th>{{.}}</th>{{end}}</tr></thead>
           <tbody>
-            {{if not .Rows}}<tr><td colspan="100" class="text-secondary">No related records.</td></tr>{{end}}
+            {{if not .Rows}}<tr><td colspan="100" class="text-muted-foreground">No related records.</td></tr>{{end}}
             {{range .Rows}}<tr>{{range .}}<td>{{.}}</td>{{end}}</tr>{{end}}
           </tbody>
         </table>
       </div>
-    </div>
-    {{end}}
+    </section>
   </div>
+  {{end}}
 </div>

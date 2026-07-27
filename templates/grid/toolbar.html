@@ -1,65 +1,58 @@
-<div class="card-header">
-  <div class="row w-100 g-2 align-items-center">
-    <div class="col">
-      {{if .Data.Features.quicksearch}}
-      <form method="get" action="{{.Data.BaseURL}}"
-            hx-get="{{.Data.BaseURL}}" hx-target="#page-content" hx-push-url="true">
-        <div class="input-icon" style="max-width: 24rem">
-          <span class="input-icon-addon">{{icon "search"}}</span>
-          <input type="text" name="{{.Data.SearchParam}}" value="{{.Data.Search}}" class="form-control"
-                 placeholder="Search… (field:value, >n, %contains%)" aria-label="Quick search"/>
-        </div>
-      </form>
-      {{end}}
-    </div>
-    <div class="col-auto">
-      <div class="btn-list">
-        {{range .Data.BatchActions}}
-        <button type="button" class="btn d-none {{if .Danger}}btn-ghost-danger{{else}}btn-ghost-secondary{{end}}"
-                data-steward-action data-batch data-url="{{.URL}}"
-                {{with .Confirm}}data-confirm="{{.}}"{{end}}>
-          {{if .Icon}}{{icon .Icon}}{{end}} {{.Label}}
-        </button>
-        {{end}}
-        {{if and .Data.Features.selector .Data.Features.delete}}
-        <button type="button" class="btn btn-ghost-danger d-none" data-steward-batch-delete
-                data-url="{{.Data.DeleteURLBase}}">
-          {{icon "trash"}} Delete selected (<span data-steward-selected-count>0</span>)
-        </button>
-        {{end}}
-        {{range .Data.ToolActions}}
-        <button type="button" class="btn {{if .Danger}}btn-ghost-danger{{else}}btn-ghost-secondary{{end}}"
-                data-steward-action data-url="{{.URL}}"
-                {{with .Confirm}}data-confirm="{{.}}"{{end}}>
-          {{if .Icon}}{{icon .Icon}}{{end}} {{.Label}}
-        </button>
-        {{end}}
-        {{if .Data.Features.filter}}
-        <button type="button" class="btn btn-ghost-secondary" data-bs-toggle="collapse" data-bs-target="#grid-filters"
-                aria-expanded="{{if .Data.ActiveFilters}}true{{else}}false{{end}}" aria-controls="grid-filters">
-          {{icon "filter"}} Filters
-          {{if .Data.ActiveFilters}}<span class="badge bg-primary-lt ms-1">{{.Data.ActiveFilters}}</span>{{end}}
-        </button>
-        {{end}}
-        {{if .Data.Features.colpick}}
-        <div class="dropdown">
-          <button type="button" class="btn btn-ghost-secondary" data-bs-toggle="dropdown"
-                  data-bs-auto-close="outside" aria-expanded="false" aria-label="Choose columns">
-            {{icon "columns"}}
-          </button>
-          <div class="dropdown-menu dropdown-menu-end p-2" data-steward-colpick="{{.Data.Slug}}">
-            {{range $i, $col := .Data.Columns}}
-              {{if not $col.Hidden}}
-              <label class="dropdown-item form-check mb-0">
-                <input class="form-check-input me-2" type="checkbox" value="{{$i}}" checked/>
-                <span class="form-check-label">{{$col.Label}}</span>
-              </label>
-              {{end}}
+<header class="flex flex-wrap items-center gap-2">
+  {{if .Data.Features.quicksearch}}
+  <form method="get" action="{{.Data.BaseURL}}" class="grow max-w-sm"
+        hx-get="{{.Data.BaseURL}}" hx-target="#page-content" hx-push-url="true">
+    <input type="text" class="input" name="{{.Data.SearchParam}}" value="{{.Data.Search}}"
+           placeholder="Search… (field:value, >n, %contains%)" aria-label="Quick search"/>
+  </form>
+  {{end}}
+  <div class="ms-auto flex items-center gap-2">
+    {{range .Data.BatchActions}}
+    <button type="button" class="btn hidden" data-variant="{{if .Danger}}destructive{{else}}outline{{end}}"
+            data-steward-action data-batch data-url="{{.URL}}"
+            {{with .Confirm}}data-confirm="{{.}}"{{end}}>
+      {{if .Icon}}{{icon .Icon}}{{end}} {{.Label}}
+    </button>
+    {{end}}
+    {{if and .Data.Features.selector .Data.Features.delete}}
+    <button type="button" class="btn hidden" data-variant="destructive" data-steward-batch-delete
+            data-url="{{.Data.DeleteURLBase}}">
+      {{icon "trash"}} Delete selected (<span data-steward-selected-count>0</span>)
+    </button>
+    {{end}}
+    {{range .Data.ToolActions}}
+    <button type="button" class="btn" data-variant="{{if .Danger}}destructive{{else}}outline{{end}}"
+            data-steward-action data-url="{{.URL}}"
+            {{with .Confirm}}data-confirm="{{.}}"{{end}}>
+      {{if .Icon}}{{icon .Icon}}{{end}} {{.Label}}
+    </button>
+    {{end}}
+    {{if .Data.Features.filter}}
+    <button type="button" class="btn" data-variant="outline" data-steward-toggle="#grid-filters"
+            aria-expanded="{{if .Data.ActiveFilters}}true{{else}}false{{end}}" aria-controls="grid-filters">
+      {{icon "filter"}} Filters
+      {{if .Data.ActiveFilters}}<span class="badge" data-variant="secondary">{{.Data.ActiveFilters}}</span>{{end}}
+    </button>
+    {{end}}
+    {{if .Data.Features.colpick}}
+    <div id="grid-colpick" class="popover">
+      <button type="button" id="grid-colpick-trigger" aria-expanded="false" aria-controls="grid-colpick-popover"
+              class="btn" data-variant="outline" data-size="icon" aria-label="Choose columns">
+        {{icon "columns"}}
+      </button>
+      <div id="grid-colpick-popover" data-popover aria-hidden="true" data-align="end" class="w-56 p-2">
+        <div class="grid gap-1" data-steward-colpick="{{.Data.Slug}}">
+          {{range $i, $col := .Data.Columns}}
+            {{if not $col.Hidden}}
+            <label class="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent">
+              <input class="input" type="checkbox" value="{{$i}}" checked/>
+              <span>{{$col.Label}}</span>
+            </label>
             {{end}}
-          </div>
+          {{end}}
         </div>
-        {{end}}
       </div>
     </div>
+    {{end}}
   </div>
-</div>
+</header>

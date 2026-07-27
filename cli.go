@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"syscall"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
@@ -160,7 +159,7 @@ func runCLI(app App, args []string) error {
 		pw := *password
 		if pw == "" {
 			fmt.Print("Password: ")
-			raw, err := term.ReadPassword(int(syscall.Stdin))
+			raw, err := term.ReadPassword(int(os.Stdin.Fd()))
 			fmt.Println()
 			if err != nil {
 				return err

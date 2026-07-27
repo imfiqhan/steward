@@ -2,7 +2,8 @@
 
 A server-rendered admin-panel framework for Go — a rewrite of the excellent
 [dcat-admin](https://github.com/jqhph/dcat-admin) (Laravel), built on
-[Tabler](https://tabler.io), HTMX, GORM, and Go generics.
+[Basecoat](https://basecoatui.com) (shadcn/ui-style components on Tailwind CSS),
+HTMX, GORM, and Go generics.
 
 > **Status: pre-release, under active development.** APIs will change.
 
@@ -36,7 +37,9 @@ ginsteward.Mount(router, app) // or mount app as a plain http.Handler
   your own; no silent AutoMigrate schema drift.
 - **Headless-ready** — every resource endpoint also serves JSON via
   `Accept: application/json`.
-- **Single binary** — templates, Tabler, htmx, and icons ship via `go:embed`;
+- **Single binary, no Node anywhere** — the UI bundle (Tailwind v4 +
+  Basecoat + htmx) is compiled by the esbuild Go API and the Tailwind
+  standalone binary (`make assets`), committed, and shipped via `go:embed`;
   override any template by dropping a file in your project.
 - **Scaffolding CLI** — `steward new`, `steward make:resource` (from a field
   spec, a live database, or a Go struct) with DB-type → field-type inference.

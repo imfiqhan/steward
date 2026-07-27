@@ -1,20 +1,23 @@
 {{define "grid/_th"}}
   {{if .Col.Sortable}}
-    <a href="{{.Col.SortURL}}" class="table-sort {{if .Col.SortState}}{{.Col.SortState}}{{end}}"
-       hx-get="{{.Col.SortURL}}" hx-target="#page-content" hx-push-url="true">{{.Col.Label}}</a>
+    <a href="{{.Col.SortURL}}" class="inline-flex items-center gap-1 hover:text-foreground"
+       hx-get="{{.Col.SortURL}}" hx-target="#page-content" hx-push-url="true">
+      {{.Col.Label}}
+      {{if eq .Col.SortState "asc"}}{{icon "chevron-up"}}{{else if eq .Col.SortState "desc"}}{{icon "chevron-down"}}{{end}}
+    </a>
   {{else}}
     {{.Col.Label}}
   {{end}}
-  {{if .Col.Help}}<span title="{{.Col.Help}}" data-bs-toggle="tooltip">{{icon "info-circle" "icon-sm text-secondary"}}</span>{{end}}
+  {{if .Col.Help}}<span data-tooltip="{{.Col.Help}}" data-side="top">{{icon "info-circle"}}</span>{{end}}
 {{end}}
-<div class="table-responsive">
-  <table class="table table-vcenter card-table" data-steward-grid="{{.Data.Slug}}">
+<div class="table-container">
+  <table class="table" data-steward-grid="{{.Data.Slug}}">
     <thead>
       {{if .Data.HeaderTop}}
       <tr>
         {{if .Data.Features.selector}}
-        <th class="w-1" rowspan="2">
-          <input class="form-check-input m-0 align-middle" type="checkbox" data-steward-check-all aria-label="Select all rows"/>
+        <th class="w-[1%]" rowspan="2">
+          <input class="input" type="checkbox" data-steward-check-all aria-label="Select all rows"/>
         </th>
         {{end}}
         {{range .Data.HeaderTop}}
@@ -26,7 +29,7 @@
           </th>
           {{end}}
         {{end}}
-        {{if .Data.Features.actions}}<th class="w-1" rowspan="2"></th>{{end}}
+        {{if .Data.Features.actions}}<th class="w-[1%]" rowspan="2"></th>{{end}}
       </tr>
       <tr>
         {{range .Data.HeaderSub}}
@@ -38,8 +41,8 @@
       {{else}}
       <tr>
         {{if .Data.Features.selector}}
-        <th class="w-1">
-          <input class="form-check-input m-0 align-middle" type="checkbox" data-steward-check-all aria-label="Select all rows"/>
+        <th class="w-[1%]">
+          <input class="input" type="checkbox" data-steward-check-all aria-label="Select all rows"/>
         </th>
         {{end}}
         {{range $i, $col := .Data.Columns}}
@@ -49,7 +52,7 @@
           </th>
           {{end}}
         {{end}}
-        {{if .Data.Features.actions}}<th class="w-1"></th>{{end}}
+        {{if .Data.Features.actions}}<th class="w-[1%]"></th>{{end}}
       </tr>
       {{end}}
     </thead>
@@ -57,10 +60,10 @@
       {{if not .Data.Rows}}
       <tr>
         <td colspan="100">
-          <div class="empty py-5">
-            <div class="empty-icon">{{icon "database" "icon-lg"}}</div>
-            <p class="empty-title">Nothing here yet</p>
-            <p class="empty-subtitle text-secondary">No records match the current view.</p>
+          <div class="grid place-items-center gap-2 py-12 text-center">
+            {{icon "database"}}
+            <p class="font-medium">Nothing here yet</p>
+            <p class="text-sm text-muted-foreground">No records match the current view.</p>
           </div>
         </td>
       </tr>
@@ -69,39 +72,39 @@
       <tr data-key="{{.Key}}" data-depth="{{.Depth}}" {{if $.Data.ReorderURL}}draggable="true" class="steward-draggable"{{end}}>
         {{if $.Data.Features.selector}}
         <td>
-          <input class="form-check-input m-0 align-middle" type="checkbox" data-steward-row-check value="{{.Key}}" aria-label="Select row"/>
+          <input class="input" type="checkbox" data-steward-row-check value="{{.Key}}" aria-label="Select row"/>
         </td>
         {{end}}
         {{range $i, $cell := .Cells}}
           {{with index $.Data.Columns $i}}{{if not .Hidden}}<td data-col="{{$i}}">{{$cell}}</td>{{end}}{{end}}
         {{end}}
         {{if $.Data.Features.actions}}
-        <td>
+        <td class="text-end">
           {{$key := .Key}}
-          <div class="btn-list flex-nowrap justify-content-end">
+          <div class="inline-flex items-center gap-1 whitespace-nowrap">
             {{range $.Data.RowActions}}
-            <button type="button" class="btn btn-sm {{if .Danger}}btn-ghost-danger{{else}}btn-ghost-secondary{{end}}"
+            <button type="button" class="btn" data-size="sm" data-variant="{{if .Danger}}destructive{{else}}ghost{{end}}"
                     data-steward-action data-url="{{.URL}}" data-ids="{{$key}}"
                     {{with .Confirm}}data-confirm="{{.}}"{{end}}>
               {{if .Icon}}{{icon .Icon}}{{end}} {{.Label}}
             </button>
             {{end}}
             {{if $.Data.Features.view}}
-            <a class="btn btn-icon btn-ghost-secondary btn-sm" title="View" href="{{$.Data.BaseURL}}/{{.Key}}"
+            <a class="btn" data-variant="ghost" data-size="icon-sm" aria-label="View" href="{{$.Data.BaseURL}}/{{.Key}}"
                hx-get="{{$.Data.BaseURL}}/{{.Key}}" hx-target="#page-content" hx-push-url="true">
               {{icon "eye"}}
             </a>
             {{end}}
             {{if $.Data.Features.edit}}
-            <a class="btn btn-icon btn-ghost-secondary btn-sm" title="Edit" href="{{$.Data.BaseURL}}/{{.Key}}/edit"
+            <a class="btn" data-variant="ghost" data-size="icon-sm" aria-label="Edit" href="{{$.Data.BaseURL}}/{{.Key}}/edit"
                hx-get="{{$.Data.BaseURL}}/{{.Key}}/edit" hx-target="#page-content" hx-push-url="true">
               {{icon "pencil"}}
             </a>
             {{end}}
             {{if $.Data.Features.delete}}
-            <button type="button" class="btn btn-icon btn-ghost-danger btn-sm" title="Delete"
+            <button type="button" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="Delete"
                     data-steward-delete data-url="{{$.Data.DeleteURLBase}}/{{.Key}}">
-              {{icon "trash"}}
+              <span class="text-destructive">{{icon "trash"}}</span>
             </button>
             {{end}}
           </div>

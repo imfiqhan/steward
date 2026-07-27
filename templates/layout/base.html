@@ -1,40 +1,25 @@
 <!doctype html>
-<html lang="en" data-bs-theme="{{.Page.Theme}}">
+<html lang="en" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>{{.Page.Title}} — {{.Page.Brand}}</title>
   <meta name="csrf-token" content="{{.Page.CSRF}}"/>
-  <link rel="stylesheet" href="{{asset "css/tabler.min.css"}}"/>
-  <link rel="stylesheet" href="{{asset "libs/tom-select/tom-select.bootstrap5.min.css"}}"/>
-  <link rel="stylesheet" href="{{asset "css/steward.css"}}"/>
+  <link rel="stylesheet" href="{{asset "dist/app.css"}}"/>
 </head>
 <body>
-  <div class="page">
-    {{template "layout/sidebar.html" .}}
-    <div class="page-wrapper">
-      {{template "layout/header.html" .}}
-      <div id="page-content">
-        {{template "layout/flash.html" .}}
-        {{.Data.Content}}
-      </div>
-      <footer class="footer footer-transparent d-print-none">
-        <div class="container-xl">
-          <div class="row text-center align-items-center">
-            <div class="col-lg-auto ms-lg-auto">
-              <ul class="list-inline list-inline-dots mb-0">
-                <li class="list-inline-item text-secondary">Powered by Steward</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </footer>
+  {{template "layout/sidebar.html" .}}
+  <main class="min-h-screen flex flex-col">
+    {{template "layout/header.html" .}}
+    <div id="page-content" class="flex-1">
+      {{template "layout/flash.html" .}}
+      {{.Data.Content}}
     </div>
-  </div>
-  <div id="steward-toasts" class="toast-container position-fixed bottom-0 end-0 p-3" aria-live="polite"></div>
-  <script src="{{asset "js/tabler.min.js"}}" defer></script>
-  <script src="{{asset "js/htmx.min.js"}}" defer></script>
-  <script src="{{asset "js/admin.js"}}" defer></script>
-  <script src="{{asset "js/alpine.min.js"}}" defer></script>
+    <footer class="border-t px-6 py-3 text-center text-xs text-muted-foreground">
+      Powered by Steward
+    </footer>
+  </main>
+  <div id="toaster" class="toaster"></div>
+  <script src="{{asset "dist/app.js"}}" defer></script>
 </body>
 </html>

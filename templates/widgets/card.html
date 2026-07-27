@@ -1,6 +1,6 @@
 {{/* Generic card: pass (dict "Title" ... "Body" html "Footer" html) */}}
 <div class="card">
-  {{with .Title}}<div class="card-header"><h3 class="card-title">{{.}}</h3></div>{{end}}
-  <div class="card-body">{{.Body}}</div>
-  {{with .Footer}}<div class="card-footer">{{.}}</div>{{end}}
+  {{with .Title}}<header><h2>{{.}}</h2></header>{{end}}
+  <section>{{.Body}}</section>
+  {{with .Footer}}<footer>{{.}}</footer>{{end}}
 </div>

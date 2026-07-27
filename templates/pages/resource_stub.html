@@ -1,23 +1,14 @@
-<div class="page-header d-print-none">
-  <div class="container-xl">
-    <div class="row g-2 align-items-center">
-      <div class="col">
-        <h2 class="page-title">{{.Data.Title}}</h2>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="page-body">
-  <div class="container-xl">
-    <div class="card">
-      <div class="empty">
-        <div class="empty-icon">{{icon "table" "icon-lg"}}</div>
-        <p class="empty-title">The {{.Data.Title}} grid is on its way</p>
-        <p class="empty-subtitle text-secondary">
-          This resource is registered as <code>{{.Data.Slug}}</code>. Its grid, form, and
-          detail views are generated once the Grid builder milestone lands.
+<div class="p-6 grid gap-4">
+  <h2 class="text-2xl font-semibold">{{.Data.Title}}</h2>
+  <div class="card">
+    <section>
+      <div class="grid place-items-center gap-2 py-12 text-center">
+        {{icon "table"}}
+        <p class="font-medium">The {{.Data.Title}} grid is on its way</p>
+        <p class="text-sm text-muted-foreground">
+          This resource is registered as <span class="kbd">{{.Data.Slug}}</span>.
         </p>
       </div>
-    </div>
+    </section>
   </div>
 </div>

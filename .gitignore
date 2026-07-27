@@ -11,3 +11,5 @@ uploads/
 # tooling
 .DS_Store
 coverage.out
+frontend/.bin/
+frontend/node_modules/

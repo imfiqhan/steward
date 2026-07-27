@@ -86,7 +86,7 @@ func (r *GormRepository[T]) qcolumn(path string) (string, error) {
 // quoteColumn applies the dialect's identifier quoting.
 func quoteColumn(db *gorm.DB, name string) string {
 	var sb strings.Builder
-	db.Dialector.QuoteTo(&sb, name)
+	db.QuoteTo(&sb, name)
 	return sb.String()
 }
 

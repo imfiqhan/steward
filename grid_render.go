@@ -447,7 +447,7 @@ func (t *typedResource[T]) renderInlineCell(col *Column[T], row *T, val any) tem
 			checked = "checked"
 		}
 		return template.HTML(fmt.Sprintf(
-			`<label class="form-check form-switch m-0"><input type="checkbox" class="form-check-input" %s data-steward-inline-switch data-url="%s" data-field="%s" aria-label="Toggle %s"/></label>`,
+			`<input type="checkbox" role="switch" class="input" %s data-steward-inline-switch data-url="%s" data-field="%s" aria-label="Toggle %s"/>`,
 			checked, url, field, field))
 	case inlineText:
 		s := ""
@@ -467,26 +467,23 @@ func (t *typedResource[T]) renderInlineCell(col *Column[T], row *T, val any) tem
 func defaultCell(v any) template.HTML {
 	switch x := v.(type) {
 	case nil:
-		return `<span class="text-secondary">—</span>`
+		return `<span class="text-muted-foreground">—</span>`
 	case time.Time:
 		if x.IsZero() {
-			return `<span class="text-secondary">—</span>`
+			return `<span class="text-muted-foreground">—</span>`
 		}
 		return template.HTML(template.HTMLEscapeString(x.Format("2006-01-02 15:04")))
 	case *time.Time:
 		if x == nil || x.IsZero() {
-			return `<span class="text-secondary">—</span>`
+			return `<span class="text-muted-foreground">—</span>`
 		}
 		return template.HTML(template.HTMLEscapeString(x.Format("2006-01-02 15:04")))
 	case bool:
-		if x {
-			return `<span class="status status-green">Yes</span>`
-		}
-		return `<span class="status status-secondary">No</span>`
+		return statusHTML(x, "Yes", "No")
 	default:
 		s := fmt.Sprint(v)
 		if s == "" {
-			return `<span class="text-secondary">—</span>`
+			return `<span class="text-muted-foreground">—</span>`
 		}
 		return template.HTML(template.HTMLEscapeString(s))
 	}
@@ -612,7 +609,7 @@ func (t *typedResource[T]) decorateTree(vm *gridVM, depths []int) {
 		}
 		prefix := fmt.Sprintf(`<span class="steward-tree-pad" style="display:inline-block;width:%dpx"></span>`, depths[i]*24)
 		if hasChildren {
-			prefix += `<button type="button" class="btn btn-icon btn-sm btn-ghost-secondary steward-tree-toggle" data-steward-tree-toggle aria-label="Collapse children" aria-expanded="true">▾</button> `
+			prefix += `<button type="button" class="btn steward-tree-toggle" data-variant="ghost" data-size="icon-sm" data-steward-tree-toggle aria-label="Collapse children" aria-expanded="true">▾</button> `
 		}
 		vm.Rows[i].Cells[firstCol] = template.HTML(prefix) + vm.Rows[i].Cells[firstCol]
 	}

@@ -1,0 +1,38 @@
+@import "tailwindcss";
+@import "../vendor/basecoat/basecoat.css";
+
+/* Tailwind v4 scans these sources for class names used by Go templates and
+   Go-emitted markup (grid displayers, badges). Utilities referenced only in
+   user template overrides must be safelisted by the app's own build. */
+@source "../../templates/**/*.html";
+@source "../../*.go";
+@source "./app.js";
+@source "./safelist.txt";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---- Steward chrome ------------------------------------------------------ */
+
+.htmx-request#page-content,
+.htmx-request #page-content {
+  opacity: 0.6;
+  transition: opacity 120ms ease-in;
+}
+
+/* Click-to-edit grid cells. */
+.steward-editable {
+  cursor: pointer;
+  border-bottom: 1px dashed var(--border);
+}
+.steward-editable:hover,
+.steward-editable:focus-visible {
+  border-bottom-color: var(--primary);
+}
+
+/* Draggable rows (grid reordering). */
+tr.steward-draggable { cursor: grab; }
+tr.steward-dragging { opacity: 0.5; }
+
+/* Theme toggle shows the icon of the theme you can switch to. */
+.dark .steward-theme-light { display: none; }
+:root:not(.dark) .steward-theme-dark { display: none; }

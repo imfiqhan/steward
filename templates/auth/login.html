@@ -1,44 +1,46 @@
 <!doctype html>
-<html lang="en" data-bs-theme="{{.Page.Theme}}">
+<html lang="en" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Sign in — {{.Page.Brand}}</title>
-  <link rel="stylesheet" href="{{asset "css/tabler.min.css"}}"/>
-  <link rel="stylesheet" href="{{asset "css/steward.css"}}"/>
+  <link rel="stylesheet" href="{{asset "dist/app.css"}}"/>
 </head>
-<body class="d-flex flex-column">
-  <div class="page page-center">
-    <div class="container container-tight py-4">
-      <div class="text-center mb-4">
-        <h1 class="navbar-brand navbar-brand-autodark fs-1">{{.Page.Brand}}</h1>
-      </div>
-      <div class="card card-md">
-        <div class="card-body">
-          <h2 class="h2 text-center mb-4">Sign in to your account</h2>
+<body>
+  <div class="min-h-screen grid place-items-center p-4">
+    <div class="w-full max-w-sm grid gap-6">
+      <h1 class="text-center text-2xl font-semibold">{{.Page.Brand}}</h1>
+      <div class="card">
+        <header>
+          <h2>Sign in to your account</h2>
+          <p>Enter your username and password below.</p>
+        </header>
+        <section>
           {{if .Data.Error}}
-          <div class="alert alert-danger" role="alert">{{.Data.Error}}</div>
+          <div class="alert mb-4" data-variant="destructive">
+            <h2>{{.Data.Error}}</h2>
+          </div>
           {{end}}
-          <form action="{{url "auth/login"}}" method="post" autocomplete="off" novalidate>
+          <form action="{{url "auth/login"}}" method="post" autocomplete="off" novalidate class="grid gap-6">
             <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
-            <div class="mb-3">
-              <label class="form-label" for="login-username">Username</label>
-              <input id="login-username" name="username" type="text" class="form-control" placeholder="Your username"
+            <div class="grid gap-2">
+              <label class="label" for="login-username">Username</label>
+              <input class="input" id="login-username" name="username" type="text" placeholder="Your username"
                      value="{{.Data.Username}}" autocomplete="username" autofocus required/>
             </div>
-            <div class="mb-3">
-              <label class="form-label" for="login-password">
-                Password
-                {{if .Data.CanReset}}<span class="form-label-description"><a href="{{url "auth/forgot"}}">Forgot password?</a></span>{{end}}
-              </label>
-              <input id="login-password" name="password" type="password" class="form-control" placeholder="Your password"
+            <div class="grid gap-2">
+              <div class="flex items-center">
+                <label class="label" for="login-password">Password</label>
+                {{if .Data.CanReset}}
+                <a href="{{url "auth/forgot"}}" class="ms-auto inline-block text-sm underline-offset-4 hover:underline">Forgot password?</a>
+                {{end}}
+              </div>
+              <input class="input" id="login-password" name="password" type="password"
                      autocomplete="current-password" required/>
             </div>
-            <div class="form-footer">
-              <button type="submit" class="btn btn-primary w-100">Sign in</button>
-            </div>
+            <button type="submit" class="btn w-full">Sign in</button>
           </form>
-        </div>
+        </section>
       </div>
     </div>
   </div>

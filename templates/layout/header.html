@@ -1,32 +1,38 @@
-<header class="navbar navbar-expand-md d-none d-lg-flex d-print-none">
-  <div class="container-xl">
-    <div class="navbar-nav flex-row align-items-center ms-auto">
-      <div class="nav-item me-2 d-flex">
-        <a href="#" class="nav-link px-2" data-steward-theme-toggle aria-label="Toggle color scheme">
-          <span class="hide-theme-dark">{{icon "moon"}}</span>
-          <span class="hide-theme-light">{{icon "sun"}}</span>
-        </a>
-      </div>
-      {{if .Page.User}}
-      <div class="nav-item dropdown">
-        <a href="#" class="nav-link d-flex lh-1 p-0 px-2" data-bs-toggle="dropdown" aria-label="Open user menu">
-          <span class="avatar avatar-sm">{{icon "user"}}</span>
-          <div class="d-none d-xl-block ps-2">
-            <div>{{if .Page.User.Name}}{{.Page.User.Name}}{{else}}{{.Page.User.Username}}{{end}}</div>
-            <div class="mt-1 small text-secondary">{{.Page.User.Username}}</div>
+<header class="flex h-14 items-center gap-2 border-b px-4">
+  <button type="button" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="Toggle sidebar"
+          onclick="document.getElementById('sidebar')?.toggle()">
+    {{icon "panel-left"}}
+  </button>
+  <div class="ms-auto flex items-center gap-1">
+    <button type="button" class="btn" data-variant="ghost" data-size="icon-sm"
+            data-steward-theme-toggle aria-label="Toggle color scheme">
+      <span class="steward-theme-light">{{icon "moon"}}</span>
+      <span class="steward-theme-dark">{{icon "sun"}}</span>
+    </button>
+    {{if .Page.User}}
+    <div id="user-menu" class="dropdown-menu">
+      <button type="button" id="user-menu-trigger" aria-haspopup="menu" aria-controls="user-menu-menu"
+              aria-expanded="false" class="btn" data-variant="ghost">
+        {{icon "user"}}
+        <span class="hidden sm:inline">{{if .Page.User.Name}}{{.Page.User.Name}}{{else}}{{.Page.User.Username}}{{end}}</span>
+      </button>
+      <div id="user-menu-popover" data-popover aria-hidden="true" class="min-w-48" data-align="end">
+        <div role="menu" id="user-menu-menu" aria-labelledby="user-menu-trigger">
+          <div role="group" aria-labelledby="user-menu-account">
+            <div role="heading" id="user-menu-account">{{.Page.User.Username}}</div>
+            <a role="menuitem" href="{{url "auth/profile"}}"
+               hx-get="{{url "auth/profile"}}" hx-target="#page-content" hx-push-url="true">
+              Profile
+            </a>
           </div>
-        </a>
-        <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-          <a href="{{url "auth/profile"}}" class="dropdown-item"
-             hx-get="{{url "auth/profile"}}" hx-target="#page-content" hx-push-url="true">Profile</a>
-          <div class="dropdown-divider"></div>
+          <hr role="separator"/>
           <form method="post" action="{{url "auth/logout"}}">
             <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
-            <button type="submit" class="dropdown-item">Sign out</button>
+            <button type="submit" role="menuitem" class="w-full">Sign out</button>
           </form>
         </div>
       </div>
-      {{end}}
     </div>
+    {{end}}
   </div>
 </header>

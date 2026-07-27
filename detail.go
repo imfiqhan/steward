@@ -48,28 +48,13 @@ func (df *DetailField[T]) As(fn func(v any, m *T) template.HTML) *DetailField[T]
 
 // Badge renders a colored Tabler badge (see Column.Badge).
 func (df *DetailField[T]) Badge(colors map[any]string) *DetailField[T] {
-	df.present = func(v any, _ *T) template.HTML {
-		color, ok := colors[v]
-		if !ok {
-			color, ok = colors[fmt.Sprint(v)]
-		}
-		if !ok {
-			color = "secondary"
-		}
-		return template.HTML(fmt.Sprintf(`<span class="badge bg-%s-lt">%s</span>`,
-			template.HTMLEscapeString(color), template.HTMLEscapeString(fmt.Sprint(v))))
-	}
+	df.present = func(v any, _ *T) template.HTML { return badgeHTML(colors, v) }
 	return df
 }
 
 // Bool renders Yes/No statuses.
 func (df *DetailField[T]) Bool() *DetailField[T] {
-	df.present = func(v any, _ *T) template.HTML {
-		if truthy(v) {
-			return `<span class="status status-green">Yes</span>`
-		}
-		return `<span class="status status-secondary">No</span>`
-	}
+	df.present = func(v any, _ *T) template.HTML { return statusHTML(truthy(v), "Yes", "No") }
 	return df
 }
 
@@ -79,7 +64,7 @@ func (df *DetailField[T]) Image(width, height int) *DetailField[T] {
 	df.present = func(v any, _ *T) template.HTML {
 		s := fmt.Sprint(v)
 		if s == "" || v == nil {
-			return `<span class="text-secondary">—</span>`
+			return `<span class="text-muted-foreground">—</span>`
 		}
 		style := ""
 		if width > 0 {
@@ -88,7 +73,7 @@ func (df *DetailField[T]) Image(width, height int) *DetailField[T] {
 		if height > 0 {
 			style += fmt.Sprintf("max-height:%dpx;", height)
 		}
-		return template.HTML(fmt.Sprintf(`<img src="%s" class="rounded border" style="%s" alt=""/>`,
+		return template.HTML(fmt.Sprintf(`<img src="%s" class="rounded-md border" style="%s" alt=""/>`,
 			template.HTMLEscapeString(s), style))
 	}
 	return df
@@ -99,7 +84,7 @@ func (df *DetailField[T]) Link() *DetailField[T] {
 	df.present = func(v any, _ *T) template.HTML {
 		s := fmt.Sprint(v)
 		if s == "" {
-			return `<span class="text-secondary">—</span>`
+			return `<span class="text-muted-foreground">—</span>`
 		}
 		esc := template.HTMLEscapeString(s)
 		return template.HTML(`<a href="` + esc + `" target="_blank" rel="noopener">` + esc + `</a>`)
@@ -114,7 +99,7 @@ func (df *DetailField[T]) JSON() *DetailField[T] {
 		if err != nil {
 			out = fmt.Append(nil, v)
 		}
-		return template.HTML(`<pre class="mb-0"><code>` + template.HTMLEscapeString(string(out)) + `</code></pre>`)
+		return template.HTML(`<pre class="rounded-md bg-muted p-3 text-sm overflow-x-auto"><code>` + template.HTMLEscapeString(string(out)) + `</code></pre>`)
 	}
 	return df
 }
@@ -143,9 +128,9 @@ func (df *DetailField[T]) Markdown() *DetailField[T] {
 	df.present = func(v any, _ *T) template.HTML {
 		s := fmt.Sprint(v)
 		if s == "" {
-			return `<span class="text-secondary">—</span>`
+			return `<span class="text-muted-foreground">—</span>`
 		}
-		return template.HTML(`<div class="text-body" style="white-space: pre-wrap">` + template.HTMLEscapeString(s) + `</div>`)
+		return template.HTML(`<div style="white-space: pre-wrap">` + template.HTMLEscapeString(s) + `</div>`)
 	}
 	return df
 }
@@ -167,7 +152,6 @@ func (df *DetailField[T]) Using(m map[any]string) *DetailField[T] {
 // relationGrid embeds a related resource's rows under the detail panel.
 type relationGrid[T any] struct {
 	title string
-	slug  string // related resource slug (resolved from C's type)
 	typ   reflect.Type
 	bind  func(q *ListQuery, m *T)
 }

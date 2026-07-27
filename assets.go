@@ -2,16 +2,17 @@ package steward
 
 import "embed"
 
-// assetsFS holds the vendored frontend assets served under {prefix}/_assets/.
+// assetsFS holds the built frontend served under {prefix}/_assets/:
 //
-// Pinned versions — update deliberately, they are part of the public UI contract:
-//   - Tabler core 1.4.0 (css/tabler.min.css, js/tabler.min.js — bundles Bootstrap 5.3.7)
-//   - htmx 2.0.10 (js/htmx.min.js)
-//   - Alpine.js 3.15.12 (js/alpine.min.js)
-//   - TomSelect and Litepicker from the Tabler 1.4.0 dist (libs/)
-//   - Tabler Icons 3.45.0, outline subset (icons/*.svg)
+//   - dist/app.css — Tailwind v4 + Basecoat 1.0.2, compiled by the Tailwind
+//     standalone binary (no Node at runtime or build; see tools/assets)
+//   - dist/app.js — htmx 2.0.10 + Basecoat JS + Steward glue, bundled by
+//     the esbuild Go API
+//   - icons/*.svg — Lucide 0.545.0 subset, inlined by the {{icon}} func
+//
+// Rebuild with `make assets`; sources live in frontend/.
 //
 //go:embed all:assets
 var assetsFS embed.FS
 
-var _ = assetsFS // consumed by the renderer (M1); keeps the embed compiled until then
+var _ = assetsFS // consumed by the renderer; keeps the embed compiled under no_ui

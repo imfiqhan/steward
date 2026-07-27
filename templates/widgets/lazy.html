@@ -1,10 +1,10 @@
 {{/* Lazy fragment: pass (dict "URL" ...) — loads server HTML after paint. */}}
 <div hx-get="{{.URL}}" hx-trigger="load" hx-swap="outerHTML">
-  <div class="card placeholder-glow">
-    <div class="card-body">
-      <div class="placeholder col-9 mb-3"></div>
-      <div class="placeholder placeholder-xs col-10"></div>
-      <div class="placeholder placeholder-xs col-11"></div>
-    </div>
+  <div class="card">
+    <section class="grid gap-3">
+      <div class="skeleton h-4 w-3/4"></div>
+      <div class="skeleton h-4 w-full"></div>
+      <div class="skeleton h-4 w-5/6"></div>
+    </section>
   </div>
 </div>

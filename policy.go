@@ -45,42 +45,6 @@ func (AllowAll[T]) Update(*Context, *T) bool { return true }
 // Delete implements Policy.
 func (AllowAll[T]) Delete(*Context, *T) bool { return true }
 
-// permissionPolicy is the default: it answers by matching the user's
-// permission rules against the resource's own routes, exactly like the
-// middleware does — administrators short-circuit to allow.
-type permissionPolicy[T any] struct {
-	slug string
-}
-
-func (p permissionPolicy[T]) can(c *Context, method, sub string) bool {
-	if c == nil || c.User == nil {
-		return false
-	}
-	if c.User.IsAdministrator() {
-		return true
-	}
-	if !c.Admin.permissionEnforced() {
-		return true
-	}
-	path := "/" + p.slug
-	if sub != "" {
-		path += "/" + sub
-	}
-	return httpmatch.Matches(c.permissionRules(), method, path)
-}
-
-func (p permissionPolicy[T]) ViewAny(c *Context) bool { return p.can(c, http.MethodGet, "") }
-func (p permissionPolicy[T]) View(c *Context, _ *T) bool {
-	return p.can(c, http.MethodGet, "1")
-}
-func (p permissionPolicy[T]) Create(c *Context) bool { return p.can(c, http.MethodPost, "") }
-func (p permissionPolicy[T]) Update(c *Context, _ *T) bool {
-	return p.can(c, http.MethodPut, "1")
-}
-func (p permissionPolicy[T]) Delete(c *Context, _ *T) bool {
-	return p.can(c, http.MethodDelete, "1")
-}
-
 // permissionRules returns the parsed rules of every permission the user
 // holds through roles, memoized per request.
 func (c *Context) permissionRules() []httpmatch.Rule {
@@ -117,10 +81,6 @@ func (a *Admin) loadPermissionRules(ctx context.Context, user *AdminUser) []http
 	}
 	return rules
 }
-
-// permissionEnforced reports whether any permission rows exist — a fresh
-// install with only the administrator role shouldn't lock everyone out.
-func (a *Admin) permissionEnforced() bool { return true }
 
 // permissionExcept lists prefix-relative paths that skip the permission
 // middleware (auth itself, the dashboard, assets).

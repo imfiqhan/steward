@@ -25,7 +25,7 @@ await page.waitForURL("**/admin/**");
 // --- header: theme toggle aligned and on the right -------------------------
 const header = await page.evaluate(() => {
   const toggle = document.querySelector("[data-steward-theme-toggle]");
-  const nav = toggle.closest(".navbar-nav");
+  const nav = toggle.closest("header > div");
   const t = toggle.getBoundingClientRect();
   const n = nav.getBoundingClientRect();
   return { t: t.toJSON(), n: n.toJSON(), vw: window.innerWidth };
@@ -35,9 +35,9 @@ check(header.t.height > 16 && header.t.height < 80, "theme toggle has sane heigh
 
 // --- grid: action buttons not collapsed ------------------------------------
 await page.goto(BASE + "/posts");
-await page.waitForSelector("td .btn-list");
+await page.waitForSelector("td .inline-flex");
 const rows = await page.evaluate(() =>
-  [...document.querySelectorAll("td .btn-list")].slice(0, 5).map(list =>
+  [...document.querySelectorAll("td .inline-flex")].slice(0, 5).map(list =>
     [...list.querySelectorAll(".btn")].map(b => {
       const r = b.getBoundingClientRect();
       return { x: r.x, w: r.width, h: r.height };
@@ -63,7 +63,7 @@ if (await sw.count()) {
   await page.waitForTimeout(500);
   const after = await sw.isChecked();
   check(before !== after, "inline switch toggles");
-  const toastText = await page.locator("#steward-toasts").textContent();
+  const toastText = await page.locator("#toaster").textContent();
   check(/saved/i.test(toastText || ""), "inline switch shows saved toast");
   await sw.click(); // restore
   await page.waitForTimeout(300);
@@ -91,7 +91,7 @@ const act = page.locator("[data-steward-action][data-ids]").first();
 if (await act.count()) {
   await act.click();
   await page.waitForTimeout(500);
-  const toastText = await page.locator("#steward-toasts").textContent();
+  const toastText = await page.locator("#toaster").textContent();
   check(/published/i.test(toastText || ""), "row action runs and toasts");
 } else {
   check(false, "row action button present");

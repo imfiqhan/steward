@@ -1,76 +1,74 @@
-{{if .Divider}}<hr class="my-3"/>{{else}}
-<div class="mb-3" data-steward-field="{{.Name}}">
+{{if .Divider}}<div class="field-separator"><hr role="separator"/></div>{{else}}
+<div class="grid gap-2" data-steward-field="{{.Name}}">
   {{if ne .Kind "hidden"}}
-  <label class="form-label {{if .Required}}required{{end}}" for="field-{{.Name}}">{{.Label}}</label>
+  <label class="label" for="field-{{.Name}}">
+    {{.Label}}{{if .Required}}<span class="text-destructive" aria-hidden="true">*</span>{{end}}
+  </label>
   {{end}}
 
   {{if eq .Kind "textarea"}}
-    <textarea id="field-{{.Name}}" name="{{.Name}}" class="form-control" rows="5"
+    <textarea id="field-{{.Name}}" name="{{.Name}}" class="textarea" rows="5"
       placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>
 
   {{else if eq .Kind "markdown"}}
-    <textarea id="field-{{.Name}}" name="{{.Name}}" class="form-control font-monospace" rows="10"
+    <textarea id="field-{{.Name}}" name="{{.Name}}" class="textarea font-mono" rows="10"
       placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>
-    <small class="form-hint">Markdown supported.</small>
+    <p class="text-sm text-muted-foreground">Markdown supported.</p>
 
-  {{else if eq .Kind "select"}}
-    <select id="field-{{.Name}}" name="{{.Name}}" class="form-select" {{if .Disabled}}disabled{{end}}>
-      <option value="">—</option>
-      {{range .Options}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}
-    </select>
-
-  {{else if eq .Kind "belongsto"}}
-    <select id="field-{{.Name}}" name="{{.Name}}" class="form-select" data-steward-tomselect {{if .Disabled}}disabled{{end}}>
+  {{else if or (eq .Kind "select") (eq .Kind "belongsto")}}
+    <select id="field-{{.Name}}" name="{{.Name}}" class="select w-full" {{if .Disabled}}disabled{{end}}>
       <option value="">—</option>
       {{range .Options}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}
     </select>
 
   {{else if eq .Kind "multiselect"}}
-    <select id="field-{{.Name}}" name="{{.Name}}" class="form-select" multiple data-steward-tomselect {{if .Disabled}}disabled{{end}}>
+    <select id="field-{{.Name}}" name="{{.Name}}" class="select w-full min-h-24" multiple {{if .Disabled}}disabled{{end}}>
       {{range .Options}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}
     </select>
+    <p class="text-sm text-muted-foreground">Hold ⌘/Ctrl to select multiple.</p>
 
   {{else if eq .Kind "radio"}}
-    <div>
+    <div role="radiogroup" aria-label="{{.Label}}" data-slot="radio-group" class="flex flex-wrap gap-4">
       {{$f := .}}
       {{range .Options}}
-      <label class="form-check form-check-inline">
-        <input class="form-check-input" type="radio" name="{{$f.Name}}" value="{{.Value}}"
+      <div class="flex items-center gap-2">
+        <input class="input" type="radio" id="field-{{$f.Name}}-{{.Value}}" name="{{$f.Name}}" value="{{.Value}}"
                {{if .Selected}}checked{{end}} {{if $f.Disabled}}disabled{{end}}/>
-        <span class="form-check-label">{{.Label}}</span>
-      </label>
+        <label class="label" for="field-{{$f.Name}}-{{.Value}}">{{.Label}}</label>
+      </div>
       {{end}}
     </div>
 
   {{else if eq .Kind "switch"}}
-    <label class="form-check form-switch">
+    <div class="flex items-center gap-3">
       <input type="hidden" name="_present_{{.Name}}" value="1"/>
-      <input class="form-check-input" type="checkbox" name="{{.Name}}" {{if .Value}}checked{{end}} {{if .Disabled}}disabled{{end}}/>
-      <span class="form-check-label">{{.Placeholder}}</span>
-    </label>
+      <input class="input" type="checkbox" role="switch" id="field-{{.Name}}" name="{{.Name}}"
+             {{if .Value}}checked{{end}} {{if .Disabled}}disabled{{end}}/>
+      {{with .Placeholder}}<label class="label" for="field-{{$.Name}}">{{.}}</label>{{end}}
+    </div>
 
   {{else if eq .Kind "display"}}
-    <input id="field-{{.Name}}" type="text" class="form-control" value="{{.Value}}" disabled/>
+    <input id="field-{{.Name}}" type="text" class="input" value="{{.Value}}" disabled/>
 
   {{else if eq .Kind "hidden"}}
     <input type="hidden" name="{{.Name}}" value="{{.Value}}"/>
 
   {{else if or (eq .Kind "file") (eq .Kind "image")}}
     <input type="hidden" name="{{.Name}}" value="{{.Value}}" data-steward-upload-value/>
-    <input id="field-{{.Name}}" type="file" class="form-control" {{with .Accept}}accept="{{.}}"{{end}}
+    <input id="field-{{.Name}}" type="file" class="input" {{with .Accept}}accept="{{.}}"{{end}}
            data-steward-upload="{{.UploadURL}}" {{if .Disabled}}disabled{{end}}/>
-    <div class="mt-2 {{if not .PreviewURL}}d-none{{end}}" data-steward-upload-preview>
+    <div class="{{if not .PreviewURL}}hidden{{end}}" data-steward-upload-preview>
       {{if eq .Kind "image"}}
-        <img src="{{.PreviewURL}}" class="rounded border" style="max-width:200px; max-height:120px; object-fit:cover" alt="Current file"/>
+        <img src="{{.PreviewURL}}" class="max-h-32 max-w-52 rounded-md border object-cover" alt="Current file"/>
       {{else if .PreviewURL}}
-        <a href="{{.PreviewURL}}" target="_blank" rel="noopener">Current file</a>
+        <a href="{{.PreviewURL}}" target="_blank" rel="noopener" class="text-sm underline-offset-4 hover:underline">Current file</a>
       {{end}}
     </div>
 
   {{else if eq .Kind "currency"}}
     <div class="input-group">
-      <span class="input-group-text">$</span>
-      <input id="field-{{.Name}}" type="number" step="0.01" name="{{.Name}}" value="{{.Value}}" class="form-control"
+      <span data-align="start" aria-hidden="true">$</span>
+      <input id="field-{{.Name}}" type="number" step="0.01" name="{{.Name}}" value="{{.Value}}"
              placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}/>
     </div>
 
@@ -79,15 +77,15 @@
       type="{{if eq .Kind "number"}}number{{else if eq .Kind "decimal"}}number{{else if eq .Kind "email"}}email{{else if eq .Kind "password"}}password{{else if eq .Kind "url"}}url{{else if eq .Kind "color"}}color{{else if eq .Kind "date"}}date{{else if eq .Kind "datetime"}}datetime-local{{else if eq .Kind "time"}}time{{else}}text{{end}}"
       {{if eq .Kind "decimal"}}step="any"{{end}}
       name="{{.Name}}" value="{{.Value}}"
-      class="form-control {{if eq .Kind "color"}}form-control-color{{end}}"
+      class="input {{if eq .Kind "color"}}w-16 p-1{{end}}"
       placeholder="{{.Placeholder}}"
       {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}
       {{if eq .Kind "password"}}autocomplete="new-password"{{end}}/>
   {{end}}
 
-  {{with .Help}}<small class="form-hint">{{.}}</small>{{end}}
-  <div class="invalid-feedback d-block" data-steward-errors>
-    {{range .Errors}}<div>{{.}}</div>{{end}}
-  </div>
+  {{with .Help}}<p class="text-sm text-muted-foreground">{{.}}</p>{{end}}
+  <p class="text-sm text-destructive" role="alert" data-steward-errors>
+    {{range .Errors}}{{.}} {{end}}
+  </p>
 </div>
 {{end}}

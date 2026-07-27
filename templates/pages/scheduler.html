@@ -1,34 +1,34 @@
-<div class="page-header d-print-none">
-  <div class="container-xl">
-    <div class="row g-2 align-items-center">
-      <div class="col">
-        <div class="page-pretitle">System</div>
-        <h2 class="page-title">Scheduler</h2>
-      </div>
-    </div>
+<div class="p-6 grid gap-4">
+  <div>
+    <p class="text-sm text-muted-foreground">System</p>
+    <h2 class="text-2xl font-semibold">Scheduler</h2>
   </div>
-</div>
-<div class="page-body">
-  <div class="container-xl">
-    <div class="card">
-      <div class="table-responsive">
-        <table class="table table-vcenter card-table">
+  <div class="card" data-size="sm">
+    <section class="px-0">
+      <div class="table-container">
+        <table class="table">
           <thead><tr><th>Job</th><th>Schedule</th><th>Last run</th><th>Last error</th></tr></thead>
           <tbody>
             {{if not .Data.Jobs}}
-            <tr><td colspan="4" class="text-secondary">No jobs registered.</td></tr>
+            <tr><td colspan="4" class="text-muted-foreground">No jobs registered.</td></tr>
             {{end}}
             {{range .Data.Jobs}}
             <tr>
-              <td>{{.Name}}</td>
-              <td><code>{{.Spec}}</code></td>
-              <td>{{if .LastRun.IsZero}}<span class="text-secondary">never</span>{{else}}{{.LastRun.Format "2006-01-02 15:04:05"}}{{end}}</td>
-              <td>{{if .LastErr}}<span class="text-danger">{{.LastErr}}</span>{{else}}<span class="status status-green">OK</span>{{end}}</td>
+              <td class="font-medium">{{.Name}}</td>
+              <td><span class="kbd">{{.Spec}}</span></td>
+              <td>{{if .LastRun.IsZero}}<span class="text-muted-foreground">never</span>{{else}}{{.LastRun.Format "2006-01-02 15:04:05"}}{{end}}</td>
+              <td>
+                {{if .LastErr}}
+                <span class="text-destructive">{{.LastErr}}</span>
+                {{else}}
+                <span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-green-500"></span>OK</span>
+                {{end}}
+              </td>
             </tr>
             {{end}}
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
   </div>
 </div>

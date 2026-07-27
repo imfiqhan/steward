@@ -1,8 +1,20 @@
 {{range .Page.Flashes}}
-<div class="container-xl mt-3">
-  <div class="alert alert-{{if eq .Type "error"}}danger{{else if eq .Type "success"}}success{{else if eq .Type "warning"}}warning{{else}}info{{end}} alert-dismissible" role="alert">
-    <div>{{.Message}}</div>
-    <a class="btn-close" data-bs-dismiss="alert" aria-label="Close"></a>
+<div class="px-6 pt-4">
+  {{if eq .Type "error"}}
+  <div class="alert" data-variant="destructive">
+    {{icon "circle-alert"}}
+    <h2>{{.Message}}</h2>
   </div>
+  {{else if eq .Type "success"}}
+  <div class="alert border-green-200 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-950 dark:text-green-50">
+    {{icon "circle-check"}}
+    <h2>{{.Message}}</h2>
+  </div>
+  {{else}}
+  <div class="alert">
+    {{icon "info-circle"}}
+    <h2>{{.Message}}</h2>
+  </div>
+  {{end}}
 </div>
 {{end}}

@@ -7,4 +7,5 @@ use (
 	./contrib/redcache
 	./contrib/s3store
 	./example
+	./tools/assets
 )

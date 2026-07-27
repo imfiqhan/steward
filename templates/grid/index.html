@@ -1,35 +1,29 @@
-<div class="page-header d-print-none">
-  <div class="container-xl">
-    <div class="row g-2 align-items-center">
-      <div class="col">
-        <h2 class="page-title">{{.Data.Title}}</h2>
-        <div class="text-secondary mt-1">{{.Data.Total}} total</div>
-      </div>
-      <div class="col-auto ms-auto d-print-none">
-        <div class="btn-list">
-          {{if .Data.Features.export}}
-          <a href="{{.Data.ExportURL}}" class="btn btn-ghost-secondary" title="Export CSV">
-            {{icon "download"}} Export
-          </a>
-          {{end}}
-          {{if .Data.Features.create}}
-          <a href="{{.Data.BaseURL}}/create" class="btn btn-primary"
-             hx-get="{{.Data.BaseURL}}/create" hx-target="#page-content" hx-push-url="true">
-            {{icon "plus"}} New {{.Data.Title}}
-          </a>
-          {{end}}
-        </div>
-      </div>
+<div class="p-6 grid gap-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <div>
+      <h2 class="text-2xl font-semibold">{{.Data.Title}}</h2>
+      <p class="text-sm text-muted-foreground">{{.Data.Total}} total</p>
+    </div>
+    <div class="ms-auto flex items-center gap-2">
+      {{if .Data.Features.export}}
+      <a href="{{.Data.ExportURL}}" class="btn" data-variant="outline">
+        {{icon "download"}} Export
+      </a>
+      {{end}}
+      {{if .Data.Features.create}}
+      <a href="{{.Data.BaseURL}}/create" class="btn"
+         hx-get="{{.Data.BaseURL}}/create" hx-target="#page-content" hx-push-url="true">
+        {{icon "plus"}} New {{.Data.Title}}
+      </a>
+      {{end}}
     </div>
   </div>
-</div>
-<div class="page-body">
-  <div class="container-xl">
-    <div class="card">
-      {{template "grid/toolbar.html" .}}
-      {{template "grid/filter.html" .}}
+  <div class="card" data-size="sm">
+    {{template "grid/toolbar.html" .}}
+    {{template "grid/filter.html" .}}
+    <section class="px-0">
       {{template "grid/table.html" .}}
-      {{template "grid/pagination.html" .}}
-    </div>
+    </section>
+    {{template "grid/pagination.html" .}}
   </div>
 </div>

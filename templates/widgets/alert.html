@@ -1,5 +1,17 @@
 {{/* Alert: pass (dict "Type" "success|danger|warning|info" "Title" ... "Text" ...) */}}
-<div class="alert alert-{{.Type}}" role="alert">
-  {{with .Title}}<h4 class="alert-title">{{.}}</h4>{{end}}
-  <div class="text-secondary">{{.Text}}</div>
+{{if eq .Type "danger"}}
+<div class="alert" data-variant="destructive">
+  {{with .Title}}<h2>{{.}}</h2>{{end}}
+  <section>{{.Text}}</section>
 </div>
+{{else if eq .Type "warning"}}
+<div class="alert border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-50">
+  {{with .Title}}<h2>{{.}}</h2>{{end}}
+  <section>{{.Text}}</section>
+</div>
+{{else}}
+<div class="alert">
+  {{with .Title}}<h2>{{.}}</h2>{{end}}
+  <section>{{.Text}}</section>
+</div>
+{{end}}

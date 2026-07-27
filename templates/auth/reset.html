@@ -1,41 +1,43 @@
 <!doctype html>
-<html lang="en" data-bs-theme="{{.Page.Theme}}">
+<html lang="en" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Reset password — {{.Page.Brand}}</title>
-  <link rel="stylesheet" href="{{asset "css/tabler.min.css"}}"/>
+  <link rel="stylesheet" href="{{asset "dist/app.css"}}"/>
 </head>
-<body class="d-flex flex-column">
-  <div class="page page-center">
-    <div class="container container-tight py-4">
-      <div class="card card-md">
-        <div class="card-body">
-          <h2 class="h2 text-center mb-4">Choose a new password</h2>
+<body>
+  <div class="min-h-screen grid place-items-center p-4">
+    <div class="w-full max-w-sm">
+      <div class="card">
+        <header>
+          <h2>Choose a new password</h2>
+        </header>
+        <section>
           {{if .Data.Invalid}}
-          <div class="alert alert-danger" role="alert">
-            This reset link is invalid or has expired. Request a new one.
+          <div class="alert" data-variant="destructive">
+            <h2>This reset link is invalid or has expired.</h2>
           </div>
-          <div class="text-center"><a href="{{url "auth/forgot"}}">Request new link</a></div>
+          <p class="mt-4 text-center text-sm"><a class="underline-offset-4 hover:underline" href="{{url "auth/forgot"}}">Request new link</a></p>
           {{else}}
-          {{with .Data.Error}}<div class="alert alert-danger" role="alert">{{.}}</div>{{end}}
-          <form action="{{url "auth/reset"}}" method="post" novalidate>
+          {{with .Data.Error}}
+          <div class="alert mb-4" data-variant="destructive"><h2>{{.}}</h2></div>
+          {{end}}
+          <form action="{{url "auth/reset"}}" method="post" novalidate class="grid gap-6">
             <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
             <input type="hidden" name="token" value="{{.Data.Token}}"/>
-            <div class="mb-3">
-              <label class="form-label" for="reset-password">New password</label>
-              <input id="reset-password" name="password" type="password" class="form-control" autocomplete="new-password" autofocus required/>
+            <div class="grid gap-2">
+              <label class="label" for="reset-password">New password</label>
+              <input class="input" id="reset-password" name="password" type="password" autocomplete="new-password" autofocus required/>
             </div>
-            <div class="mb-3">
-              <label class="form-label" for="reset-confirm">Confirm password</label>
-              <input id="reset-confirm" name="password_confirmation" type="password" class="form-control" autocomplete="new-password" required/>
+            <div class="grid gap-2">
+              <label class="label" for="reset-confirm">Confirm password</label>
+              <input class="input" id="reset-confirm" name="password_confirmation" type="password" autocomplete="new-password" required/>
             </div>
-            <div class="form-footer">
-              <button type="submit" class="btn btn-primary w-100">Reset password</button>
-            </div>
+            <button type="submit" class="btn w-full">Reset password</button>
           </form>
           {{end}}
-        </div>
+        </section>
       </div>
     </div>
   </div>

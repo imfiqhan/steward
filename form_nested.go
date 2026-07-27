@@ -52,6 +52,10 @@ type nestedRowVM struct {
 	Fields []formFieldVM
 }
 
+// Interface assertion: staticcheck cannot see generic interface
+// satisfaction through HasMany's construction.
+var _ nestedForm[struct{}] = (*hasManyForm[struct{}, struct{}])(nil)
+
 type hasManyForm[T, C any] struct {
 	relation  string
 	fkPath    string

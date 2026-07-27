@@ -229,32 +229,58 @@ func (c *Column[T]) Limit(n int) *Column[T] {
 	return c
 }
 
-// Badge renders the value as a colored Tabler badge; keys are raw values
-// (or their fmt representation), values are Tabler colors ("green",
-// "secondary", "red", ...). Unmapped values fall back to "secondary".
-func (c *Column[T]) Badge(colors map[any]string) *Column[T] {
-	c.present = func(v any, _ *T) template.HTML {
-		color, ok := colors[v]
-		if !ok {
-			color, ok = colors[fmt.Sprint(v)]
-		}
-		if !ok {
-			color = "secondary"
-		}
-		return template.HTML(fmt.Sprintf(`<span class="badge bg-%s-lt">%s</span>`,
-			template.HTMLEscapeString(color), template.HTMLEscapeString(fmt.Sprint(v))))
+// badgeHTML renders a Basecoat badge; named colors map onto Tailwind
+// palette utilities (kept in sync with the @source inline safelist in
+// frontend/src/app.css), everything else falls back to the secondary
+// variant.
+func badgeHTML(colors map[any]string, v any) template.HTML {
+	color, ok := colors[v]
+	if !ok {
+		color = colors[fmt.Sprint(v)]
 	}
+	label := template.HTMLEscapeString(fmt.Sprint(v))
+	palette := map[string]string{
+		"green":  "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300",
+		"blue":   "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+		"azure":  "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
+		"purple": "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
+		"orange": "bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
+		"yellow": "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+	}
+	if cls, ok := palette[color]; ok {
+		return template.HTML(`<span class="badge ` + cls + `">` + label + `</span>`)
+	}
+	switch color {
+	case "red", "destructive":
+		return template.HTML(`<span class="badge" data-variant="destructive">` + label + `</span>`)
+	case "outline":
+		return template.HTML(`<span class="badge" data-variant="outline">` + label + `</span>`)
+	default:
+		return template.HTML(`<span class="badge" data-variant="secondary">` + label + `</span>`)
+	}
+}
+
+// statusHTML renders a labeled status dot.
+func statusHTML(ok bool, yes, no string) template.HTML {
+	if ok {
+		return template.HTML(`<span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-green-500"></span>` +
+			template.HTMLEscapeString(yes) + `</span>`)
+	}
+	return template.HTML(`<span class="inline-flex items-center gap-1.5 text-muted-foreground"><span class="size-2 rounded-full bg-muted-foreground/40"></span>` +
+		template.HTMLEscapeString(no) + `</span>`)
+}
+
+// Badge renders the value as a colored badge; keys are raw values (or
+// their fmt representation), values are color names ("green", "blue",
+// "azure", "purple", "orange", "yellow", "red", "secondary", "outline").
+func (c *Column[T]) Badge(colors map[any]string) *Column[T] {
+	c.present = func(v any, _ *T) template.HTML { return badgeHTML(colors, v) }
 	return c
 }
 
-// Bool renders ✓/✕ statuses for truthy/falsy values.
+// Bool renders Yes/No statuses for truthy/falsy values.
 func (c *Column[T]) Bool() *Column[T] {
-	c.present = func(v any, _ *T) template.HTML {
-		if truthy(v) {
-			return `<span class="status status-green">Yes</span>`
-		}
-		return `<span class="status status-secondary">No</span>`
-	}
+	c.present = func(v any, _ *T) template.HTML { return statusHTML(truthy(v), "Yes", "No") }
 	return c
 }
 

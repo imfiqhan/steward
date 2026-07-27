@@ -1,47 +1,23 @@
-<div class="page-header d-print-none">
-  <div class="container-xl">
-    <div class="row g-2 align-items-center">
-      <div class="col">
-        <div class="page-pretitle">Overview</div>
-        <h2 class="page-title">Dashboard</h2>
-      </div>
-    </div>
+<div class="p-6 grid gap-4">
+  <div>
+    <p class="text-sm text-muted-foreground">Overview</p>
+    <h2 class="text-2xl font-semibold">Dashboard</h2>
   </div>
-</div>
-<div class="page-body">
-  <div class="container-xl">
-    <div class="row row-deck row-cards">
-      <div class="col-sm-6 col-lg-4">
-        <div class="card">
-          <div class="card-body">
-            <div class="d-flex align-items-center">
-              <div class="subheader">Signed in as</div>
-            </div>
-            <div class="h1 mb-0 mt-1">{{if .Page.User.Name}}{{.Page.User.Name}}{{else}}{{.Page.User.Username}}{{end}}</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-sm-6 col-lg-4">
-        <div class="card">
-          <div class="card-body">
-            <div class="subheader">Registered resources</div>
-            <div class="h1 mb-0 mt-1">{{.Data.ResourceCount}}</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-12">
-        <div class="card">
-          <div class="card-body">
-            <h3 class="card-title">Welcome to Steward</h3>
-            <p class="text-secondary">
-              This panel is served by the Steward framework. Register resources with
-              <code>steward.Register[Model](app)</code> and they appear in the sidebar;
-              grids, forms, and detail views are generated from your model and refined
-              through the fluent builders.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {{template "widgets/metric.html" (dict "Label" "Signed in as" "Value" (or .Page.User.Name .Page.User.Username))}}
+    {{template "widgets/metric.html" (dict "Label" "Registered resources" "Value" .Data.ResourceCount)}}
+  </div>
+  <div class="card">
+    <header>
+      <h2>Welcome to Steward</h2>
+    </header>
+    <section>
+      <p class="text-muted-foreground">
+        This panel is served by the Steward framework. Register resources with
+        <code class="kbd">steward.Register[Model](app)</code> and they appear in the sidebar;
+        grids, forms, and detail views are generated from your model and refined
+        through the fluent builders.
+      </p>
+    </section>
   </div>
 </div>
