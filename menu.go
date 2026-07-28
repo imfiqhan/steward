@@ -31,6 +31,11 @@ func (a *Admin) buildMenu(c *Context) []MenuNode {
 		if uri == "" {
 			return false
 		}
+		// A registered resource's policy overrides everything — policies
+		// bind administrators too (checked before the isAdmin shortcut).
+		if entry, ok := a.bySlug[strings.Trim(uri, "/")]; ok && !entry.menuVisible(c) {
+			return false
+		}
 		if uri == "/" || isAdmin {
 			return true
 		}

@@ -31,6 +31,7 @@ type Resource[T any] struct {
 	formFn   func(*Form[T])
 	detailFn func(*Detail[T])
 	repo     Repository[T]
+	policy   Policy[T]
 	pages    []customPage
 }
 
@@ -119,6 +120,15 @@ func (r *Resource[T]) Page(method, rel string, h func(c *Context) error) *Resour
 // Repository swaps the data source (default: GORM repository over Config.DB).
 func (r *Resource[T]) Repository(repo Repository[T]) *Resource[T] { r.repo = repo; return r }
 
+// Policy attaches fine-grained authorization. ViewAny gates the grid, its
+// JSON listing, exports, and the sidebar entry; Create gates the create
+// form and submissions; View/Update/Delete receive the loaded row, so
+// ownership checks live here. Implement RowScoper on the same value to
+// narrow every list query. Policies bind every user, administrators
+// included — they express business rules, not role membership (use
+// permissions for that).
+func (r *Resource[T]) Policy(p Policy[T]) *Resource[T] { r.policy = p; return r }
+
 // typedResource is the erased registry entry; the any→T boundary lives here
 // and nowhere else.
 type typedResource[T any] struct {
@@ -128,6 +138,7 @@ type typedResource[T any] struct {
 	form   *Form[T]
 	detail *Detail[T]
 	repo   Repository[T]
+	policy Policy[T]
 }
 
 func (t *typedResource[T]) meta() *resourceMeta { return t.res.m }
@@ -152,6 +163,7 @@ func (t *typedResource[T]) compile(a *Admin) error {
 		}
 		t.repo = gr
 	}
+	t.policy = t.res.policy
 
 	g := newGrid(t.res)
 	if t.res.gridFn != nil {

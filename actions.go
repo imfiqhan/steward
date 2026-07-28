@@ -82,7 +82,12 @@ func (t *typedResource[T]) verifyActions(a *Admin) {
 }
 
 // dispatchAction handles POST {base}/_action/{name}.
+// dispatchAction is gated by ViewAny; finer checks belong in the action's
+// own handler, which knows what it mutates.
 func (t *typedResource[T]) dispatchAction(c *Context) error {
+	if !t.canViewAny(c) {
+		return t.denyPolicy(c)
+	}
 	name := c.R.PathValue("name")
 	var action *Action
 	for _, act := range t.grid.allActions() {

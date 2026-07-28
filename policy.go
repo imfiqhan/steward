@@ -45,6 +45,55 @@ func (AllowAll[T]) Update(*Context, *T) bool { return true }
 // Delete implements Policy.
 func (AllowAll[T]) Delete(*Context, *T) bool { return true }
 
+// ---- enforcement ---------------------------------------------------------
+//
+// A nil policy allows everything; the helpers below are the only places
+// that read t.policy, so every handler asks the same questions the same way.
+
+func (t *typedResource[T]) canViewAny(c *Context) bool {
+	return t.policy == nil || t.policy.ViewAny(c)
+}
+
+func (t *typedResource[T]) canView(c *Context, m *T) bool {
+	return t.policy == nil || t.policy.View(c, m)
+}
+
+func (t *typedResource[T]) canCreate(c *Context) bool {
+	return t.policy == nil || t.policy.Create(c)
+}
+
+func (t *typedResource[T]) canUpdate(c *Context, m *T) bool {
+	return t.policy == nil || t.policy.Update(c, m)
+}
+
+func (t *typedResource[T]) canDelete(c *Context, m *T) bool {
+	return t.policy == nil || t.policy.Delete(c, m)
+}
+
+// menuVisible implements resourceEntry: sidebar entries follow ViewAny.
+func (t *typedResource[T]) menuVisible(c *Context) bool { return t.canViewAny(c) }
+
+// applyRowScope narrows a list query when the policy implements RowScoper.
+// It scopes lists only — single-record loads are protected by the per-row
+// View/Update/Delete checks, which see the loaded model.
+func (t *typedResource[T]) applyRowScope(c *Context, q *ListQuery) {
+	if t.policy == nil {
+		return
+	}
+	if rs, ok := t.policy.(RowScoper); ok {
+		q.Scopes = append(q.Scopes, func(db *gorm.DB) *gorm.DB { return rs.Scope(c, db) })
+	}
+}
+
+// denyPolicy renders the standard 403 for whichever shape the client asked.
+func (t *typedResource[T]) denyPolicy(c *Context) error {
+	if c.WantsJSON() {
+		return c.JSON(http.StatusForbidden, Error("You do not have permission to do this."))
+	}
+	c.Admin.renderError(c, http.StatusForbidden, "Permission denied", nil)
+	return nil
+}
+
 // permissionRules returns the parsed rules of every permission the user
 // holds through roles, memoized per request.
 func (c *Context) permissionRules() []httpmatch.Rule {

@@ -207,6 +207,9 @@ func (t *typedResource[T]) show(c *Context) error {
 		}
 		return err
 	}
+	if !t.canView(c, row) {
+		return t.denyPolicy(c)
+	}
 	if c.WantsJSON() {
 		c.W.Header().Set("Vary", "HX-Request, Accept")
 		return c.JSON(http.StatusOK, row)
@@ -219,8 +222,8 @@ func (t *typedResource[T]) show(c *Context) error {
 		ListURL:   c.URL(m.slug),
 		EditURL:   c.URL(m.slug, id, "edit"),
 		DeleteURL: c.URL(m.slug, id),
-		CanEdit:   t.grid.enabled("edit"),
-		CanDelete: t.grid.enabled("delete"),
+		CanEdit:   t.grid.enabled("edit") && t.canUpdate(c, row),
+		CanDelete: t.grid.enabled("delete") && t.canDelete(c, row),
 	}
 	for _, df := range t.detail.fields {
 		if df.info == nil {
@@ -250,14 +253,22 @@ func (t *typedResource[T]) show(c *Context) error {
 		if err != nil {
 			return err
 		}
+		if relVM == nil { // the related resource's policy denies ViewAny
+			continue
+		}
 		vm.Relations = append(vm.Relations, *relVM)
 	}
 	return c.Admin.render(c, "detail/page.html", m.title+" #"+id, vm)
 }
 
 // renderRelation renders this resource's grid columns for an embedded
-// relation table on another resource's detail page.
+// relation table on another resource's detail page. A nil result (no error)
+// means this resource's policy hides the section entirely.
 func (t *typedResource[T]) renderRelation(c *Context, title string, q *ListQuery) (*detailRelVM, error) {
+	if !t.canViewAny(c) {
+		return nil, nil
+	}
+	t.applyRowScope(c, q)
 	items, _, err := t.repo.List(c.Ctx(), q)
 	if err != nil {
 		return nil, err

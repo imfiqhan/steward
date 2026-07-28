@@ -102,6 +102,7 @@ type resourceEntry interface {
 	compile(a *Admin) error
 	registerRoutes(a *Admin, mux *http.ServeMux)
 	renderRelation(c *Context, title string, q *ListQuery) (*detailRelVM, error)
+	menuVisible(c *Context) bool
 }
 
 // New validates the config and returns an unbuilt Admin. Resource

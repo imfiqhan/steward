@@ -202,6 +202,9 @@ func (t *typedResource[T]) belongsToOptions(c *Context, fd *Field[T], selected s
 // ---- handlers ---------------------------------------------------------------
 
 func (t *typedResource[T]) createPage(c *Context) error {
+	if !t.canCreate(c) {
+		return t.denyPolicy(c)
+	}
 	vm := t.buildFormVM(c, nil, true, nil)
 	return c.Admin.render(c, "form/page.html", "New "+t.res.m.title, vm)
 }
@@ -214,6 +217,9 @@ func (t *typedResource[T]) editPage(c *Context) error {
 			return nil
 		}
 		return err
+	}
+	if !t.canUpdate(c, row) {
+		return t.denyPolicy(c)
 	}
 	vm := t.buildFormVM(c, row, false, nil)
 	return c.Admin.render(c, "form/page.html", "Edit "+t.res.m.title, vm)
@@ -262,6 +268,9 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	// Load the target model.
 	var m *T
 	if creating {
+		if !t.canCreate(c) {
+			return c.Envelope(Error("You do not have permission to create this.").Code(http.StatusForbidden))
+		}
 		m = new(T)
 	} else {
 		var err error
@@ -271,6 +280,9 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 				return c.Envelope(Error("Record not found.").Code(http.StatusNotFound))
 			}
 			return err
+		}
+		if !t.canUpdate(c, m) {
+			return c.Envelope(Error("You do not have permission to update this.").Code(http.StatusForbidden))
 		}
 	}
 
@@ -444,6 +456,9 @@ func assign(dst, src reflect.Value) error {
 
 // schemaJSON exposes form/grid field metadata for headless clients.
 func (t *typedResource[T]) schemaJSON(c *Context) error {
+	if !t.canViewAny(c) {
+		return t.denyPolicy(c)
+	}
 	type schemaField struct {
 		Name     string  `json:"name"`
 		Kind     string  `json:"kind"`
@@ -472,6 +487,9 @@ func (t *typedResource[T]) schemaJSON(c *Context) error {
 
 // optionsJSON serves BelongsTo/select search: GET {slug}/_options?field=X&q=.
 func (t *typedResource[T]) optionsJSON(c *Context) error {
+	if !t.canViewAny(c) {
+		return t.denyPolicy(c)
+	}
 	name := c.R.URL.Query().Get("field")
 	for _, fd := range t.form.fields {
 		if fd.path != name {
@@ -509,7 +527,12 @@ func (t *typedResource[T]) optionsJSON(c *Context) error {
 }
 
 // uploadFile handles POST {slug}/_upload?field=X (multipart "file").
+// Gated by ViewAny only: the form may be a create or an edit, and the
+// written model is policy-checked again at save time.
 func (t *typedResource[T]) uploadFile(c *Context) error {
+	if !t.canViewAny(c) {
+		return t.denyPolicy(c)
+	}
 	name := c.R.URL.Query().Get("field")
 	var target *Field[T]
 	for _, fd := range t.form.fields {

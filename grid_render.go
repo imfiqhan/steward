@@ -333,7 +333,7 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		ToolActions:    actionVMs(c.URL(m.slug), g.toolActions),
 		ReorderURL:     g.reorderURL,
 		Features: map[string]bool{
-			"create":      g.enabled("create"),
+			"create":      g.enabled("create") && t.canCreate(c),
 			"delete":      g.enabled("delete"),
 			"edit":        g.enabled("edit"),
 			"view":        g.enabled("view"),
@@ -540,7 +540,11 @@ func defaultCell(v any) template.HTML {
 // ---- handlers ---------------------------------------------------------------
 
 func (t *typedResource[T]) index(c *Context) error {
+	if !t.canViewAny(c) {
+		return t.denyPolicy(c)
+	}
 	st := t.parseState(c)
+	t.applyRowScope(c, st.query) // rides into list, tree, and export queries
 
 	if st.export != "" && t.grid.enabled("export") {
 		return t.exportCSV(c, st)
@@ -676,6 +680,17 @@ func (t *typedResource[T]) destroy(c *Context) error {
 	}
 	if len(ids) == 0 {
 		return c.Envelope(Error("Nothing selected.").Code(http.StatusBadRequest))
+	}
+	if t.policy != nil {
+		for _, id := range ids {
+			m, err := t.repo.Find(c.Ctx(), id)
+			if err != nil {
+				continue // vanished row; the delete below no-ops it
+			}
+			if !t.policy.Delete(c, m) {
+				return c.Envelope(Error("You do not have permission to delete this.").Code(http.StatusForbidden))
+			}
+		}
 	}
 	if t.form.deletingFn != nil {
 		if err := t.form.deletingFn(c, ids); err != nil {
