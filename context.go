@@ -100,6 +100,13 @@ func (c *Context) JSON(status int, v any) error {
 	return json.NewEncoder(c.W).Encode(v)
 }
 
+// Render writes a template inside the admin layout — the seam for custom
+// Resource.Page handlers. name is a full relative template path resolved
+// through the overlay FS ("pages/stats.html"); data lands in .Data.
+func (c *Context) Render(name, title string, data any) error {
+	return c.Admin.render(c, name, title, data)
+}
+
 // Envelope writes the unified mutation response.
 func (c *Context) Envelope(e *Envelope) error {
 	code := e.code
