@@ -1,12 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <style>
-    .shield { fill: #09090b; }
-    .s { stroke: #ffffff; }
+    .mark { stroke: #09090b; }
     @media (prefers-color-scheme: dark) {
-      .shield { fill: #fafafa; }
-      .s { stroke: #09090b; }
+      .mark { stroke: #fafafa; }
     }
   </style>
-  <path class="shield" d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
-  <path class="s" fill="none" stroke-width="2.2" stroke-linecap="round" d="M14.6 9.6c-.5-.9-1.5-1.5-2.6-1.5-1.4 0-2.5.8-2.5 1.9 0 2.7 5.2 1.5 5.2 4.2 0 1.2-1.2 2-2.7 2-1.2 0-2.3-.6-2.8-1.6"/>
+  <g class="mark" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7.6 7.5 H5 V24.5 H7.6" stroke-width="2.6"/><path d="M24.4 7.5 H27 V24.5 H24.4" stroke-width="2.6"/><path d="M18.9 12.3 C18.2 11.4 17.2 11 16 11 C14.1 11 12.8 12 12.8 13.4 C12.8 15 14.4 15.6 16.4 16.1 C18.6 16.7 19.6 17.5 19.6 18.9 C19.6 20.4 18.2 21.4 16 21.4 C14.5 21.4 13.3 20.9 12.5 19.9" transform="translate(16,16) scale(0.86) translate(-16,-16)" stroke-width="3.5"/></g>
 </svg>
