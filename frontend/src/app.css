@@ -1,5 +1,8 @@
 @import "tailwindcss";
 @import "../vendor/basecoat/basecoat.css";
+/* Chart component CSS is not part of the style pack; it styles the chart
+   container, external tooltip, and generated legend. */
+@import "../vendor/basecoat/components/chart.css";
 
 /* Tailwind v4 scans these sources for class names used by Go templates and
    Go-emitted markup (grid displayers, badges). Utilities referenced only in

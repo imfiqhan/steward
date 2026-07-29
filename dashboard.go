@@ -21,6 +21,7 @@ type widgetKind int
 const (
 	widgetMetric widgetKind = iota
 	widgetTemplate
+	widgetChart
 )
 
 // maxWidgetSpan matches the dashboard grid's column count.
@@ -51,6 +52,19 @@ func (w *Widget) Hint(s string) *Widget { w.hint = s; return w }
 // aggregate does not hold up the page. The tile renders a skeleton and swaps
 // itself once the fragment arrives.
 func (w *Widget) Lazy() *Widget { w.lazy = true; return w }
+
+// Chart adds a chart tile drawn by Basecoat's Chart component. load returns the
+// series to plot; see ChartData. Defaults to spanning two columns, since a
+// chart squeezed into one is rarely readable.
+//
+// Requires the chart assets: run `make vendor-chart` once, then `make assets`.
+// Without them the tile explains itself rather than rendering blank.
+func (d *Dashboard) Chart(title string, load func(*Context) (*ChartData, error)) *Widget {
+	w := &Widget{kind: widgetChart, title: title, span: 2}
+	w.load = func(c *Context) (any, error) { return load(c) }
+	d.widgets = append(d.widgets, w)
+	return w
+}
 
 // Dashboard collects the widgets shown on the panel's home page.
 type Dashboard struct {
@@ -98,6 +112,8 @@ type widgetVM struct {
 	Span  int
 	Value string
 	Body  template.HTML
+	// Payload is a chart's JSON, embedded for the client initializer.
+	Payload template.JS
 	// LazyURL is set when the widget defers its load; the tile fetches it.
 	LazyURL string
 	// Err carries a load failure. One broken widget must not blank the page,
@@ -111,6 +127,8 @@ func (a *Admin) resolve(c *Context, w *Widget, i int) widgetVM {
 	switch w.kind {
 	case widgetMetric:
 		vm.Kind = "metric"
+	case widgetChart:
+		vm.Kind = "chart"
 	default:
 		vm.Kind = "template"
 	}
@@ -131,6 +149,23 @@ func (a *Admin) resolve(c *Context, w *Widget, i int) widgetVM {
 		return vm
 	}
 
+	if w.kind == widgetChart {
+		cd, ok := data.(*ChartData)
+		if !ok || cd == nil {
+			vm.Err = "Could not load."
+			return vm
+		}
+		raw, err := cd.json()
+		if err != nil {
+			// A malformed chart is the caller's bug, so name it in the log.
+			a.log.Error("steward: dashboard chart", "title", w.title, "err", err)
+			vm.Err = "Could not load."
+			return vm
+		}
+		vm.Payload = template.JS(raw)
+		return vm
+	}
+
 	var buf bytes.Buffer
 	if err := a.renderer.execute(&buf, w.tmpl, a.pageMetaFor(c, w.title), data); err != nil {
 		a.log.Error("steward: dashboard widget template", "template", w.tmpl, "err", err)
@@ -144,6 +179,8 @@ func (a *Admin) resolve(c *Context, w *Widget, i int) widgetVM {
 // dashboardVM is the page payload.
 type dashboardVM struct {
 	Widgets []widgetVM
+	// HasChart pulls the chart runtime into the page, once, only when needed.
+	HasChart bool
 	// ResourceCount keeps the built-in overview page working unchanged.
 	ResourceCount int
 }
@@ -157,6 +194,12 @@ func (a *Admin) dashboard(c *Context) error {
 		})
 	}
 	vm := dashboardVM{Widgets: make([]widgetVM, 0, len(a.dash.widgets))}
+	for _, w := range a.dash.widgets {
+		if w.kind == widgetChart {
+			vm.HasChart = true // the page pulls in the chart scripts once
+			break
+		}
+	}
 	for i, w := range a.dash.widgets {
 		if w.lazy {
 			vm.Widgets = append(vm.Widgets, widgetVM{

@@ -1,5 +1,6 @@
 GO ?= go
 TAILWIND_VERSION ?= v4.3.3
+CHARTJS_VERSION ?= 4.5.0
 UNAME_S := $(shell uname -s | tr A-Z a-z)
 UNAME_M := $(shell uname -m)
 ifeq ($(UNAME_M),x86_64)
@@ -13,7 +14,7 @@ else
   TW_OS := linux
 endif
 
-.PHONY: build test lint vet run e2e tidy assets assets-dev tailwind-bin
+.PHONY: build test lint vet run e2e tidy assets assets-dev tailwind-bin vendor-chart
 
 # One-shot frontend build (esbuild via Go + Tailwind standalone — no Node).
 assets: tailwind-bin
@@ -31,6 +32,23 @@ tailwind-bin:
 	  curl -sSL -o frontend/.bin/tailwindcss \
 	    https://github.com/tailwindlabs/tailwindcss/releases/download/$(TAILWIND_VERSION)/tailwindcss-$(TW_OS)-$(TW_ARCH) && \
 	  chmod +x frontend/.bin/tailwindcss )
+
+# Vendors Chart.js and stages the chart runtime beside the UI bundle. Chart.js
+# is Basecoat's Chart peer dependency and is not redistributed here, so this
+# fetches it once. Charts are served per page, not bundled into app.js, because
+# Chart.js is larger than the whole current bundle and most pages have no chart.
+vendor-chart:
+	@test -f frontend/vendor/chartjs/chart.umd.min.js || ( \
+	  mkdir -p frontend/vendor/chartjs && \
+	  echo "downloading chart.js $(CHARTJS_VERSION)..." && \
+	  curl -sSL -o frontend/vendor/chartjs/chart.umd.min.js \
+	    https://cdn.jsdelivr.net/npm/chart.js@$(CHARTJS_VERSION)/dist/chart.umd.min.js && \
+	  curl -sSL -o frontend/vendor/chartjs/LICENSE.md \
+	    https://raw.githubusercontent.com/chartjs/Chart.js/v$(CHARTJS_VERSION)/LICENSE.md )
+	@mkdir -p assets/dist
+	@cp frontend/vendor/chartjs/chart.umd.min.js assets/dist/chart.umd.min.js
+	@cp frontend/vendor/basecoat/js/chart.min.js assets/dist/basecoat-chart.min.js
+	@echo "chart runtime staged in assets/dist (rebuild the binary to embed it)"
 
 build:
 	$(GO) build ./...

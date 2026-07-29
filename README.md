@@ -112,9 +112,9 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
       instead of blanking the page
 - [x] Widgets fetched individually via `Lazy()`, so one slow aggregate never
       blocks the page
-- [ ] Charts as server-rendered SVG (line, bar, area, sparkline) — no JS at
-      runtime, renders under `no_ui`, assertable in a unit test. A vendored
-      uPlot lands behind a flag only if interactivity is actually wanted
+- [x] Charts via Basecoat's Chart component (bar, line, pie, doughnut, radar,
+      stacked) — themed by `--chart-N`, typed column-oriented Go API, runtime
+      served per page rather than bundled. `make vendor-chart` once
 - [ ] Aggregate helpers over `Repository[T]` (group-by-period counts, sums)
       so widgets don't hand-roll SQL
 

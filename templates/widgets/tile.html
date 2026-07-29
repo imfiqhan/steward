@@ -17,6 +17,23 @@
       <div class="skeleton h-8 w-full"></div>
     </section>
   </div>
+  {{else if eq .Kind "chart"}}
+  <div class="card">
+    {{with .Title}}<header><h2>{{.}}</h2></header>{{end}}
+    <section>
+      <div data-steward-chart>
+        <canvas{{with .Title}} aria-label="{{.}}"{{end}}></canvas>
+        {{/* Server-rendered, and removed by the initializer once the chart
+             draws. If the chart runtime is missing the note simply stays, so a
+             missing dependency explains itself instead of leaving a blank box. */}}
+        <p class="text-sm text-muted-foreground" data-steward-chart-note>
+          Chart runtime not loaded — run <code class="kbd">make vendor-chart</code>,
+          then <code class="kbd">make assets</code>.
+        </p>
+        <script type="application/json" data-steward-chart-data>{{.Payload}}</script>
+      </div>
+    </section>
+  </div>
   {{else if eq .Kind "metric"}}
   <div class="card" data-size="sm">
     <section>

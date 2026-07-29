@@ -28,3 +28,46 @@
     {{range .Data.Widgets}}{{template "widgets/tile.html" .}}{{end}}
   </div>
 </div>
+
+{{if .Data.HasChart}}
+{{/* Loaded per page rather than bundled into app.js: Chart.js is larger than
+     the whole current bundle, and most pages have no chart. */}}
+<script src="{{asset "dist/chart.umd.min.js"}}"></script>
+<script src="{{asset "dist/basecoat-chart.min.js"}}"></script>
+<script>
+  (function () {
+    function draw(root) {
+      if (!window.Chart || !window.basecoat || !window.basecoat.chart) return;
+      root.querySelectorAll("[data-steward-chart]").forEach(function (box) {
+        if (box.dataset.stewardChartDone) return;
+        var payload = box.querySelector("[data-steward-chart-data]");
+        var canvas = box.querySelector("canvas");
+        if (!payload || !canvas) return;
+        var opts;
+        try {
+          opts = JSON.parse(payload.textContent);
+        } catch (e) {
+          return; // leave the note in place; it explains the failure
+        }
+        if (!canvas.id) {
+          canvas.id = "steward-chart-" + Math.random().toString(36).slice(2);
+        }
+        window.basecoat.chart("#" + canvas.id, opts);
+        var note = box.querySelector("[data-steward-chart-note]");
+        if (note) note.remove();
+        box.dataset.stewardChartDone = "1";
+      });
+    }
+    function run() { draw(document); }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run);
+    } else {
+      run();
+    }
+    // Lazy tiles and HTMX navigation swap in new canvases.
+    document.body.addEventListener("htmx:load", function (e) {
+      draw(e.detail && e.detail.elt ? e.detail.elt : document);
+    });
+  })();
+</script>
+{{end}}

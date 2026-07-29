@@ -162,3 +162,71 @@ func TestDashboardWidgetRouteAbsentWithoutBuilder(t *testing.T) {
 		t.Errorf("GET /_widget/0 with no widgets = %d, want 404", code)
 	}
 }
+
+func TestDashboardChartWidget(t *testing.T) {
+	base, token := dashboardServer(t, "file:dashchart?mode=memory&cache=shared", func(d *steward.Dashboard) {
+		d.Chart("Visitors", func(*steward.Context) (*steward.ChartData, error) {
+			return &steward.ChartData{
+				Type:   steward.ChartBar,
+				Labels: []string{"Jan", "Feb"},
+				Series: []steward.ChartSeries{
+					{Label: "Desktop", Values: []float64{186, 305}},
+				},
+				Legend: true,
+			}, nil
+		}).Span(2)
+	})
+
+	code, body := getAuth(t, base+"/", token)
+	if code != http.StatusOK {
+		t.Fatalf("GET dashboard = %d, want 200", code)
+	}
+	// The canvas and its payload are server-rendered.
+	if !strings.Contains(body, "data-steward-chart") {
+		t.Error("chart container missing")
+	}
+	if !strings.Contains(body, "<canvas") {
+		t.Error("canvas missing")
+	}
+	if !strings.Contains(body, `"labelKey":"label"`) || !strings.Contains(body, `"Desktop"`) {
+		t.Errorf("chart payload missing or malformed; body:\n%s", body)
+	}
+	// The runtime is pulled in once, only because a chart is present.
+	if !strings.Contains(body, "chart.umd.min.js") {
+		t.Error("chart runtime script not included on a page with a chart")
+	}
+	// The note is present so a missing runtime explains itself.
+	if !strings.Contains(body, "data-steward-chart-note") {
+		t.Error("self-explaining note missing")
+	}
+}
+
+func TestDashboardOmitsChartRuntimeWithoutCharts(t *testing.T) {
+	base, token := dashboardServer(t, "file:dashnochart?mode=memory&cache=shared", func(d *steward.Dashboard) {
+		d.Metric("Plain", func(*steward.Context) (any, error) { return 1, nil })
+	})
+	_, body := getAuth(t, base+"/", token)
+	if strings.Contains(body, "chart.umd.min.js") {
+		t.Error("chart runtime loaded on a page with no charts")
+	}
+}
+
+func TestDashboardChartReportsBadData(t *testing.T) {
+	base, token := dashboardServer(t, "file:dashbadchart?mode=memory&cache=shared", func(d *steward.Dashboard) {
+		// Values shorter than Labels is a caller bug; the tile must say so
+		// rather than emit a broken payload.
+		d.Chart("Broken", func(*steward.Context) (*steward.ChartData, error) {
+			return &steward.ChartData{
+				Labels: []string{"Jan", "Feb"},
+				Series: []steward.ChartSeries{{Label: "a", Values: []float64{1}}},
+			}, nil
+		})
+	})
+	code, body := getAuth(t, base+"/", token)
+	if code != http.StatusOK {
+		t.Fatalf("GET dashboard = %d, want 200", code)
+	}
+	if !strings.Contains(body, "Could not load.") {
+		t.Error("malformed chart did not report in place")
+	}
+}
