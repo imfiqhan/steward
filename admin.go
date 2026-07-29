@@ -118,6 +118,7 @@ type Admin struct {
 	handler      http.Handler
 	assetVersion string
 
+	dash         *Dashboard
 	tokenLimiter *rateLimiter
 
 	buildOnce sync.Once

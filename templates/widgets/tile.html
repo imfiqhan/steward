@@ -1,0 +1,34 @@
+{{/* One dashboard tile. Receives a widgetVM directly (not the Page/Data
+     wrapper), so it can be rendered both inside the dashboard loop and on its
+     own as a lazy fragment. The tile owns its data-span wrapper, so an
+     outerHTML swap keeps the widget's width. */}}
+<div data-span="{{.Span}}"{{if eq .Kind "lazy"}} hx-get="{{.LazyURL}}" hx-trigger="load" hx-swap="outerHTML"{{end}}>
+  {{if .Err}}
+  <div class="card" data-size="sm">
+    <section>
+      <p class="text-sm text-muted-foreground">{{.Title}}</p>
+      <p class="mt-1 text-sm text-destructive">{{.Err}}</p>
+    </section>
+  </div>
+  {{else if eq .Kind "lazy"}}
+  <div class="card" data-size="sm">
+    <section class="grid gap-3">
+      <div class="skeleton h-4 w-3/4"></div>
+      <div class="skeleton h-8 w-full"></div>
+    </section>
+  </div>
+  {{else if eq .Kind "metric"}}
+  <div class="card" data-size="sm">
+    <section>
+      <p class="text-sm text-muted-foreground">{{.Title}}</p>
+      <p class="mt-1 text-3xl font-semibold">{{.Value}}</p>
+      {{with .Hint}}<p class="mt-1 text-sm text-muted-foreground">{{.}}</p>{{end}}
+    </section>
+  </div>
+  {{else}}
+  <div class="card">
+    {{with .Title}}<header><h2>{{.}}</h2></header>{{end}}
+    <section>{{.Body}}</section>
+  </div>
+  {{end}}
+</div>

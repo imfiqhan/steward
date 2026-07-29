@@ -51,6 +51,9 @@ func (a *Admin) buildRoutes() *http.ServeMux {
 	mux.HandleFunc("GET "+p+"/{$}", a.h(a.dashboard))
 	mux.Handle("GET "+p, http.RedirectHandler(p+"/", http.StatusMovedPermanently))
 
+	// Lazy dashboard widgets fetch their own tile.
+	mux.HandleFunc("GET "+p+"/_widget/{index}", a.h(a.widgetFragment))
+
 	mux.HandleFunc("GET "+p+"/auth/login", a.h(a.loginPage))
 	mux.HandleFunc("POST "+p+"/auth/login", a.h(a.loginSubmit))
 	if a.cfg.Mailer != nil {
@@ -87,10 +90,4 @@ func (a *Admin) buildRoutes() *http.ServeMux {
 		return nil
 	}))
 	return mux
-}
-
-func (a *Admin) dashboard(c *Context) error {
-	return a.render(c, "pages/dashboard.html", "Dashboard", map[string]any{
-		"ResourceCount": len(a.registry),
-	})
 }

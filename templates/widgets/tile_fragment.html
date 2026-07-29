@@ -1,0 +1,4 @@
+{{/* Lazy-widget response. renderer.execute always wraps its payload as
+     {Page, Data}, while tile.html takes a bare widgetVM — this unwraps one for
+     the other so both call sites share a single tile template. */}}
+{{template "widgets/tile.html" .Data}}

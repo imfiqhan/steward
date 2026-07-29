@@ -1,0 +1,30 @@
+<div class="p-6 grid gap-4">
+  <div>
+    <p class="text-sm text-muted-foreground">Overview</p>
+    <h2 class="text-2xl font-semibold">Dashboard</h2>
+  </div>
+
+  {{/* Span is chosen per widget at runtime, so it rides a data attribute with
+       plain CSS instead of Tailwind utilities: the committed bundle carries no
+       col-span classes, and emitting them would leave the layout silently
+       broken until someone ran `make assets`. Swap this for safelisted
+       lg:col-span-* classes if you would rather rebuild assets. */}}
+  <style>
+    .steward-dash { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
+    @media (min-width: 640px) {
+      .steward-dash { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      /* Two columns available, so 2 and 3 both span the full row. */
+      .steward-dash > [data-span="2"],
+      .steward-dash > [data-span="3"] { grid-column: span 2; }
+    }
+    @media (min-width: 1024px) {
+      .steward-dash { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .steward-dash > [data-span="2"] { grid-column: span 2; }
+      .steward-dash > [data-span="3"] { grid-column: span 3; }
+    }
+  </style>
+
+  <div class="steward-dash">
+    {{range .Data.Widgets}}{{template "widgets/tile.html" .}}{{end}}
+  </div>
+</div>

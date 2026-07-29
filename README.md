@@ -107,13 +107,14 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
 
 - [x] Widget templates — `card`, `metric` (KPI), `alert`, and `lazy`
       (HTMX load-after-paint)
-- [ ] `Dashboard` builder — widgets and their column span declared in Go,
-      each with a typed data callback, replacing today's hardcoded page
+- [x] `Dashboard` builder — widgets and their column span declared in Go,
+      each with a typed data callback; a failing widget reports in place
+      instead of blanking the page
+- [x] Widgets fetched individually via `Lazy()`, so one slow aggregate never
+      blocks the page
 - [ ] Charts as server-rendered SVG (line, bar, area, sparkline) — no JS at
       runtime, renders under `no_ui`, assertable in a unit test. A vendored
       uPlot lands behind a flag only if interactivity is actually wanted
-- [ ] Widgets fetched individually through `lazy`, so one slow aggregate
-      never blocks the page
 - [ ] Aggregate helpers over `Repository[T]` (group-by-period counts, sums)
       so widgets don't hand-roll SQL
 
