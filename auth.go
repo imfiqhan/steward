@@ -1,6 +1,7 @@
 package steward
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -12,6 +13,37 @@ import (
 
 	"github.com/imfiqhan/steward/internal/session"
 )
+
+// errBadCredentials covers both an unknown username and a wrong password, so
+// callers cannot accidentally tell the two apart in a response.
+var errBadCredentials = errors.New("steward: invalid credentials")
+
+// dummyHash is compared against when the username is unknown, so that path
+// costs the same as a real bcrypt check.
+const dummyHash = "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5B0Wxb1c9dyO0uMYPZ1a1C6q1n1Ga"
+
+// authenticate verifies a username/password pair with Roles preloaded for
+// downstream permission checks. Used by both the login form and, when
+// Config.EnableTokenAuth is set, the token endpoint.
+func (a *Admin) authenticate(ctx context.Context, username, password string) (*AdminUser, error) {
+	if username == "" || password == "" {
+		return nil, errBadCredentials
+	}
+	var user AdminUser
+	err := a.db.WithContext(ctx).Preload("Roles").Where("username = ?", username).First(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// Equalize timing between unknown-user and wrong-password paths.
+		_ = bcrypt.CompareHashAndPassword([]byte(dummyHash), []byte(password))
+		return nil, errBadCredentials
+	}
+	if err != nil {
+		return nil, err
+	}
+	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) != nil {
+		return nil, errBadCredentials
+	}
+	return &user, nil
+}
 
 func (a *Admin) loginPage(c *Context) error {
 	if c.User != nil {
@@ -38,29 +70,19 @@ func (a *Admin) loginSubmit(c *Context) error {
 			"CanReset": a.cfg.Mailer != nil,
 		})
 	}
-	if username == "" || password == "" {
-		return fail()
-	}
-
-	var user AdminUser
-	err := a.db.WithContext(c.Ctx()).Preload("Roles").Where("username = ?", username).First(&user).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Equalize timing between unknown-user and wrong-password paths.
-		_ = bcrypt.CompareHashAndPassword([]byte("$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5B0Wxb1c9dyO0uMYPZ1a1C6q1n1Ga"), []byte(password))
+	user, err := a.authenticate(c.Ctx(), username, password)
+	if errors.Is(err, errBadCredentials) {
 		return fail()
 	}
 	if err != nil {
 		return err
-	}
-	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) != nil {
-		return fail()
 	}
 
 	if err := c.login(user.ID); err != nil {
 		return err
 	}
 	a.log.Info("steward: login", "user", user.Username)
-	c.Flash("success", "Welcome back, "+displayName(&user)+".")
+	c.Flash("success", "Welcome back, "+displayName(user)+".")
 	return c.Redirect(a.url("/"))
 }
 

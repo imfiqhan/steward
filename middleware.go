@@ -16,16 +16,21 @@ type ctxKey int
 const (
 	ctxKeySession ctxKey = iota
 	ctxKeyUser
+	ctxKeyToken
 )
 
 // wrap composes the fixed middleware chain around the route table:
-// recover → access log → session → CSRF → auth → permission →
+// recover → access log → session → token → CSRF → auth → permission →
 // operation log → routes.
+//
+// Token resolution sits ahead of CSRF so that CSRF can recognise a bearer
+// caller, and ahead of auth, which defers to an already-resolved principal.
 func (a *Admin) wrap(next http.Handler) http.Handler {
 	h := a.withOperationLog(next)
 	h = a.withPermission(h)
 	h = a.withAuth(h)
 	h = a.withCSRF(h)
+	h = a.withToken(h)
 	h = a.withSession(h)
 	h = a.withLogging(h)
 	h = a.withRecover(h)
@@ -92,10 +97,19 @@ func (a *Admin) withSession(next http.Handler) http.Handler {
 }
 
 // withCSRF enforces the double-submit token on state-changing methods.
+//
+// Bearer callers are exempt: CSRF defends against a browser attaching an
+// ambient cookie to a cross-site request, and a token sent in an explicit
+// header is never attached automatically. The token endpoint is exempt for the
+// same reason — it authenticates from its body and the caller has no session.
 func (a *Admin) withCSRF(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			next.ServeHTTP(w, r)
+			return
+		}
+		if tokenOf(r) != nil || (a.cfg.EnableTokenAuth && a.tokenEndpoint(r.URL.Path)) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -121,6 +135,11 @@ func (a *Admin) publicPath(p string) bool {
 		strings.HasPrefix(rel, "/_assets/") || strings.HasPrefix(rel, "/_uploads/") {
 		return true
 	}
+	// Minting a token authenticates from the request body; revoking one
+	// authenticates from the bearer credential, which revokeToken requires.
+	if a.cfg.EnableTokenAuth && rel == "/auth/token" {
+		return true
+	}
 	for _, pat := range a.cfg.AuthExcept {
 		pat = "/" + strings.TrimLeft(pat, "/")
 		if ok, err := path.Match(pat, rel); err == nil && ok {
@@ -142,6 +161,11 @@ func (a *Admin) isAssetPath(p string) bool {
 // non-public paths.
 func (a *Admin) withAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// A bearer token already resolved the principal.
+		if userOf(r) != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
 		sess := sessionOf(r)
 		var user *AdminUser
 		if sess != nil && sess.UID != 0 {

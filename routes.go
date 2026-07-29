@@ -59,6 +59,10 @@ func (a *Admin) buildRoutes() *http.ServeMux {
 		mux.HandleFunc("GET "+p+"/auth/reset", a.h(a.resetPage))
 		mux.HandleFunc("POST "+p+"/auth/reset", a.h(a.resetSubmit))
 	}
+	if a.cfg.EnableTokenAuth {
+		mux.HandleFunc("POST "+p+"/auth/token", a.h(a.issueToken))
+		mux.HandleFunc("DELETE "+p+"/auth/token", a.h(a.revokeToken))
+	}
 	mux.HandleFunc("POST "+p+"/auth/logout", a.h(a.logoutHandler))
 	mux.HandleFunc("GET "+p+"/auth/profile", a.h(a.profilePage))
 	mux.HandleFunc("POST "+p+"/auth/profile", a.h(a.profileSubmit))

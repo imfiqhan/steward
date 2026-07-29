@@ -172,3 +172,21 @@ type Setting struct {
 }
 
 func (Setting) TableName() string { return prefixed("settings") }
+
+// AdminToken is a bearer credential for API and mobile clients, belonging to
+// an AdminUser and inheriting that user's roles, permissions, and policies.
+//
+// Hash holds a SHA-256 of the token, not a bcrypt digest: tokens carry 256
+// bits of entropy, so a fast hash is sound and — unlike bcrypt — lets lookup
+// be a single indexed query instead of a scan over every row.
+type AdminToken struct {
+	ID         uint   `gorm:"primaryKey"`
+	UserID     uint   `gorm:"index;not null"`
+	Name       string `gorm:"size:120"` // client label: "iPhone", "CI deploy"
+	Hash       string `gorm:"size:64;uniqueIndex"`
+	LastUsedAt *time.Time
+	ExpiresAt  *time.Time `gorm:"index"`
+	CreatedAt  time.Time
+}
+
+func (AdminToken) TableName() string { return prefixed("tokens") }

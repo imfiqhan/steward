@@ -15,6 +15,9 @@ type Tables struct {
 	// Models carries one zero-value pointer per framework table, in
 	// creation order; DropTable runs in reverse.
 	Models []any
+	// TokenModel is created by 0003 rather than listed in Models, so that
+	// databases already past 0001 pick the table up too.
+	TokenModel any
 	// SeedFn inserts default rows (admin user, administrator role, menu).
 	SeedFn func(tx *gorm.DB, passwordHash string) error
 }
@@ -48,6 +51,15 @@ func Core(t Tables) []migrate.Migration {
 			// Seeded rows are user data once created; rolling back the seed
 			// deliberately does nothing destructive.
 			Down: func(tx *gorm.DB) error { return nil },
+		},
+		{
+			Name: "0003_create_admin_tokens",
+			Up: func(tx *gorm.DB) error {
+				return tx.Migrator().AutoMigrate(t.TokenModel)
+			},
+			Down: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable(t.TokenModel)
+			},
 		},
 	}
 }

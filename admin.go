@@ -68,6 +68,21 @@ type Config struct {
 	// that skip authentication and permission checks.
 	AuthExcept []string
 
+	// EnableTokenAuth accepts "Authorization: Bearer <token>" alongside the
+	// session cookie, and mounts POST/DELETE {Prefix}/auth/token so API and
+	// mobile clients can mint and revoke their own credentials.
+	//
+	// Off by default: enabling it exposes a credential-issuing endpoint that
+	// takes a username and password, so it should be a deliberate choice
+	// rather than something an upgrade turns on. Tokens inherit their user's
+	// roles, permissions, and policies — scope an API client by giving it its
+	// own AdminUser with a restricted role, not the administrator account.
+	EnableTokenAuth bool
+
+	// TokenTTL bounds how long an issued token stays valid. Zero means the
+	// default of 30 days; a negative duration means tokens never expire.
+	TokenTTL time.Duration
+
 	Logger *slog.Logger
 }
 
@@ -248,7 +263,8 @@ func (a *Admin) coreTables() migrations.Tables {
 			&RoleUser{}, &RolePermission{}, &RoleMenu{}, &PermissionMenu{},
 			&OperationLog{}, &Setting{},
 		},
-		SeedFn: seedDefaults,
+		TokenModel: &AdminToken{},
+		SeedFn:     seedDefaults,
 	}
 }
 

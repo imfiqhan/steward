@@ -36,7 +36,8 @@ ginsteward.Mount(router, app) // or mount app as a plain http.Handler
 - **Versioned migrations** — embedded framework migrations plus a runner for
   your own; no silent AutoMigrate schema drift.
 - **Headless-ready** — every resource endpoint also serves JSON via
-  `Accept: application/json`.
+  `Accept: application/json`, with opt-in bearer tokens so API scripts and
+  mobile clients authenticate without a cookie or a CSRF handshake.
 - **Single binary, no Node anywhere** — the UI bundle (Tailwind v4 +
   Basecoat + htmx) is compiled by the esbuild Go API and the Tailwind
   standalone binary (`make assets`), committed, and shipped via `go:embed`;
@@ -58,6 +59,8 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
       not at click time
 - [x] Headless JSON API on every resource endpoint
       (`Accept: application/json`) plus a `_schema` endpoint
+- [x] Bearer-token auth for API and mobile clients (`EnableTokenAuth`),
+      CSRF-exempt, inheriting the token owner's roles and policies
 - [x] HTMX fragment navigation (SPA feel, server-rendered)
 
 ### Grid

@@ -25,8 +25,11 @@ func (a *Admin) withOperationLog(next http.Handler) http.Handler {
 		mutating := r.Method == http.MethodPost || r.Method == http.MethodPut ||
 			r.Method == http.MethodPatch || r.Method == http.MethodDelete
 		rel := "/" + strings.TrimLeft(strings.TrimPrefix(r.URL.Path, a.cfg.Prefix), "/")
+		// /auth/token is skipped like /auth/login: the request carries a
+		// password and the response carries a credential.
 		skip := !mutating || user == nil ||
-			strings.Contains(rel, "/_upload") || rel == "/auth/login"
+			strings.Contains(rel, "/_upload") ||
+			rel == "/auth/login" || rel == "/auth/token"
 
 		next.ServeHTTP(w, r)
 		if skip {
