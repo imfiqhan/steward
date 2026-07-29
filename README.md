@@ -115,8 +115,9 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
 - [x] Charts via Basecoat's Chart component (bar, line, pie, doughnut, radar,
       stacked) — themed by `--chart-N`, typed column-oriented Go API, runtime
       served per page rather than bundled. `make vendor-chart` once
-- [ ] Aggregate helpers over `Repository[T]` (group-by-period counts, sums)
-      so widgets don't hand-roll SQL
+- [x] Aggregate helpers over `Repository[T]` — `Count`, `Sum`, `GroupCount`,
+      `PeriodCount`, `PeriodSum`, chart-ready via `AggRows.Chart`; day/month/
+      year buckets on SQLite, MySQL, and Postgres
 
 Page composition stays in templates rather than a Go `Row`/`Column`/`Layout`
 object graph like dcat-admin's: Tailwind plus the template overlay already
