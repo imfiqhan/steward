@@ -102,6 +102,24 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
 - [x] Field renderers (badge, bool, image, link, custom `As`)
 - [x] Embedded relation grids (`steward.RelationGrid[T,C]`)
 
+### Dashboard & widgets
+
+- [x] Widget templates — `card`, `metric` (KPI), `alert`, and `lazy`
+      (HTMX load-after-paint)
+- [ ] `Dashboard` builder — widgets and their column span declared in Go,
+      each with a typed data callback, replacing today's hardcoded page
+- [ ] Charts as server-rendered SVG (line, bar, area, sparkline) — no JS at
+      runtime, renders under `no_ui`, assertable in a unit test. A vendored
+      uPlot lands behind a flag only if interactivity is actually wanted
+- [ ] Widgets fetched individually through `lazy`, so one slow aggregate
+      never blocks the page
+- [ ] Aggregate helpers over `Repository[T]` (group-by-period counts, sums)
+      so widgets don't hand-roll SQL
+
+Page composition stays in templates rather than a Go `Row`/`Column`/`Layout`
+object graph like dcat-admin's: Tailwind plus the template overlay already
+cover it, and an HTML DSL in Go would be more surface for less flexibility.
+
 ### Auth, RBAC & administration
 
 - [x] Encrypted cookie sessions, CSRF protection, bcrypt passwords
