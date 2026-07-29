@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -58,6 +59,42 @@ func (a *Admin) tokenTTL() time.Duration {
 		return defaultTokenTTL
 	}
 	return a.cfg.TokenTTL
+}
+
+// defaultTokenRateLimit applies when Config.TokenRateLimit is zero.
+const defaultTokenRateLimit = 5
+
+// ipRateMultiple loosens the per-IP allowance relative to the per-username one,
+// because a proxy puts every client behind a single address.
+const ipRateMultiple = 6
+
+func (a *Admin) tokenRateLimit() int {
+	if a.cfg.TokenRateLimit == 0 {
+		return defaultTokenRateLimit
+	}
+	return a.cfg.TokenRateLimit
+}
+
+func (a *Admin) tokenRateWindow() time.Duration {
+	if a.cfg.TokenRateWindow <= 0 {
+		return time.Minute
+	}
+	return a.cfg.TokenRateWindow
+}
+
+// allowTokenAttempt consumes one unit of the given bucket's budget.
+func (a *Admin) allowTokenAttempt(key string, limit int) (bool, time.Duration) {
+	if a.cfg.TokenRateLimit < 0 || a.tokenLimiter == nil {
+		return true, 0
+	}
+	return a.tokenLimiter.allow(key, limit, time.Now())
+}
+
+// tooManyAttempts answers a throttled caller with Retry-After.
+func (a *Admin) tooManyAttempts(c *Context, retry time.Duration) error {
+	secs := max(int(retry.Seconds()), 1)
+	c.W.Header().Set("Retry-After", strconv.Itoa(secs))
+	return c.JSON(http.StatusTooManyRequests, Error("Too many attempts — try again shortly."))
 }
 
 // bearerToken extracts the credential from an Authorization header.
@@ -166,6 +203,11 @@ type tokenIssueRequest struct {
 // not rate-limit it; put a limiter in front of {Prefix}/auth/token in any
 // internet-facing deployment.
 func (a *Admin) issueToken(c *Context) error {
+	// Checked before the body is read, so a flood costs nothing to reject.
+	if ok, retry := a.allowTokenAttempt("ip:"+clientIP(c.R), a.tokenRateLimit()*ipRateMultiple); !ok {
+		return a.tooManyAttempts(c, retry)
+	}
+
 	var req tokenIssueRequest
 	if strings.Contains(c.R.Header.Get("Content-Type"), "application/json") {
 		if err := json.NewDecoder(http.MaxBytesReader(c.W, c.R.Body, 4<<10)).Decode(&req); err != nil {
@@ -180,7 +222,14 @@ func (a *Admin) issueToken(c *Context) error {
 		req.Name = c.R.PostFormValue("name")
 	}
 
-	user, err := a.authenticate(c.Ctx(), strings.TrimSpace(req.Username), req.Password)
+	username := strings.TrimSpace(req.Username)
+	// Per-account budget, spent before bcrypt so guessing cannot be amplified
+	// into CPU load. Lower-cased so casing variants share one bucket.
+	if ok, retry := a.allowTokenAttempt("user:"+strings.ToLower(username), a.tokenRateLimit()); !ok {
+		return a.tooManyAttempts(c, retry)
+	}
+
+	user, err := a.authenticate(c.Ctx(), username, req.Password)
 	if errors.Is(err, errBadCredentials) {
 		return c.JSON(http.StatusUnauthorized, Error("These credentials do not match our records."))
 	}

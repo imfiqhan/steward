@@ -83,6 +83,19 @@ type Config struct {
 	// default of 30 days; a negative duration means tokens never expire.
 	TokenTTL time.Duration
 
+	// TokenRateLimit caps attempts on {Prefix}/auth/token within
+	// TokenRateWindow, counted per username. Client IPs are capped in the same
+	// window at six times this figure — looser, because a proxy collapses many
+	// clients onto one address, so the per-username bound is what really
+	// protects an account. Successful and failed attempts both count.
+	//
+	// Zero means 5 per window; a negative value disables limiting. Limits are
+	// per process, so N replicas admit N times the rate.
+	TokenRateLimit int
+
+	// TokenRateWindow is the rate-limit window. Zero means one minute.
+	TokenRateWindow time.Duration
+
 	Logger *slog.Logger
 }
 
@@ -104,6 +117,8 @@ type Admin struct {
 	mux          *http.ServeMux
 	handler      http.Handler
 	assetVersion string
+
+	tokenLimiter *rateLimiter
 
 	buildOnce sync.Once
 	buildErr  error
@@ -166,6 +181,7 @@ func New(cfg Config) (*Admin, error) {
 		bySlug: map[string]resourceEntry{},
 		byType: map[reflect.Type]resourceEntry{},
 	}
+	a.tokenLimiter = newRateLimiter(a.tokenRateWindow())
 	return a, nil
 }
 

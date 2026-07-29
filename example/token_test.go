@@ -169,6 +169,51 @@ func TestTokenAuth(t *testing.T) {
 	}
 }
 
+// TestTokenRateLimit walks the per-username budget to exhaustion and expects a
+// 429 carrying Retry-After, not another authentication failure.
+func TestTokenRateLimit(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:tokenrate?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB:              db,
+		SecretKey:       []byte("token-rate-secret-key"),
+		EnableTokenAuth: true,
+		TokenRateLimit:  3,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+	base := srv.URL + "/admin"
+
+	// Three wrong-password attempts are answered on the merits.
+	for i := 1; i <= 3; i++ {
+		if code, _ := issue(t, base, "admin", "wrong"); code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d = %d, want 401", i, code)
+		}
+	}
+	// The fourth is throttled — and stays throttled even with the right
+	// password, which is the point: the budget is spent before bcrypt runs.
+	body, _ := json.Marshal(map[string]string{"username": "admin", "password": "admin"})
+	resp, err := http.Post(base+"/auth/token", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusTooManyRequests {
+		t.Errorf("fourth attempt = %d, want 429", resp.StatusCode)
+	}
+	if resp.Header.Get("Retry-After") == "" {
+		t.Error("429 lacks a Retry-After header")
+	}
+}
+
 // TestTokenAuthDisabled proves the feature is opt-in: without the flag the
 // endpoint is absent and bearer credentials are ignored.
 func TestTokenAuthDisabled(t *testing.T) {

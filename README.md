@@ -60,7 +60,8 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
 - [x] Headless JSON API on every resource endpoint
       (`Accept: application/json`) plus a `_schema` endpoint
 - [x] Bearer-token auth for API and mobile clients (`EnableTokenAuth`),
-      CSRF-exempt, inheriting the token owner's roles and policies
+      CSRF-exempt, inheriting the token owner's roles and policies; the
+      token endpoint is rate-limited per username and per client IP
 - [x] HTMX fragment navigation (SPA feel, server-rendered)
 
 ### Grid
