@@ -28,17 +28,20 @@ type gridState struct {
 	filterVals map[string]string
 }
 
-func (t *typedResource[T]) param(name string) string { return t.res.m.slug + "_" + name }
+// filterParam is the query-param name for a filter on the given field path.
+// parseState keys filterVals by it and buildVM reads them back out, so the two
+// must agree or entered values vanish from the re-rendered filter panel.
+func filterParam(path string) string { return "f_" + path }
 
-// parseState turns namespaced query params into a ListQuery.
+// parseState turns query params into a ListQuery.
 func (t *typedResource[T]) parseState(c *Context) *gridState {
 	g := t.grid
 	q := c.R.URL.Query()
 	st := &gridState{query: &ListQuery{}, filterVals: map[string]string{}}
 
-	st.page, _ = strconv.Atoi(q.Get(t.param("page")))
+	st.page, _ = strconv.Atoi(q.Get("page"))
 	st.page = max(st.page, 1)
-	st.per, _ = strconv.Atoi(q.Get(t.param("per")))
+	st.per, _ = strconv.Atoi(q.Get("per_page"))
 	if st.per <= 0 || st.per > 500 {
 		st.per = g.perPage
 	}
@@ -46,7 +49,7 @@ func (t *typedResource[T]) parseState(c *Context) *gridState {
 		st.per = 0
 	}
 
-	if s := q.Get(t.param("sort")); s != "" {
+	if s := q.Get("sort"); s != "" {
 		desc := strings.HasPrefix(s, "-")
 		path := strings.TrimPrefix(s, "-")
 		if info, ok := t.ft.byPath[path]; ok && info.DBName != "" {
@@ -67,7 +70,7 @@ func (t *typedResource[T]) parseState(c *Context) *gridState {
 		if fi.info == nil {
 			continue
 		}
-		name := t.param("f_" + fi.path)
+		name := filterParam(fi.path)
 		v := strings.TrimSpace(q.Get(name))
 		v2 := strings.TrimSpace(q.Get(name + "_to"))
 		st.filterVals[name] = v
@@ -93,7 +96,7 @@ func (t *typedResource[T]) parseState(c *Context) *gridState {
 	}
 
 	// Quick search through the mini-DSL.
-	st.search = strings.TrimSpace(q.Get(t.param("q")))
+	st.search = strings.TrimSpace(q.Get("q"))
 	if st.search != "" && len(g.quickSearch) > 0 && g.enabled("quicksearch") {
 		var bare []string
 		for _, term := range quickdsl.Parse(st.search) {
@@ -114,8 +117,8 @@ func (t *typedResource[T]) parseState(c *Context) *gridState {
 		}
 	}
 
-	st.export = q.Get(t.param("export"))
-	if raw := q.Get(t.param("ids")); raw != "" {
+	st.export = q.Get("export")
+	if raw := q.Get("ids"); raw != "" {
 		st.ids = strings.Split(raw, ",")
 	}
 	return st
@@ -322,10 +325,10 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		Page:           st.page,
 		PerPage:        st.per,
 		PerPageOptions: perPageOptions(g.perPageOptions, st.per),
-		PerParam:       t.param("per"),
-		SearchParam:    t.param("q"),
+		PerParam:       "per_page",
+		SearchParam:    "q",
 		Search:         st.search,
-		ExportURL:      urlWith(c, map[string]string{t.param("export"): "all"}),
+		ExportURL:      urlWith(c, map[string]string{"export": "all"}),
 		ResetURL:       c.URL(m.slug),
 		DeleteURLBase:  c.URL(m.slug),
 		RowActions:     actionVMs(c.URL(m.slug), g.rowActions),
@@ -358,7 +361,7 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 					next = "-" + col.path
 				}
 			}
-			cv.SortURL = urlWith(c, map[string]string{t.param("sort"): next, t.param("page"): ""})
+			cv.SortURL = urlWith(c, map[string]string{"sort": next, "page": ""})
 		}
 		vm.Columns = append(vm.Columns, cv)
 	}
@@ -408,7 +411,7 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		if fi.info == nil {
 			continue
 		}
-		param := t.param("f_" + fi.path)
+		param := filterParam(fi.path)
 		fv := filterVM{
 			Param:       param,
 			Label:       fi.label,
@@ -434,7 +437,7 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 			vm.To = vm.From + len(vm.Rows) - 1
 		}
 		pageURL := func(p int) string {
-			return urlWith(c, map[string]string{t.param("page"): strconv.Itoa(p)})
+			return urlWith(c, map[string]string{"page": strconv.Itoa(p)})
 		}
 		vm.Pagination = append(vm.Pagination, pageLinkVM{Label: "prev", URL: pageURL(st.page - 1), Disabled: st.page <= 1})
 		for _, p := range pageWindow(st.page, vm.Pages) {
