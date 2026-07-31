@@ -106,7 +106,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			vm.Fields = append(vm.Fields, formFieldVM{Divider: true})
 			continue
 		}
-		if (fd.info == nil && !fd.virtual) || !fd.visible(creating) {
+		if (fd.info == nil && !fd.virtual) || !fd.visible(c, creating) {
 			continue
 		}
 		fv := formFieldVM{
@@ -296,7 +296,7 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	var dirty []string
 
 	for _, fd := range f.fields {
-		if fd.info == nil || fd.ignored || !fd.visible(creating) {
+		if fd.info == nil || fd.ignored || !fd.visible(c, creating) {
 			continue
 		}
 		raw, present := formValue(c.R, fd.path)
@@ -474,7 +474,9 @@ func (t *typedResource[T]) schemaJSON(c *Context) error {
 		Fields []schemaField `json:"fields"`
 	}{Slug: t.res.m.slug, Title: t.res.m.title, Key: t.ft.pk.Path}
 	for _, fd := range t.form.fields {
-		if fd.info == nil || fd.divider {
+		// Report the form this caller would actually be served, so a Show
+		// predicate does not advertise a field their submission cannot write.
+		if fd.info == nil || fd.divider || !fd.visible(c, true) {
 			continue
 		}
 		out.Fields = append(out.Fields, schemaField{

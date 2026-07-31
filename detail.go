@@ -92,6 +92,25 @@ func (df *DetailField[T]) Link() *DetailField[T] {
 	return df
 }
 
+// HTML renders the value as markup rather than escaped text — the read side of
+// a Form.Richtext field.
+//
+// The value is sanitized again here, not merely trusted for having been
+// sanitized on save. Rows predating the Richtext field, rows written by a
+// migration or a direct SQL fix, and rows from another writer never passed
+// through that path, so cleaning on render is what makes the guarantee hold for
+// the data actually in the table.
+func (df *DetailField[T]) HTML() *DetailField[T] {
+	df.present = func(v any, _ *T) template.HTML {
+		s := fmt.Sprint(orEmpty(v))
+		if s == "" {
+			return `<span class="text-muted-foreground">—</span>`
+		}
+		return template.HTML(`<div class="prose-sm max-w-none">` + sanitizeHTML(s) + `</div>`) //nolint:gosec // sanitizeHTML is the allowlist boundary
+	}
+	return df
+}
+
 // JSON pretty-prints the value as a code block.
 func (df *DetailField[T]) JSON() *DetailField[T] {
 	df.present = func(v any, _ *T) template.HTML {

@@ -39,3 +39,101 @@ tr.steward-dragging { opacity: 0.5; }
 /* Theme toggle shows the icon of the theme you can switch to. */
 .dark .steward-theme-light { display: none; }
 :root:not(.dark) .steward-theme-dark { display: none; }
+
+/* ---- Rich text editor (Form.Richtext) ------------------------------------ */
+
+.steward-richtext-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--muted);
+}
+
+.steward-richtext-btn {
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 0.375rem;
+  border-radius: calc(var(--radius) - 2px);
+  font-size: 0.8125rem;
+  line-height: 1;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.steward-richtext-btn:hover {
+  background: var(--background);
+  color: var(--foreground);
+}
+.steward-richtext-btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.steward-richtext-sep {
+  width: 1px;
+  height: 1rem;
+  margin: 0 0.25rem;
+  background: var(--border);
+}
+
+.steward-richtext-surface {
+  min-height: 14rem;
+  max-height: 32rem;
+  overflow-y: auto;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.steward-richtext-surface:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -1px;
+}
+
+/* The surface renders saved markup, so it needs the tag styles the shipped
+   reset strips. These match what the detail view's .prose-sm produces. */
+.steward-richtext-surface :is(h2, h3, h4) { font-weight: 600; margin: 0.75em 0 0.35em; }
+.steward-richtext-surface h2 { font-size: 1.25em; }
+.steward-richtext-surface h3 { font-size: 1.1em; }
+.steward-richtext-surface p { margin: 0 0 0.75em; }
+.steward-richtext-surface :is(ul, ol) { margin: 0 0 0.75em; padding-inline-start: 1.5em; }
+.steward-richtext-surface ul { list-style: disc; }
+.steward-richtext-surface ol { list-style: decimal; }
+.steward-richtext-surface li { margin: 0.15em 0; }
+.steward-richtext-surface blockquote {
+  margin: 0 0 0.75em;
+  padding-inline-start: 0.875em;
+  border-inline-start: 3px solid var(--border);
+  color: var(--muted-foreground);
+}
+.steward-richtext-surface a { color: var(--primary); text-decoration: underline; }
+.steward-richtext-surface strong { font-weight: 600; }
+.steward-richtext-surface em { font-style: italic; }
+.steward-richtext-surface > :last-child { margin-bottom: 0; }
+
+/* Same treatment for read-only rendering in the detail view. */
+.prose-sm :is(h2, h3, h4) { font-weight: 600; margin: 0.75em 0 0.35em; }
+.prose-sm h2 { font-size: 1.25em; }
+.prose-sm h3 { font-size: 1.1em; }
+.prose-sm p { margin: 0 0 0.75em; }
+.prose-sm :is(ul, ol) { margin: 0 0 0.75em; padding-inline-start: 1.5em; }
+.prose-sm ul { list-style: disc; }
+.prose-sm ol { list-style: decimal; }
+.prose-sm li { margin: 0.15em 0; }
+.prose-sm blockquote {
+  margin: 0 0 0.75em;
+  padding-inline-start: 0.875em;
+  border-inline-start: 3px solid var(--border);
+  color: var(--muted-foreground);
+}
+.prose-sm a { color: var(--primary); text-decoration: underline; }
+.prose-sm strong { font-weight: 600; }
+.prose-sm em { font-style: italic; }
+.prose-sm > :last-child { margin-bottom: 0; }

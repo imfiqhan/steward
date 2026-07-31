@@ -624,6 +624,128 @@ window.htmx = htmx;
     }).finally(function () { input.disabled = false; });
   });
 
+  /* ---- Rich text editor ------------------------------------------------------- */
+  /*
+   * Progressive enhancement over the Richtext field's textarea: the textarea
+   * stays the element that submits, and a contenteditable surface edits its
+   * value. With JavaScript off, or if this fails, the raw HTML is still
+   * editable in the textarea.
+   *
+   * Markup is sanitized server-side on save (sanitize.go), so nothing here is a
+   * security boundary — execCommand's output only has to be tidy, not trusted.
+   */
+
+  var RICHTEXT_TOOLS = [
+    { cmd: "bold", label: "B", title: "Bold (⌘B)", cls: "font-semibold" },
+    { cmd: "italic", label: "I", title: "Italic (⌘I)", cls: "italic" },
+    { cmd: "underline", label: "U", title: "Underline (⌘U)", cls: "underline" },
+    { sep: true },
+    { cmd: "formatBlock", arg: "h2", label: "H2", title: "Heading 2" },
+    { cmd: "formatBlock", arg: "h3", label: "H3", title: "Heading 3" },
+    { cmd: "formatBlock", arg: "p", label: "¶", title: "Paragraph" },
+    { sep: true },
+    { cmd: "insertUnorderedList", label: "•", title: "Bulleted list" },
+    { cmd: "insertOrderedList", label: "1.", title: "Numbered list" },
+    { cmd: "formatBlock", arg: "blockquote", label: "❝", title: "Quote" },
+    { sep: true },
+    { cmd: "createLink", label: "🔗", title: "Insert link" },
+    { cmd: "unlink", label: "⛓", title: "Remove link" },
+    { cmd: "removeFormat", label: "⌫", title: "Clear formatting" }
+  ];
+
+  function buildRichtext(wrap) {
+    if (wrap.dataset.stewardRichtextReady === "1") return;
+    var ta = wrap.querySelector("textarea");
+    if (!ta) return;
+    // A disabled or read-only field keeps the plain textarea.
+    if (wrap.dataset.disabled === "1" || wrap.dataset.readonly === "1") {
+      wrap.dataset.stewardRichtextReady = "1";
+      return;
+    }
+    wrap.dataset.stewardRichtextReady = "1";
+
+    var bar = document.createElement("div");
+    bar.className = "steward-richtext-toolbar";
+    bar.setAttribute("role", "toolbar");
+    bar.setAttribute("aria-label", "Formatting");
+
+    var surface = document.createElement("div");
+    surface.className = "steward-richtext-surface";
+    surface.contentEditable = "true";
+    surface.setAttribute("role", "textbox");
+    surface.setAttribute("aria-multiline", "true");
+    // The visible label points at the now-hidden textarea, so copy its text
+    // onto the surface — otherwise the editor has no accessible name.
+    var label = ta.id && document.querySelector('label[for="' + ta.id + '"]');
+    if (label) surface.setAttribute("aria-label", label.textContent.trim().replace(/\*$/, ""));
+    surface.innerHTML = ta.value;
+
+    RICHTEXT_TOOLS.forEach(function (t) {
+      if (t.sep) {
+        var s = document.createElement("span");
+        s.className = "steward-richtext-sep";
+        s.setAttribute("aria-hidden", "true");
+        bar.appendChild(s);
+        return;
+      }
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "steward-richtext-btn " + (t.cls || "");
+      b.title = t.title;
+      b.setAttribute("aria-label", t.title);
+      b.textContent = t.label;
+      b.addEventListener("mousedown", function (e) {
+        // Keep focus (and the selection) in the surface.
+        e.preventDefault();
+      });
+      b.addEventListener("click", function (e) {
+        e.preventDefault();
+        surface.focus();
+        if (t.cmd === "createLink") {
+          var url = window.prompt("Link URL", "https://");
+          if (!url) return;
+          document.execCommand("createLink", false, url);
+        } else if (t.cmd === "formatBlock") {
+          document.execCommand("formatBlock", false, t.arg);
+        } else {
+          document.execCommand(t.cmd, false, null);
+        }
+        sync();
+      });
+      bar.appendChild(b);
+    });
+
+    function sync() { ta.value = surface.innerHTML; }
+
+    surface.addEventListener("input", sync);
+    surface.addEventListener("blur", sync);
+    // Paste as plain text: pasted Word and web markup is mostly attributes the
+    // server would strip anyway, and dropping it here keeps the surface honest
+    // about what will be saved.
+    surface.addEventListener("paste", function (e) {
+      if (!e.clipboardData) return;
+      e.preventDefault();
+      var text = e.clipboardData.getData("text/plain");
+      document.execCommand("insertText", false, text);
+      sync();
+    });
+    // The form may be submitted without the surface ever blurring.
+    var form = ta.form;
+    if (form) form.addEventListener("submit", sync);
+
+    ta.classList.add("hidden");
+    wrap.insertBefore(bar, ta);
+    wrap.insertBefore(surface, ta);
+  }
+
+  function initRichtext() {
+    var nodes = document.querySelectorAll("[data-steward-richtext]");
+    for (var i = 0; i < nodes.length; i++) buildRichtext(nodes[i]);
+  }
+
+  document.addEventListener("DOMContentLoaded", initRichtext);
+  document.addEventListener("htmx:afterSettle", initRichtext);
+
   /* ---- Theme toggle ----------------------------------------------------------- */
 
   document.addEventListener("click", function (e) {

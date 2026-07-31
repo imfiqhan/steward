@@ -35,6 +35,7 @@ const (
 	FieldMarkdown
 	FieldBelongsTo
 	FieldMultiSelect
+	FieldRichtext
 )
 
 // kindNames map kinds to template partials and schema strings.
@@ -46,7 +47,7 @@ var kindNames = map[FieldKind]string{
 	FieldSwitch: "switch", FieldColor: "color", FieldDate: "date",
 	FieldDatetime: "datetime", FieldTime: "time", FieldFile: "file",
 	FieldImage: "image", FieldMarkdown: "markdown", FieldBelongsTo: "belongsto",
-	FieldMultiSelect: "multiselect",
+	FieldMultiSelect: "multiselect", FieldRichtext: "richtext",
 }
 
 // Form configures a resource's create/edit view; write-only until Build.
@@ -178,6 +179,22 @@ func (f *Form[T]) Markdown(path string, label ...string) *Field[T] {
 	return f.add(FieldMarkdown, path, label...)
 }
 
+// Richtext adds a small WYSIWYG editor storing HTML: bold, italic, underline,
+// headings, lists, links, blockquote, and clear-formatting.
+//
+// Submitted markup is sanitized server-side against an allowlist of tags and
+// attributes (see sanitizeHTML), because a contenteditable field is an
+// arbitrary-HTML input and the value is rendered back with Detail.HTML. Anything
+// outside the allowlist is dropped, so a compromised or scripted client cannot
+// store markup that later executes in another admin's browser.
+//
+// It is deliberately modest. A field that needs image handling, tables, or
+// pasted-Word cleanup wants a dedicated editor, which belongs in the app rather
+// than vendored into the framework.
+func (f *Form[T]) Richtext(path string, label ...string) *Field[T] {
+	return f.add(FieldRichtext, path, label...)
+}
+
 // BelongsTo binds a foreign-key field to a searchable select over the
 // relation: BelongsTo("AuthorID", "Author", "Name").
 func (f *Form[T]) BelongsTo(fkPath, relation, titleField string, label ...string) *Field[T] {
@@ -283,8 +300,35 @@ type Field[T any] struct {
 	virtual  bool
 	valuesFn func(c *Context, m any) []string
 
+	showFn func(c *Context) bool
+
 	info *fieldInfo
 }
+
+// Show gates the field on a per-request predicate — the seam for a form whose
+// shape depends on who is filling it in:
+//
+//	f.Select("Status").Show(func(c *steward.Context) bool {
+//	    return c.User.HasRole("editor")
+//	})
+//
+// A hidden field is skipped when the form renders *and* when a submission is
+// decoded, so a caller who forges the input cannot write it. It is also omitted
+// from the resource's _schema response, so a headless client is not told about
+// a field it may not set.
+//
+// Because the field never decodes, nothing writes the column — Default is a
+// render-time value for the input and does not apply. Supply the value in a
+// Saving hook (or leave it to the column's database default):
+//
+//	f.Select("Status").Options(...).Show(isEditor)
+//	f.Saving(func(c *steward.Context, p *Post) error {
+//	    if !isEditor(c) {
+//	        p.Status = "draft"
+//	    }
+//	    return nil
+//	})
+func (fd *Field[T]) Show(fn func(c *Context) bool) *Field[T] { fd.showFn = fn; return fd }
 
 // Rules sets Laravel-style validation ("required|max:255|unique:posts,title,{id}").
 func (fd *Field[T]) Rules(rules string) *Field[T] {
@@ -357,12 +401,17 @@ func (fd *Field[T]) ValuesFunc(fn func(c *Context, m any) []string) *Field[T] {
 	return fd
 }
 
-// visible reports whether the field renders in the given mode.
-func (fd *Field[T]) visible(creating bool) bool {
+// visible reports whether the field renders in the given mode for this
+// request. c may be nil where no request is in scope (the boot-time schema
+// pass), in which case only the mode gates apply.
+func (fd *Field[T]) visible(c *Context, creating bool) bool {
 	if fd.onlyCreate && !creating {
 		return false
 	}
 	if fd.onlyUpdate && creating {
+		return false
+	}
+	if fd.showFn != nil && c != nil && !fd.showFn(c) {
 		return false
 	}
 	return true
@@ -401,6 +450,10 @@ func (fd *Field[T]) decode(raw string) (any, error) {
 		return parseTimeInput(raw, "2006-01-02T15:04", info)
 	case FieldTime:
 		return raw, nil
+	case FieldRichtext:
+		// Sanitize on the way in, so a stored value is always safe to render
+		// and no read path has to remember to clean it.
+		return sanitizeHTML(raw), nil
 	case FieldBelongsTo:
 		if raw == "" {
 			return zeroFor(info), nil
@@ -410,6 +463,44 @@ func (fd *Field[T]) decode(raw string) (any, error) {
 			return raw, nil // non-numeric foreign keys pass through
 		}
 		return n, nil
+	case FieldSelect, FieldRadio:
+		// Option values arrive as strings, but the column they target is often
+		// numeric — a status enum stored as a small int is the common case. The
+		// target's own kind decides, so Options{"0": "Draft"} writes 0 to an
+		// int column and "0" to a string one.
+		return coerceToField(raw, info)
+	default:
+		return raw, nil
+	}
+}
+
+// coerceToField converts a submitted string to the model field's numeric or
+// boolean type, leaving it a string when the target is textual.
+func coerceToField(raw string, info *fieldInfo) (any, error) {
+	if raw == "" {
+		return zeroFor(info), nil
+	}
+	switch info.Kind {
+	case kindInt:
+		n, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("must be a whole number")
+		}
+		return n, nil
+	case kindUint:
+		n, err := strconv.ParseUint(raw, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("must be a whole number")
+		}
+		return n, nil
+	case kindFloat:
+		n, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			return nil, fmt.Errorf("must be a number")
+		}
+		return n, nil
+	case kindBool:
+		return raw == "1" || raw == "true" || raw == "on", nil
 	default:
 		return raw, nil
 	}
