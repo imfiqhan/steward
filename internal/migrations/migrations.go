@@ -18,6 +18,13 @@ type Tables struct {
 	// TokenModel is created by 0003 rather than listed in Models, so that
 	// databases already past 0001 pick the table up too.
 	TokenModel any
+	// UserModel is the account table, altered by 0004 to add the two-factor
+	// columns. Same reasoning as TokenModel: installations already past 0001
+	// need the change applied, not just present in the model.
+	UserModel any
+	// AddTwoFactorColumns applies 0004 against UserModel. The root package owns
+	// the column list because this package must not import it.
+	AddTwoFactorColumns func(tx *gorm.DB, model any) error
 	// SeedFn inserts default rows (admin user, administrator role, menu).
 	SeedFn func(tx *gorm.DB, passwordHash string) error
 }
@@ -60,6 +67,16 @@ func Core(t Tables) []migrate.Migration {
 			Down: func(tx *gorm.DB) error {
 				return tx.Migrator().DropTable(t.TokenModel)
 			},
+		},
+		{
+			Name: "0004_add_two_factor_columns",
+			Up: func(tx *gorm.DB) error {
+				return t.AddTwoFactorColumns(tx, t.UserModel)
+			},
+			// Rolling back drops enrolments, which would lock out anyone
+			// relying on them; the columns are inert when the feature is
+			// unused, so leaving them is the safer no-op.
+			Down: func(tx *gorm.DB) error { return nil },
 		},
 	}
 }

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Two-factor authentication — {{.Page.Brand}}</title>
+  <link rel="icon" href="{{asset "favicon.svg"}}" type="image/svg+xml"/>
+  <link rel="stylesheet" href="{{asset "dist/app.css"}}"/>
+</head>
+<body>
+  <div class="min-h-screen grid place-items-center p-4">
+    <div class="w-full max-w-sm grid gap-6">
+      <h1 class="text-center text-2xl font-semibold">{{.Page.Brand}}</h1>
+      <div class="card">
+        <header>
+          <h2>Two-factor authentication</h2>
+          <p>Enter the six-digit code from your authenticator app for <strong>{{.Data.Username}}</strong>.</p>
+        </header>
+        <section>
+          {{if .Data.Error}}
+          <div class="alert mb-4" data-variant="destructive">
+            <h2>{{.Data.Error}}</h2>
+          </div>
+          {{end}}
+          <form action="{{url "auth/2fa"}}" method="post" autocomplete="off" novalidate class="grid gap-6">
+            <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+            <div class="grid gap-2">
+              <label class="label" for="tfa-code">Authentication code</label>
+              <input class="input text-center text-lg tracking-[0.3em] font-mono" id="tfa-code" name="code"
+                     type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+                     placeholder="000000" autocomplete="one-time-code" autofocus/>
+            </div>
+            <button type="submit" class="btn w-full">Verify</button>
+          </form>
+
+          {{if .Data.HasRecovery}}
+          <details class="mt-6">
+            <summary class="text-sm cursor-pointer underline-offset-4 hover:underline">
+              Lost your device? Use a recovery code
+            </summary>
+            <form action="{{url "auth/2fa"}}" method="post" autocomplete="off" novalidate class="grid gap-4 mt-4">
+              <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+              <div class="grid gap-2">
+                <label class="label" for="tfa-recovery">Recovery code</label>
+                <input class="input font-mono" id="tfa-recovery" name="recovery_code" type="text"
+                       placeholder="xxxx-xxxx-xxxx-xxxx"/>
+                <p class="text-sm text-muted-foreground">Each recovery code works once.</p>
+              </div>
+              <button type="submit" class="btn-outline w-full">Use recovery code</button>
+            </form>
+          </details>
+          {{end}}
+        </section>
+        <footer>
+          <form action="{{url "auth/logout"}}" method="post">
+            <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+            <button type="submit" class="btn-ghost btn-sm">Sign in as someone else</button>
+          </form>
+        </footer>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

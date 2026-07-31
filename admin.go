@@ -68,6 +68,24 @@ type Config struct {
 	// that skip authentication and permission checks.
 	AuthExcept []string
 
+	// Require2FA makes TOTP two-factor authentication mandatory: an account
+	// that has not enrolled is redirected to its profile page and can reach
+	// nothing else until it does. Off by default, in which case each user
+	// decides for themselves from the same page.
+	//
+	// Bearer-token clients are exempt — they hold an explicit credential that
+	// is already separately scoped, and have no session to enrol through.
+	Require2FA bool
+
+	// LoginCheck runs after the password (and second factor, if any) has been
+	// accepted and before the session is issued. A returned error refuses the
+	// login and its message is shown on the form, so it is the seam for
+	// application-level account state: "suspended", "not yet activated",
+	// "outside permitted hours".
+	//
+	// It cannot be used to *grant* a login, only to withhold one.
+	LoginCheck func(ctx context.Context, u *AdminUser) error
+
 	// EnableTokenAuth accepts "Authorization: Bearer <token>" alongside the
 	// session cookie, and mounts POST/DELETE {Prefix}/auth/token so API and
 	// mobile clients can mint and revoke their own credentials.
@@ -120,6 +138,7 @@ type Admin struct {
 
 	dash         *Dashboard
 	tokenLimiter *rateLimiter
+	twoFALimiter *rateLimiter
 
 	buildOnce sync.Once
 	buildErr  error
@@ -183,6 +202,7 @@ func New(cfg Config) (*Admin, error) {
 		byType: map[reflect.Type]resourceEntry{},
 	}
 	a.tokenLimiter = newRateLimiter(a.tokenRateWindow())
+	a.twoFALimiter = newRateLimiter(twoFactorRateWindow)
 	return a, nil
 }
 
@@ -280,8 +300,10 @@ func (a *Admin) coreTables() migrations.Tables {
 			&RoleUser{}, &RolePermission{}, &RoleMenu{}, &PermissionMenu{},
 			&OperationLog{}, &Setting{},
 		},
-		TokenModel: &AdminToken{},
-		SeedFn:     seedDefaults,
+		TokenModel:          &AdminToken{},
+		UserModel:           &AdminUser{},
+		AddTwoFactorColumns: twoFactorColumns,
+		SeedFn:              seedDefaults,
 	}
 }
 

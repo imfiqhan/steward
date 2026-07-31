@@ -28,6 +28,7 @@ const (
 func (a *Admin) wrap(next http.Handler) http.Handler {
 	h := a.withOperationLog(next)
 	h = a.withPermission(h)
+	h = a.twoFactorGate(h)
 	h = a.withAuth(h)
 	h = a.withCSRF(h)
 	h = a.withToken(h)
@@ -131,7 +132,11 @@ func (a *Admin) withCSRF(next http.Handler) http.Handler {
 func (a *Admin) publicPath(p string) bool {
 	rel := strings.TrimPrefix(p, a.cfg.Prefix)
 	rel = "/" + strings.TrimLeft(rel, "/")
+	// /auth/2fa is public in the same sense as /auth/login: the caller holds a
+	// password-verified session but is not yet authenticated. The handler
+	// itself refuses anyone without that pending state.
 	if rel == "/auth/login" || rel == "/auth/forgot" || rel == "/auth/reset" ||
+		rel == "/auth/2fa" ||
 		strings.HasPrefix(rel, "/_assets/") || strings.HasPrefix(rel, "/_uploads/") {
 		return true
 	}
@@ -175,16 +180,24 @@ func (a *Admin) withAuth(next http.Handler) http.Handler {
 			}
 		}
 		if user == nil && !a.publicPath(r.URL.Path) {
+			// A session whose password was accepted but whose second factor is
+			// outstanding is sent to the challenge rather than back to the login
+			// form — it has nothing left to prove there.
+			dest := a.url("auth/login")
+			if sess != nil && sess.Pending2FA != 0 &&
+				time.Since(time.Unix(sess.PendingAt, 0)) <= pending2FAMaxAge {
+				dest = a.url("auth/2fa")
+			}
 			if wantsJSONLike(r) {
 				a.deny(w, r, http.StatusUnauthorized, "authentication required")
 				return
 			}
 			if r.Header.Get("HX-Request") == "true" {
-				w.Header().Set("HX-Redirect", a.url("auth/login"))
+				w.Header().Set("HX-Redirect", dest)
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			http.Redirect(w, r, a.url("auth/login"), http.StatusFound)
+			http.Redirect(w, r, dest, http.StatusFound)
 			return
 		}
 		if user != nil {

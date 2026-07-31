@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Set up two-factor authentication — {{.Page.Brand}}</title>
+  <link rel="icon" href="{{asset "favicon.svg"}}" type="image/svg+xml"/>
+  <link rel="stylesheet" href="{{asset "dist/app.css"}}"/>
+</head>
+<body>
+  <div class="min-h-screen grid place-items-center p-4">
+    <div class="w-full max-w-md grid gap-6">
+      <h1 class="text-center text-2xl font-semibold">{{.Page.Brand}}</h1>
+      <div class="card">
+        <header>
+          <h2>Set up two-factor authentication</h2>
+          <p>This panel requires a second factor. Scan the code with your authenticator app to finish signing in as <strong>{{.Data.Username}}</strong>.</p>
+        </header>
+        <section class="grid gap-6">
+          {{if .Data.Error}}
+          <div class="alert" data-variant="destructive">
+            <h2>{{.Data.Error}}</h2>
+          </div>
+          {{end}}
+          {{with .Data.Setup}}
+          {{if .QR}}
+          <div class="justify-self-center w-48 h-48 rounded-md border p-2 bg-white">{{.QR}}</div>
+          {{end}}
+          <div class="grid gap-2">
+            <label class="label" for="tfa-secret">Or enter this key manually</label>
+            <input class="input font-mono text-sm" id="tfa-secret" type="text" value="{{.Secret}}" readonly
+                   onclick="this.select()"/>
+          </div>
+          {{end}}
+          <form action="{{url "auth/2fa"}}" method="post" autocomplete="off" novalidate class="grid gap-4">
+            <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+            <div class="grid gap-2">
+              <label class="label" for="tfa-code">Enter the six-digit code to confirm</label>
+              <input class="input text-center text-lg tracking-[0.3em] font-mono" id="tfa-code" name="code"
+                     type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+                     placeholder="000000" autocomplete="one-time-code" autofocus/>
+            </div>
+            <button type="submit" class="btn w-full">Confirm and sign in</button>
+          </form>
+        </section>
+        <footer>
+          <form action="{{url "auth/logout"}}" method="post">
+            <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+            <button type="submit" class="btn-ghost btn-sm">Cancel</button>
+          </form>
+        </footer>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

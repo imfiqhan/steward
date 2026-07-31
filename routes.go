@@ -66,10 +66,21 @@ func (a *Admin) buildRoutes() *http.ServeMux {
 		mux.HandleFunc("POST "+p+"/auth/token", a.h(a.issueToken))
 		mux.HandleFunc("DELETE "+p+"/auth/token", a.h(a.revokeToken))
 	}
+	// The two-factor challenge is reachable without a session — the caller has
+	// passed the password but is not authenticated yet.
+	mux.HandleFunc("GET "+p+"/auth/2fa", a.h(a.twoFactorChallengePage))
+	mux.HandleFunc("POST "+p+"/auth/2fa", a.h(a.twoFactorChallengeSubmit))
+
 	mux.HandleFunc("POST "+p+"/auth/logout", a.h(a.logoutHandler))
 	mux.HandleFunc("GET "+p+"/auth/profile", a.h(a.profilePage))
 	mux.HandleFunc("POST "+p+"/auth/profile", a.h(a.profileSubmit))
 	mux.HandleFunc("PUT "+p+"/auth/profile", a.h(a.profileSubmit))
+
+	// Enrolment writes a secret, so every step is a POST rather than a GET.
+	mux.HandleFunc("POST "+p+"/auth/profile/2fa/enable", a.h(a.twoFactorEnableStart))
+	mux.HandleFunc("POST "+p+"/auth/profile/2fa/confirm", a.h(a.twoFactorConfirm))
+	mux.HandleFunc("POST "+p+"/auth/profile/2fa/disable", a.h(a.twoFactorDisable))
+	mux.HandleFunc("POST "+p+"/auth/profile/2fa/codes", a.h(a.twoFactorRegenerateCodes))
 
 	mux.HandleFunc("GET "+p+"/_assets/", a.serveAsset)
 

@@ -50,4 +50,97 @@
       <button type="submit" class="btn ms-auto">Save changes</button>
     </footer>
   </form>
+
+  {{with .Data.TwoFactor}}
+  <div class="card">
+    <header>
+      <h2>Two-factor authentication</h2>
+      <p>
+        {{if .Enabled}}Your account is protected by an authenticator app.
+        {{else}}Add a second step to your sign-in using an authenticator app.{{end}}
+      </p>
+    </header>
+    <section class="grid gap-6">
+      {{with .Error}}
+      <div class="alert" data-variant="destructive"><h2>{{.}}</h2></div>
+      {{end}}
+
+      {{if .RecoveryCodes}}
+      {{/* Freshly minted codes: shown exactly once, right after enrolling or regenerating. */}}
+      <div class="alert" data-variant="warning">
+        <h2>Save your recovery codes now</h2>
+        <section>Each code works once, and they are not shown again.</section>
+      </div>
+      <ul class="grid grid-cols-2 gap-2 font-mono text-sm rounded-md border p-4">
+        {{range .RecoveryCodes}}<li class="tabular-nums">{{.}}</li>{{end}}
+      </ul>
+
+      {{else if .Setup}}
+      {{/* Mid-enrolment: QR plus the confirming code. */}}
+      <p class="text-sm">Scan this with your authenticator app, then enter the code it shows.</p>
+      {{if .Setup.QR}}
+      <div class="justify-self-center w-48 h-48 rounded-md border p-2 bg-white">{{.Setup.QR}}</div>
+      {{end}}
+      <div class="grid gap-2">
+        <label class="label" for="tfa-secret">Or enter this key manually</label>
+        <input class="input font-mono text-sm" id="tfa-secret" type="text" value="{{.Setup.Secret}}" readonly
+               onclick="this.select()"/>
+      </div>
+      <form method="post" action="{{url "auth/profile/2fa/confirm"}}" autocomplete="off" class="grid gap-4">
+        <input type="hidden" name="_token" value="{{$.Page.CSRF}}"/>
+        <div class="grid gap-2">
+          <label class="label" for="tfa-confirm">Six-digit code</label>
+          <input class="input text-center text-lg tracking-[0.3em] font-mono max-w-48" id="tfa-confirm" name="code"
+                 type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000"
+                 autocomplete="one-time-code" autofocus/>
+        </div>
+        <button type="submit" class="btn justify-self-start">Turn on two-factor authentication</button>
+      </form>
+
+      {{else if .Enabled}}
+      <p class="text-sm text-muted-foreground">
+        {{.RecoveryLeft}} recovery code{{if ne .RecoveryLeft 1}}s{{end}} remaining.
+      </p>
+      <form method="post" action="{{url "auth/profile/2fa/codes"}}" autocomplete="off" class="grid gap-4">
+        <input type="hidden" name="_token" value="{{$.Page.CSRF}}"/>
+        <div class="grid gap-2">
+          <label class="label" for="tfa-regen-password">Current password</label>
+          <input class="input max-w-sm" id="tfa-regen-password" name="password" type="password"
+                 autocomplete="current-password"/>
+          <p class="text-sm text-muted-foreground">Replacing the set invalidates every unused code.</p>
+        </div>
+        <button type="submit" class="btn-outline justify-self-start">Generate new recovery codes</button>
+      </form>
+      {{if not .Required}}
+      <form method="post" action="{{url "auth/profile/2fa/disable"}}" autocomplete="off" class="grid gap-4 border-t pt-6">
+        <input type="hidden" name="_token" value="{{$.Page.CSRF}}"/>
+        <div class="grid gap-2">
+          <label class="label" for="tfa-off-password">Current password</label>
+          <input class="input max-w-sm" id="tfa-off-password" name="password" type="password"
+                 autocomplete="current-password"/>
+        </div>
+        <button type="submit" class="btn-destructive justify-self-start">Turn off two-factor authentication</button>
+      </form>
+      {{else}}
+      <p class="text-sm text-muted-foreground border-t pt-6">
+        This panel requires two-factor authentication, so it cannot be turned off.
+      </p>
+      {{end}}
+
+      {{else}}
+      {{/* Not enrolled and not mid-enrolment. */}}
+      {{if .Required}}
+      <div class="alert" data-variant="warning">
+        <h2>Enrolment is required</h2>
+        <section>You cannot use the rest of the panel until two-factor authentication is on.</section>
+      </div>
+      {{end}}
+      <form method="post" action="{{url "auth/profile/2fa/enable"}}">
+        <input type="hidden" name="_token" value="{{$.Page.CSRF}}"/>
+        <button type="submit" class="btn">Set up two-factor authentication</button>
+      </form>
+      {{end}}
+    </section>
+  </div>
+  {{end}}
 </div>

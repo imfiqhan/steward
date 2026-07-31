@@ -1,6 +1,7 @@
 package steward
 
 import (
+	"slices"
 	"sync/atomic"
 	"time"
 )
@@ -28,6 +29,15 @@ type AdminUser struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 
+	// Two-factor authentication (see twofactor.go). Enrolment is complete only
+	// once TwoFactorConfirmedAt is set, so a scanned-but-unverified secret
+	// never locks anyone out. TwoFactorLastStep records the most recently
+	// accepted time step, which is what makes a code single-use.
+	TwoFactorSecret      string `gorm:"size:64"`
+	TwoFactorConfirmedAt *time.Time
+	TwoFactorRecovery    string `gorm:"type:text"` // newline-separated SHA-256 digests
+	TwoFactorLastStep    int64  `gorm:"default:0"`
+
 	Roles []Role `gorm:"many2many:admin_role_users;joinForeignKey:user_id;joinReferences:role_id"`
 }
 
@@ -36,8 +46,18 @@ func (AdminUser) TableName() string { return prefixed("users") }
 // IsAdministrator reports whether the user holds the built-in administrator
 // role (seeded with ID 1), which short-circuits every permission check.
 func (u *AdminUser) IsAdministrator() bool {
+	return u.HasRole(RoleAdministrator)
+}
+
+// HasRole reports whether the user holds any of the given role slugs. Roles
+// must be loaded (the auth middleware preloads them), so this costs no query.
+//
+// It answers "who is this?", which belongs in a resource's Policy or a form
+// field's Show predicate. It is not a substitute for permissions: those live in
+// the database precisely so an operator can change them without a deploy.
+func (u *AdminUser) HasRole(slugs ...string) bool {
 	for _, r := range u.Roles {
-		if r.Slug == RoleAdministrator {
+		if slices.Contains(slugs, r.Slug) {
 			return true
 		}
 	}

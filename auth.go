@@ -39,10 +39,15 @@ func (a *Admin) authenticate(ctx context.Context, username, password string) (*A
 	if err != nil {
 		return nil, err
 	}
-	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) != nil {
+	if !comparePassword(user.Password, password) {
 		return nil, errBadCredentials
 	}
 	return &user, nil
+}
+
+// comparePassword checks a plaintext password against a stored bcrypt hash.
+func comparePassword(hash, password string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 }
 
 func (a *Admin) loginPage(c *Context) error {
@@ -76,6 +81,28 @@ func (a *Admin) loginSubmit(c *Context) error {
 	}
 	if err != nil {
 		return err
+	}
+
+	// Application-level account state gets its say before any session exists,
+	// so a suspended account never reaches the panel or the 2FA challenge.
+	if a.cfg.LoginCheck != nil {
+		if err := a.cfg.LoginCheck(c.Ctx(), user); err != nil {
+			a.log.Info("steward: login refused", "user", user.Username, "reason", err)
+			c.W.WriteHeader(http.StatusUnprocessableEntity)
+			return a.renderStandalone(c, "auth/login.html", map[string]any{
+				"Error":    err.Error(),
+				"Username": username,
+				"CanReset": a.cfg.Mailer != nil,
+			})
+		}
+	}
+
+	// A correct password alone is not a session when a second factor is due.
+	if a.twoFactorRequired(user) {
+		if err := a.beginTwoFactor(c, user.ID); err != nil {
+			return err
+		}
+		return c.Redirect(a.url("auth/2fa"))
 	}
 
 	if err := c.login(user.ID); err != nil {
@@ -209,8 +236,24 @@ func (a *Admin) resetSubmit(c *Context) error {
 	return c.Redirect(a.url("auth/login"))
 }
 
+// renderProfile renders the profile page. tf carries the two-factor section's
+// state (nil for the plain view); errs and name preserve a rejected edit.
+func (a *Admin) renderProfile(c *Context, tf *twoFactorVM, errs map[string]string, name ...string) error {
+	if tf == nil {
+		tf = a.twoFactorProfileVM(c)
+	}
+	if errs == nil {
+		errs = map[string]string{}
+	}
+	data := map[string]any{"Errors": errs, "TwoFactor": tf}
+	if len(name) > 0 {
+		data["Name"] = name[0]
+	}
+	return a.render(c, "auth/profile.html", "Profile", data)
+}
+
 func (a *Admin) profilePage(c *Context) error {
-	return a.render(c, "auth/profile.html", "Profile", map[string]any{"Errors": map[string]string{}})
+	return a.renderProfile(c, nil, nil)
 }
 
 func (a *Admin) profileSubmit(c *Context) error {
@@ -247,7 +290,7 @@ func (a *Admin) profileSubmit(c *Context) error {
 
 	if len(errs) > 0 {
 		c.W.WriteHeader(http.StatusUnprocessableEntity)
-		return a.render(c, "auth/profile.html", "Profile", map[string]any{"Errors": errs, "Name": name})
+		return a.renderProfile(c, nil, errs, name)
 	}
 
 	if err := a.db.WithContext(c.Ctx()).Model(c.User).Updates(updates).Error; err != nil {

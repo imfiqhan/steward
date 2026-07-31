@@ -27,6 +27,14 @@ type Data struct {
 	CSRF     string  `json:"csrf,omitempty"`
 	Flashes  []Flash `json:"f,omitempty"`
 	IssuedAt int64   `json:"iat"`
+
+	// Pending2FA holds the account whose password was accepted but whose
+	// second factor is still outstanding. It is deliberately a separate field
+	// from UID: every authorization check reads UID, so a session waiting at
+	// the two-factor challenge is simply unauthenticated and needs no special
+	// handling anywhere else. PendingAt stamps the wait so it can expire.
+	Pending2FA uint  `json:"p2fa,omitempty"`
+	PendingAt  int64 `json:"p2at,omitempty"`
 }
 
 // MaxAge bounds session validity independent of cookie expiry.
