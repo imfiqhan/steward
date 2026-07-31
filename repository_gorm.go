@@ -90,40 +90,28 @@ func quoteColumn(db *gorm.DB, name string) string {
 	return sb.String()
 }
 
+// condSQL renders one condition as a WHERE fragment plus arguments. A direct
+// column compares in place; a relation path becomes an IN (subquery).
+func (r *GormRepository[T]) condSQL(c Cond) (string, []any, error) {
+	info, ok := r.ft.byPath[c.Path]
+	if !ok {
+		return "", nil, fmt.Errorf("steward: unknown field %q on %s", c.Path, r.ft.model.Name)
+	}
+	if info.rel != nil {
+		return r.relCondSQL(info.rel, c)
+	}
+	if info.DBName == "" {
+		return "", nil, fmt.Errorf("steward: field %q is not filterable on %s", c.Path, r.ft.model.Name)
+	}
+	return predicateSQL(quoteColumn(r.db, info.DBName), c)
+}
+
 func (r *GormRepository[T]) applyCond(db *gorm.DB, c Cond) (*gorm.DB, error) {
-	col, err := r.qcolumn(c.Path)
+	sql, args, err := r.condSQL(c)
 	if err != nil {
 		return db, err
 	}
-	switch c.Op {
-	case OpEq:
-		return db.Where(col+" = ?", c.Val), nil
-	case OpNe:
-		return db.Where(col+" <> ?", c.Val), nil
-	case OpGt:
-		return db.Where(col+" > ?", c.Val), nil
-	case OpGte:
-		return db.Where(col+" >= ?", c.Val), nil
-	case OpLt:
-		return db.Where(col+" < ?", c.Val), nil
-	case OpLte:
-		return db.Where(col+" <= ?", c.Val), nil
-	case OpLike:
-		return db.Where(col+" LIKE ?", "%"+fmt.Sprint(c.Val)+"%"), nil
-	case OpPrefix:
-		return db.Where(col+" LIKE ?", fmt.Sprint(c.Val)+"%"), nil
-	case OpIn:
-		return db.Where(col+" IN ?", c.Val), nil
-	case OpBetween:
-		return db.Where(col+" BETWEEN ? AND ?", c.Val, c.Val2), nil
-	case OpNull:
-		if b, _ := c.Val.(bool); !b {
-			return db.Where(col + " IS NOT NULL"), nil
-		}
-		return db.Where(col + " IS NULL"), nil
-	default:
-		return db, fmt.Errorf("steward: unsupported operator %q", c.Op)
-	}
+	return db.Where(sql, args...), nil
 }
 
 // List implements Repository.
@@ -144,15 +132,18 @@ func (r *GormRepository[T]) List(ctx context.Context, q *ListQuery) ([]T, int64,
 		var clauses []string
 		var args []any
 		for _, p := range q.SearchPaths {
-			col, cerr := r.qcolumn(p)
+			// Relation paths search through their subquery, so quick search
+			// reaches "Author.Name" and "Tags.Tag" rather than silently
+			// ignoring them.
+			sql, a, cerr := r.condSQL(Cond{Path: p, Op: OpLike, Val: q.Search})
 			if cerr != nil {
 				continue
 			}
-			clauses = append(clauses, col+" LIKE ?")
-			args = append(args, "%"+q.Search+"%")
+			clauses = append(clauses, sql)
+			args = append(args, a...)
 		}
 		if len(clauses) > 0 {
-			db = db.Where(strings.Join(clauses, " OR "), args...)
+			db = db.Where("("+strings.Join(clauses, " OR ")+")", args...)
 		}
 	}
 	for _, s := range q.Scopes {

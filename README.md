@@ -70,6 +70,10 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
       truncate, copyable, custom `Display`)
 - [x] Quick-search DSL (`field:value`, `>n`, `%contains%`)
 - [x] Filter panel (equals, like, greater/less, between, date range, select)
+- [x] Filters and quick search across one-hop relations — `Tags.Tag`,
+      `Author.Name` — via subqueries, so counts and pagination stay correct on
+      has-many and many-to-many paths
+- [ ] Sorting by a relation column (needs a join; rejected at boot today)
 - [x] Windowed pagination (`1 … 18 19 20 … 37`) with per-page selector
 - [x] CSV export
 - [x] Batch delete and custom row/batch/tool actions, confirmed via

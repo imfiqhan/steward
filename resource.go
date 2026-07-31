@@ -198,6 +198,11 @@ func (t *typedResource[T]) compile(a *Admin) error {
 			if col.info.Relation != "" && !slices.Contains(preloads, col.info.Relation) {
 				preloads = append(preloads, col.info.Relation)
 			}
+			if col.sortable && col.info.DBName == "" {
+				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+					"resource %q: column %q is a relation path and cannot be Sortable",
+					t.res.m.slug, col.path))
+			}
 			// Long text gets a default truncation when nothing custom is set.
 			if col.info.Kind == kindString && col.present == nil && len(col.transform) == 0 {
 				col.transform = append(col.transform, func(v any, _ *T) any {
@@ -217,15 +222,34 @@ func (t *typedResource[T]) compile(a *Admin) error {
 	}
 	for _, fi := range g.filters {
 		fi.info = verify("grid filter", fi.path)
-		if fi.info != nil && fi.label == "" {
+		if fi.info == nil {
+			continue
+		}
+		if !fi.info.filterable() {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"resource %q: grid filter %q: relation %q has a composite key, which cannot be filtered",
+				t.res.m.slug, fi.path, fi.info.Relation))
+		}
+		if fi.label == "" {
 			fi.label = fi.info.Label
 		}
 	}
 	for _, p := range g.quickSearch {
-		verify("quick search", p)
+		if info := verify("quick search", p); info != nil && !info.filterable() {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"resource %q: quick search %q: relation %q has a composite key, which cannot be searched",
+				t.res.m.slug, p, info.Relation))
+		}
 	}
 	if g.defaultSort != nil {
-		verify("default sort", g.defaultSort.Path)
+		// Sorting cannot go through the relation subquery — ORDER BY needs the
+		// column in the result set, which means a join. Reject it at boot
+		// instead of silently ignoring the sort at click time.
+		if info := verify("default sort", g.defaultSort.Path); info != nil && info.DBName == "" {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"resource %q: default sort %q is a relation path; sort by a column on the model itself",
+				t.res.m.slug, g.defaultSort.Path))
+		}
 	}
 	if g.treePath != "" {
 		if info := verify("tree parent", g.treePath); info != nil && info.Relation != "" {

@@ -38,7 +38,18 @@ type fieldInfo struct {
 	// Relation is the first path segment's relationship name for nested
 	// paths ("Author" for "Author.Name"); preloaded automatically.
 	Relation string
-	index    []int // reflect index path to read the value
+	// rel carries the SQL topology for a relation path, so filters and quick
+	// search can constrain on it. Nil when the relation's shape cannot be
+	// expressed as a single-column subquery (a composite key), which callers
+	// report at boot rather than mis-querying.
+	rel   *relTarget
+	index []int // reflect index path to read the value
+}
+
+// filterable reports whether a path can appear in a WHERE clause: a direct
+// column, or a relation path whose topology resolved.
+func (info *fieldInfo) filterable() bool {
+	return info.DBName != "" || info.rel != nil
 }
 
 // fieldTable is the single source of truth every builder projects from:
@@ -92,6 +103,7 @@ func newFieldTable(t reflect.Type, naming schema.Namer) (*fieldTable, error) {
 				continue
 			}
 			p := rel.Name + "." + rf.Name
+			target, _ := newRelTarget(rel, rf)
 			ft.byPath[p] = &fieldInfo{
 				Path:     p,
 				Label:    splitCamel(rel.Name) + " " + splitCamel(rf.Name),
@@ -99,6 +111,7 @@ func newFieldTable(t reflect.Type, naming schema.Namer) (*fieldTable, error) {
 				GoType:   rf.FieldType,
 				Nullable: !rf.NotNull,
 				Relation: rel.Name,
+				rel:      target,
 				index:    append(append([]int{}, rel.Field.StructField.Index...), rf.StructField.Index...),
 			}
 		}
