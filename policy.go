@@ -131,14 +131,23 @@ func (a *Admin) loadPermissionRules(ctx context.Context, user *AdminUser) []http
 	return rules
 }
 
-// permissionExcept lists prefix-relative paths that skip the permission
+// permissionSkip lists prefix-relative paths that skip the permission
 // middleware (auth itself, the dashboard, assets).
+//
+// The dashboard's lazy widget fragments are skipped alongside the dashboard
+// page. Exempting the page but not the tiles it fetches would leave every
+// non-administrator looking at a grid of permission errors, and the tiles show
+// nothing the page itself does not — a widget's callback is the place to gate
+// anything a given role should not see.
 func (a *Admin) permissionSkip(rel string) bool {
 	switch rel {
 	case "/", "/auth/login", "/auth/logout", "/auth/profile":
 		return true
 	}
-	return strings.HasPrefix(rel, "/_assets/") || strings.HasPrefix(rel, "/_uploads/")
+	return strings.HasPrefix(rel, "/_assets/") ||
+		strings.HasPrefix(rel, "/_uploads/") ||
+		strings.HasPrefix(rel, "/_widget/") ||
+		strings.HasPrefix(rel, "/auth/profile/")
 }
 
 // withPermission enforces route-level permissions after authentication.

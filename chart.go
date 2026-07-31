@@ -10,6 +10,7 @@ package steward
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -71,13 +72,22 @@ type chartPayload struct {
 // configurable, because callers give labels as a separate slice.
 const chartLabelKey = "label"
 
+// errChartNoData distinguishes "nothing to plot" from a malformed chart, so the
+// dashboard can show an empty state for the former and report a bug for the
+// latter.
+var errChartNoData = errors.New("chart: no data")
+
 // payload validates the chart and converts it to Basecoat's row-oriented shape.
 func (cd *ChartData) payload() (*chartPayload, error) {
+	// An empty result set is a normal state, not a caller error: a fresh install
+	// or a filtered-out period genuinely has nothing to plot. It is reported as
+	// "no data" by the widget rather than as a failure, so an empty table does
+	// not look like a broken query.
 	if len(cd.Labels) == 0 {
-		return nil, fmt.Errorf("chart: Labels is empty")
+		return nil, errChartNoData
 	}
 	if len(cd.Series) == 0 {
-		return nil, fmt.Errorf("chart: no Series")
+		return nil, errChartNoData
 	}
 
 	typ := cd.Type

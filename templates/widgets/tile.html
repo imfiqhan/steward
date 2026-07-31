@@ -10,6 +10,15 @@
       <p class="mt-1 text-sm text-destructive">{{.Err}}</p>
     </section>
   </div>
+  {{else if .Empty}}
+  {{/* Nothing to show is a state, not a failure — the tile keeps its heading so
+       the dashboard's layout does not shift once data arrives. */}}
+  <div class="card">
+    {{with .Title}}<header><h2>{{.}}</h2></header>{{end}}
+    <section>
+      <p class="text-sm text-muted-foreground">{{.Empty}}</p>
+    </section>
+  </div>
   {{else if eq .Kind "lazy"}}
   <div class="card" data-size="sm">
     <section class="grid gap-3">

@@ -85,7 +85,8 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
 
 ### Form
 
-- [x] 21 field kinds, including File/Image uploads via the `Storage` interface
+- [x] 22 field kinds, including File/Image uploads via the `Storage` interface
+      and a `Richtext` HTML editor whose input is allowlist-sanitized server-side
 - [x] Declarative validation rules (`required|max:255|unique:posts,title,{id}`)
       with separate creation/update rules
 - [x] Typed hooks — `Submitted` / `Saving` / `Saved` / `Deleting` / `Deleted`
@@ -96,11 +97,13 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
 - [x] Dirty-field-only updates; 422 inline errors in both HTML and JSON
 - [ ] Embeds (JSON-column nested forms)
 - [ ] File/Image/BelongsTo fields inside hasMany rows
-- [ ] Tabbed form layout and `When()` conditional fields
+- [x] Per-request conditional fields (`Field.Show`) — hidden fields are refused
+      on submit and omitted from `_schema`, not merely hidden
+- [ ] Tabbed form layout
 
 ### Detail
 
-- [x] Field renderers (badge, bool, image, link, custom `As`)
+- [x] Field renderers (badge, bool, image, link, `HTML`, custom `As`)
 - [x] Embedded relation grids (`steward.RelationGrid[T,C]`)
 
 ### Dashboard & widgets
@@ -111,7 +114,7 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
       each with a typed data callback; a failing widget reports in place
       instead of blanking the page
 - [x] Widgets fetched individually via `Lazy()`, so one slow aggregate never
-      blocks the page
+      blocks the page; an empty result set reports "no data" rather than a fault
 - [x] Charts via Basecoat's Chart component (bar, line, pie, doughnut, radar,
       stacked) — themed by `--chart-N`, typed column-oriented Go API, runtime
       served per page rather than bundled. `make vendor-chart` once
@@ -126,6 +129,10 @@ cover it, and an HTML DSL in Go would be more surface for less flexibility.
 ### Auth, RBAC & administration
 
 - [x] Encrypted cookie sessions, CSRF protection, bcrypt passwords
+- [x] TOTP two-factor authentication — self-service enrolment with an
+      in-process QR code, single-use recovery codes, replay-proof codes, and an
+      optional panel-wide `Require2FA`
+- [x] `Config.LoginCheck` to refuse an account (suspended, not yet activated)
 - [x] Password reset flow via the SMTP `Mailer`
 - [x] Roles and permissions with dcat-compatible HTTP path matching
 - [x] `Policy[T]` per action plus `RowScoper` row-level scoping;

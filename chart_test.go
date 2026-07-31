@@ -2,6 +2,7 @@ package steward
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -55,8 +56,6 @@ func TestChartPayloadRejectsBadInput(t *testing.T) {
 		cd   *ChartData
 		want string
 	}{
-		{"no labels", &ChartData{Series: []ChartSeries{{Label: "a", Values: []float64{1}}}}, "Labels is empty"},
-		{"no series", &ChartData{Labels: []string{"Jan"}}, "no Series"},
 		{
 			"length mismatch",
 			&ChartData{Labels: []string{"Jan", "Feb"}, Series: []ChartSeries{{Label: "a", Values: []float64{1}}}},
@@ -88,6 +87,34 @@ func TestChartPayloadRejectsBadInput(t *testing.T) {
 				t.Errorf("error = %q, want it to mention %q", err, c.want)
 			}
 		})
+	}
+}
+
+// TestChartEmptyIsNoDataNotAnError pins the distinction the dashboard depends
+// on: a chart over an empty table is a normal state reported as "no data", while
+// genuinely malformed input stays an error. Without the sentinel, a fresh
+// install's dashboard would claim every chart failed to load.
+func TestChartEmptyIsNoDataNotAnError(t *testing.T) {
+	cases := map[string]*ChartData{
+		"no labels": {Series: []ChartSeries{{Label: "a", Values: []float64{1}}}},
+		"no series": {Labels: []string{"Jan"}},
+		"neither":   {},
+	}
+	for name, cd := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := cd.payload()
+			if !errors.Is(err, errChartNoData) {
+				t.Fatalf("error = %v, want errChartNoData", err)
+			}
+		})
+	}
+	// A malformed chart must not be mistaken for an empty one.
+	bad := &ChartData{
+		Labels: []string{"Jan", "Feb"},
+		Series: []ChartSeries{{Label: "a", Values: []float64{1}}},
+	}
+	if _, err := bad.payload(); errors.Is(err, errChartNoData) {
+		t.Error("a length mismatch should be a real error, not no-data")
 	}
 }
 

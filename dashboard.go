@@ -10,6 +10,7 @@ package steward
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -119,6 +120,9 @@ type widgetVM struct {
 	// Err carries a load failure. One broken widget must not blank the page,
 	// so the tile reports it in place and the rest still render.
 	Err string
+	// Empty carries a "nothing to show" note, distinct from Err: a chart over an
+	// empty table is a normal state and must not read as a broken query.
+	Empty string
 }
 
 // resolve runs a widget's callback and renders its body.
@@ -156,6 +160,12 @@ func (a *Admin) resolve(c *Context, w *Widget, i int) widgetVM {
 			return vm
 		}
 		raw, err := cd.json()
+		if errors.Is(err, errChartNoData) {
+			// Nothing to plot is a state, not a fault — say so plainly instead
+			// of implying the query broke.
+			vm.Empty = "No data yet."
+			return vm
+		}
 		if err != nil {
 			// A malformed chart is the caller's bug, so name it in the log.
 			a.log.Error("steward: dashboard chart", "title", w.title, "err", err)

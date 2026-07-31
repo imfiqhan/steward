@@ -121,7 +121,7 @@ func (r *GormRepository[T]) Aggregate(ctx context.Context, q *AggQuery) (AggRows
 	}
 	groupSQL := groupCol
 	if q.Period != "" {
-		if groupSQL, err = periodExpr(r.db.Dialector.Name(), groupCol, q.Period); err != nil {
+		if groupSQL, err = periodExpr(r.db.Name(), groupCol, q.Period); err != nil {
 			return nil, err
 		}
 	}
