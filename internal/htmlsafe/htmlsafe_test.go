@@ -1,4 +1,4 @@
-package steward
+package htmlsafe
 
 import (
 	"strings"
@@ -51,7 +51,7 @@ func TestSanitizeHTMLBlocksInjection(t *testing.T) {
 		"<meta", "<link", "<template", "<!--", "style=",
 	}
 	for _, in := range vectors {
-		got := strings.ToLower(sanitizeHTML(in))
+		got := strings.ToLower(Sanitize(in))
 		for _, bad := range forbidden {
 			if strings.Contains(got, bad) {
 				t.Errorf("input %q produced %q, which still contains %q", in, got, bad)
@@ -79,8 +79,8 @@ func TestSanitizeHTMLKeepsFormatting(t *testing.T) {
 		{`<pre><code>x := 1</code></pre>`, `<pre><code>x := 1</code></pre>`},
 	}
 	for _, tc := range cases {
-		if got := sanitizeHTML(tc.in); got != tc.want {
-			t.Errorf("sanitizeHTML(%q)\n got %q\nwant %q", tc.in, got, tc.want)
+		if got := Sanitize(tc.in); got != tc.want {
+			t.Errorf("Sanitize(%q)\n got %q\nwant %q", tc.in, got, tc.want)
 		}
 	}
 }
@@ -88,11 +88,11 @@ func TestSanitizeHTMLKeepsFormatting(t *testing.T) {
 func TestSanitizeHTMLEscapesText(t *testing.T) {
 	// A disallowed tag is dropped but its text is kept, escaped — so it can
 	// never re-enter as markup.
-	got := sanitizeHTML(`<p>5 &lt; 6 &amp; 7 &gt; 6</p>`)
+	got := Sanitize(`<p>5 &lt; 6 &amp; 7 &gt; 6</p>`)
 	if !strings.Contains(got, "&lt;") || !strings.Contains(got, "&amp;") {
 		t.Errorf("entities were not preserved: %q", got)
 	}
-	if got := sanitizeHTML(`a < b`); strings.Contains(got, "< b") {
+	if got := Sanitize(`a < b`); strings.Contains(got, "< b") {
 		t.Errorf("a bare < should be escaped: %q", got)
 	}
 }
@@ -111,14 +111,14 @@ func TestSanitizeHTMLBalancesTags(t *testing.T) {
 		{`<ul><li>a<ul><li>b</li></ul></li></ul>`, `<ul><li>a<ul><li>b</li></ul></li></ul>`},
 	}
 	for _, tc := range cases {
-		if got := sanitizeHTML(tc.in); got != tc.want {
-			t.Errorf("sanitizeHTML(%q)\n got %q\nwant %q", tc.in, got, tc.want)
+		if got := Sanitize(tc.in); got != tc.want {
+			t.Errorf("Sanitize(%q)\n got %q\nwant %q", tc.in, got, tc.want)
 		}
 	}
 }
 
 func TestSanitizeHTMLTargetBlankGetsNoopener(t *testing.T) {
-	got := sanitizeHTML(`<a href="https://example.com" target="_blank">x</a>`)
+	got := Sanitize(`<a href="https://example.com" target="_blank">x</a>`)
 	if !strings.Contains(got, `target="_blank"`) {
 		t.Errorf("target was dropped: %q", got)
 	}
@@ -126,12 +126,12 @@ func TestSanitizeHTMLTargetBlankGetsNoopener(t *testing.T) {
 		t.Errorf("target=_blank must carry rel=noopener: %q", got)
 	}
 	// A hostile rel is replaced, not trusted.
-	got = sanitizeHTML(`<a href="https://example.com" target="_blank" rel="opener">x</a>`)
+	got = Sanitize(`<a href="https://example.com" target="_blank" rel="opener">x</a>`)
 	if strings.Contains(got, `rel="opener"`) {
 		t.Errorf("rel should have been normalized: %q", got)
 	}
 	// Any other target value is not useful and is dropped.
-	got = sanitizeHTML(`<a href="https://example.com" target="_top">x</a>`)
+	got = Sanitize(`<a href="https://example.com" target="_top">x</a>`)
 	if strings.Contains(got, "target=") {
 		t.Errorf("target=_top should be dropped: %q", got)
 	}
@@ -139,8 +139,8 @@ func TestSanitizeHTMLTargetBlankGetsNoopener(t *testing.T) {
 
 func TestSanitizeHTMLEmpty(t *testing.T) {
 	for _, in := range []string{"", "   ", "\n\t"} {
-		if got := sanitizeHTML(in); got != "" {
-			t.Errorf("sanitizeHTML(%q) = %q, want empty", in, got)
+		if got := Sanitize(in); got != "" {
+			t.Errorf("Sanitize(%q) = %q, want empty", in, got)
 		}
 	}
 }
@@ -182,8 +182,8 @@ func TestSanitizeHTMLIsIdempotent(t *testing.T) {
 		`<p>unclosed`,
 	}
 	for _, in := range inputs {
-		once := sanitizeHTML(in)
-		twice := sanitizeHTML(once)
+		once := Sanitize(in)
+		twice := Sanitize(once)
 		if once != twice {
 			t.Errorf("not idempotent for %q:\n first %q\nsecond %q", in, once, twice)
 		}

@@ -597,7 +597,7 @@ func (a *Admin) allowTwoFactorAttempt(key string) bool {
 	if a.twoFALimiter == nil {
 		return true
 	}
-	ok, _ := a.twoFALimiter.allow(key, twoFactorRateLimit, time.Now())
+	ok, _ := a.twoFALimiter.Allow(key, twoFactorRateLimit, time.Now())
 	return ok
 }
 

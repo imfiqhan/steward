@@ -1,12 +1,12 @@
-package steward
-
-// Fixed-window rate limiting, used to bound attempts on the token endpoint.
+// Package ratelimit is fixed-window rate limiting, bounding attempts on the
+// token endpoint and the two-factor challenge.
 //
-// This is deliberately in-process rather than backed by Config.Cache: that
+// This is deliberately in-process rather than backed by Steward's Cache: that
 // interface offers only Get/Set/Delete, so counting through it would be a racy
 // read-modify-write. The consequence is that limits are per process — N
 // replicas admit N times the configured rate. Put a limiter at the edge if you
 // need a strict global bound.
+package ratelimit
 
 import (
 	"net"
@@ -26,20 +26,20 @@ type rateEntry struct {
 	resetAt time.Time
 }
 
-type rateLimiter struct {
+type Limiter struct {
 	mu      sync.Mutex
 	window  time.Duration
 	entries map[string]rateEntry
 }
 
-func newRateLimiter(window time.Duration) *rateLimiter {
-	return &rateLimiter{window: window, entries: map[string]rateEntry{}}
+func New(window time.Duration) *Limiter {
+	return &Limiter{window: window, entries: map[string]rateEntry{}}
 }
 
-// allow records an attempt against key and reports whether it fits inside
+// Allow records an attempt against key and reports whether it fits inside
 // limit for the current window. When it does not, the second return value is
 // how long until the window resets. now is a parameter so tests need no sleep.
-func (rl *rateLimiter) allow(key string, limit int, now time.Time) (bool, time.Duration) {
+func (rl *Limiter) Allow(key string, limit int, now time.Time) (bool, time.Duration) {
 	if limit <= 0 {
 		return true, 0
 	}
@@ -66,7 +66,7 @@ func (rl *rateLimiter) allow(key string, limit int, now time.Time) (bool, time.D
 }
 
 // prune drops windows that have already elapsed. Callers hold rl.mu.
-func (rl *rateLimiter) prune(now time.Time) {
+func (rl *Limiter) prune(now time.Time) {
 	for k, e := range rl.entries {
 		if now.After(e.resetAt) {
 			delete(rl.entries, k)
@@ -74,14 +74,14 @@ func (rl *rateLimiter) prune(now time.Time) {
 	}
 }
 
-// clientIP is the peer address, port stripped.
+// ClientIP is the peer address, port stripped.
 //
 // X-Forwarded-For is deliberately ignored: it is caller-controlled, so
 // honouring it would let one attacker mint a fresh bucket per request. Behind a
 // proxy this means every request shares one bucket, which is why the per-IP
 // allowance is loose and the per-username allowance carries the real
 // protection.
-func clientIP(r *http.Request) string {
+func ClientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr

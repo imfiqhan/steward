@@ -1,4 +1,6 @@
-package steward
+// Package cron parses and evaluates five-field cron expressions at minute
+// resolution, for the worker's scheduler.
+package cron
 
 import (
 	"fmt"
@@ -7,19 +9,19 @@ import (
 	"time"
 )
 
-// cronExpr is a parsed five-field cron expression:
+// Expr is a parsed five-field cron expression:
 // minute hour day-of-month month day-of-week.
 // Supported syntax per field: * , - / and combinations ("*/15", "1-5",
 // "1,3,5", "10-50/10"). Day-of-week: 0–6, 0 = Sunday (7 accepted as Sunday).
-type cronExpr struct {
+type Expr struct {
 	minute, hour, dom, month, dow uint64 // bitmasks
 }
 
-type cronField struct {
+type field struct {
 	min, max int
 }
 
-var cronFields = [5]cronField{
+var fields = [5]field{
 	{0, 59}, // minute
 	{0, 23}, // hour
 	{1, 31}, // day of month
@@ -27,24 +29,24 @@ var cronFields = [5]cronField{
 	{0, 6},  // day of week
 }
 
-// parseCron parses "m h dom mon dow".
-func parseCron(spec string) (*cronExpr, error) {
+// Parse reads "minute hour day-of-month month day-of-week".
+func Parse(spec string) (*Expr, error) {
 	parts := strings.Fields(spec)
 	if len(parts) != 5 {
 		return nil, fmt.Errorf("cron %q: want 5 fields (minute hour dom month dow), got %d", spec, len(parts))
 	}
 	var masks [5]uint64
 	for i, part := range parts {
-		mask, err := parseCronField(part, cronFields[i].min, cronFields[i].max)
+		mask, err := parseField(part, fields[i].min, fields[i].max)
 		if err != nil {
 			return nil, fmt.Errorf("cron %q field %d: %w", spec, i+1, err)
 		}
 		masks[i] = mask
 	}
-	return &cronExpr{minute: masks[0], hour: masks[1], dom: masks[2], month: masks[3], dow: masks[4]}, nil
+	return &Expr{minute: masks[0], hour: masks[1], dom: masks[2], month: masks[3], dow: masks[4]}, nil
 }
 
-func parseCronField(expr string, min, max int) (uint64, error) {
+func parseField(expr string, min, max int) (uint64, error) {
 	var mask uint64
 	for _, part := range strings.Split(expr, ",") {
 		rangePart, stepPart, hasStep := strings.Cut(part, "/")
@@ -102,14 +104,14 @@ func parseCronField(expr string, min, max int) (uint64, error) {
 
 func bit(mask uint64, v int) bool { return mask&(1<<uint(v)) != 0 }
 
-// matches reports whether t (minute resolution) satisfies the expression.
+// Matches reports whether t (minute resolution) satisfies the expression.
 // Standard cron semantics: when both dom and dow are restricted, either may
 // match; when only one is restricted, it must match.
-func (c *cronExpr) matches(t time.Time) bool {
+func (c *Expr) Matches(t time.Time) bool {
 	if !bit(c.minute, t.Minute()) || !bit(c.hour, t.Hour()) || !bit(c.month, int(t.Month())) {
 		return false
 	}
-	full := func(mask uint64, f cronField) bool {
+	full := func(mask uint64, f field) bool {
 		for v := f.min; v <= f.max; v++ {
 			if !bit(mask, v) {
 				return false
@@ -119,8 +121,8 @@ func (c *cronExpr) matches(t time.Time) bool {
 	}
 	domOK := bit(c.dom, t.Day())
 	dowOK := bit(c.dow, int(t.Weekday()))
-	domAll := full(c.dom, cronFields[2])
-	dowAll := full(c.dow, cronFields[4])
+	domAll := full(c.dom, fields[2])
+	dowAll := full(c.dow, fields[4])
 	switch {
 	case domAll && dowAll:
 		return true

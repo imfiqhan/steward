@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/imfiqhan/steward/internal/migrations"
+	"github.com/imfiqhan/steward/internal/ratelimit"
 	"github.com/imfiqhan/steward/internal/session"
 	"github.com/imfiqhan/steward/migrate"
 )
@@ -137,8 +138,8 @@ type Admin struct {
 	assetVersion string
 
 	dash         *Dashboard
-	tokenLimiter *rateLimiter
-	twoFALimiter *rateLimiter
+	tokenLimiter *ratelimit.Limiter
+	twoFALimiter *ratelimit.Limiter
 
 	buildOnce sync.Once
 	buildErr  error
@@ -201,8 +202,8 @@ func New(cfg Config) (*Admin, error) {
 		bySlug: map[string]resourceEntry{},
 		byType: map[reflect.Type]resourceEntry{},
 	}
-	a.tokenLimiter = newRateLimiter(a.tokenRateWindow())
-	a.twoFALimiter = newRateLimiter(twoFactorRateWindow)
+	a.tokenLimiter = ratelimit.New(a.tokenRateWindow())
+	a.twoFALimiter = ratelimit.New(twoFactorRateWindow)
 	return a, nil
 }
 

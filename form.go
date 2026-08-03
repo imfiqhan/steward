@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/imfiqhan/steward/internal/htmlsafe"
 )
 
 // FieldKind selects a form field's input widget and decode behavior.
@@ -183,7 +185,7 @@ func (f *Form[T]) Markdown(path string, label ...string) *Field[T] {
 // headings, lists, links, blockquote, and clear-formatting.
 //
 // Submitted markup is sanitized server-side against an allowlist of tags and
-// attributes (see sanitizeHTML), because a contenteditable field is an
+// attributes (see internal/htmlsafe), because a contenteditable field is an
 // arbitrary-HTML input and the value is rendered back with Detail.HTML. Anything
 // outside the allowlist is dropped, so a compromised or scripted client cannot
 // store markup that later executes in another admin's browser.
@@ -453,7 +455,7 @@ func (fd *Field[T]) decode(raw string) (any, error) {
 	case FieldRichtext:
 		// Sanitize on the way in, so a stored value is always safe to render
 		// and no read path has to remember to clean it.
-		return sanitizeHTML(raw), nil
+		return htmlsafe.Sanitize(raw), nil
 	case FieldBelongsTo:
 		if raw == "" {
 			return zeroFor(info), nil

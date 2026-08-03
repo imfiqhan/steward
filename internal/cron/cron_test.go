@@ -1,4 +1,4 @@
-package steward
+package cron
 
 import (
 	"testing"
@@ -14,8 +14,8 @@ func TestParseCronErrors(t *testing.T) {
 		"", "* * * *", "* * * * * *", "60 * * * *", "* 24 * * *",
 		"* * 0 * *", "* * * 13 *", "x * * * *", "*/0 * * * *", "5-1 * * * *",
 	} {
-		if _, err := parseCron(spec); err == nil {
-			t.Errorf("parseCron(%q) should fail", spec)
+		if _, err := Parse(spec); err == nil {
+			t.Errorf("Parse(%q) should fail", spec)
 		}
 	}
 }
@@ -51,11 +51,11 @@ func TestCronMatches(t *testing.T) {
 		{"10-50/10 * * * *", at(35, 1, 1, time.January, 2026), false},
 	}
 	for _, tc := range cases {
-		expr, err := parseCron(tc.spec)
+		expr, err := Parse(tc.spec)
 		if err != nil {
-			t.Fatalf("parseCron(%q): %v", tc.spec, err)
+			t.Fatalf("Parse(%q): %v", tc.spec, err)
 		}
-		if got := expr.matches(tc.t); got != tc.want {
+		if got := expr.Matches(tc.t); got != tc.want {
 			t.Errorf("%q at %s = %v, want %v", tc.spec, tc.t, got, tc.want)
 		}
 	}

@@ -22,6 +22,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/imfiqhan/steward/internal/ratelimit"
 	"github.com/imfiqhan/steward/internal/session"
 )
 
@@ -87,7 +88,7 @@ func (a *Admin) allowTokenAttempt(key string, limit int) (bool, time.Duration) {
 	if a.cfg.TokenRateLimit < 0 || a.tokenLimiter == nil {
 		return true, 0
 	}
-	return a.tokenLimiter.allow(key, limit, time.Now())
+	return a.tokenLimiter.Allow(key, limit, time.Now())
 }
 
 // tooManyAttempts answers a throttled caller with Retry-After.
@@ -204,7 +205,7 @@ type tokenIssueRequest struct {
 // internet-facing deployment.
 func (a *Admin) issueToken(c *Context) error {
 	// Checked before the body is read, so a flood costs nothing to reject.
-	if ok, retry := a.allowTokenAttempt("ip:"+clientIP(c.R), a.tokenRateLimit()*ipRateMultiple); !ok {
+	if ok, retry := a.allowTokenAttempt("ip:"+ratelimit.ClientIP(c.R), a.tokenRateLimit()*ipRateMultiple); !ok {
 		return a.tooManyAttempts(c, retry)
 	}
 

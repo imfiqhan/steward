@@ -1,6 +1,13 @@
-package steward
+// Package htmlsafe sanitizes untrusted HTML down to an allowlist.
+//
+// It backs the Richtext form field and the detail view's HTML renderer. Living
+// in its own package is deliberate: this is a security boundary, and the
+// compiler can then guarantee it reaches for nothing in the panel — no request,
+// no database, no configuration — so the only thing that decides its output is
+// the markup handed in.
+package htmlsafe
 
-// HTML sanitization for the Richtext form field.
+// The allowlist and the reasoning behind it.
 //
 // A contenteditable input submits whatever markup the browser holds, so the
 // value arriving at the server is arbitrary HTML from an authenticated but not
@@ -63,9 +70,9 @@ var safeURLSchemes = map[string]bool{
 	"http": true, "https": true, "mailto": true, "tel": true, "ftp": true,
 }
 
-// sanitizeHTML returns html with every disallowed tag, attribute, and URL
-// scheme removed, and with tags balanced.
-func sanitizeHTML(input string) string {
+// Sanitize returns input with every disallowed tag, attribute, and URL scheme
+// removed, and with tags balanced. It is safe to render the result unescaped.
+func Sanitize(input string) string {
 	if strings.TrimSpace(input) == "" {
 		return ""
 	}

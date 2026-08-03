@@ -1,4 +1,4 @@
-package steward
+package rules
 
 import (
 	"strings"
@@ -6,7 +6,7 @@ import (
 )
 
 func TestValidateRules(t *testing.T) {
-	rc := ruleContext{label: "Title"}
+	f := Field{Label: "Title"}
 	cases := []struct {
 		rules, value string
 		wantErr      string // substring, "" = valid
@@ -37,7 +37,7 @@ func TestValidateRules(t *testing.T) {
 		{"required|max:5|in:a,b", "", "required"}, // first failure only? all rules run
 	}
 	for _, tc := range cases {
-		errs := validateRules(rc, tc.rules, tc.value)
+		errs := Validate(f, tc.rules, tc.value)
 		if tc.wantErr == "" {
 			if len(errs) > 0 {
 				t.Errorf("rules %q value %q: unexpected errors %v", tc.rules, tc.value, errs)

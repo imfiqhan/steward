@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/imfiqhan/steward/internal/rules"
 	"github.com/imfiqhan/steward/internal/session"
 	"gorm.io/gorm"
 )
@@ -316,16 +317,16 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 			continue // blank password on edit = keep current
 		}
 
-		rules := fd.rules
+		spec := fd.rules
 		if creating && fd.createRules != "" {
-			rules += "|" + fd.createRules
+			spec += "|" + fd.createRules
 		}
 		if !creating && fd.updateRules != "" {
-			rules += "|" + fd.updateRules
+			spec += "|" + fd.updateRules
 		}
-		if rules != "" {
-			rc := ruleContext{db: c.Admin.db, ctx: c.Ctx(), label: fd.label, recordID: id}
-			if msgs := validateRules(rc, rules, raw); len(msgs) > 0 {
+		if spec != "" {
+			target := rules.Field{DB: c.Admin.db, Ctx: c.Ctx(), Label: fd.label, RecordID: id}
+			if msgs := rules.Validate(target, spec, raw); len(msgs) > 0 {
 				errs[fd.path] = append(errs[fd.path], msgs...)
 				continue
 			}

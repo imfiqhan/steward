@@ -29,10 +29,10 @@ type AdminUser struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 
-	// Two-factor authentication (see twofactor.go). Enrolment is complete only
-	// once TwoFactorConfirmedAt is set, so a scanned-but-unverified secret
-	// never locks anyone out. TwoFactorLastStep records the most recently
-	// accepted time step, which is what makes a code single-use.
+	// Two-factor authentication (see auth_twofactor.go). Enrolment is complete
+	// only once TwoFactorConfirmedAt is set, so a scanned-but-unverified
+	// secret never locks anyone out. TwoFactorLastStep records the most
+	// recently accepted time step, which is what makes a code single-use.
 	TwoFactorSecret      string `gorm:"size:64"`
 	TwoFactorConfirmedAt *time.Time
 	TwoFactorRecovery    string `gorm:"type:text"` // newline-separated SHA-256 digests

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/imfiqhan/steward/internal/cron"
 )
 
 // IntervalScheduler runs jobs on intervals or cron expressions. Specs:
@@ -23,7 +25,7 @@ type intervalJob struct {
 	name     string
 	spec     string
 	interval time.Duration
-	cron     *cronExpr
+	cron     *cron.Expr
 	fn       func(context.Context) error
 
 	mu      sync.Mutex
@@ -69,7 +71,7 @@ func parseSpec(spec string, job *intervalJob) error {
 		job.interval = d
 		return nil
 	}
-	expr, err := parseCron(spec)
+	expr, err := cron.Parse(spec)
 	if err != nil {
 		return fmt.Errorf("steward: unsupported schedule %q (use @every <duration>, @hourly, @daily, @weekly, or a five-field cron expression): %w", spec, err)
 	}
@@ -120,7 +122,7 @@ func (s *IntervalScheduler) runCronJob(ctx context.Context, j *intervalJob) {
 		case <-ctx.Done():
 			return
 		case <-time.After(time.Until(next)):
-			if j.cron.matches(next) {
+			if j.cron.Matches(next) {
 				j.execute(ctx)
 			}
 		}

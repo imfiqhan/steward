@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/imfiqhan/steward/internal/rules"
 )
 
 // HasMany embeds a repeatable child form inside T's form — dcat-admin's
@@ -256,8 +258,8 @@ func (h *hasManyForm[T, C]) validate(c *Context) (any, map[string][]string) {
 			}
 			field := fmt.Sprintf("%s[%s][%s]", h.relation, key, fd.path)
 			if fd.rules != "" {
-				rc := ruleContext{db: c.Admin.db, ctx: c.Ctx(), label: fd.label}
-				if msgs := validateRules(rc, fd.rules, raw); len(msgs) > 0 {
+				target := rules.Field{DB: c.Admin.db, Ctx: c.Ctx(), Label: fd.label}
+				if msgs := rules.Validate(target, fd.rules, raw); len(msgs) > 0 {
 					errs[field] = append(errs[field], msgs...)
 					continue
 				}

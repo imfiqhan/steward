@@ -9,6 +9,8 @@ import (
 	"reflect"
 
 	"gorm.io/gorm"
+
+	"github.com/imfiqhan/steward/internal/htmlsafe"
 )
 
 // Detail configures a resource's show view. Without configuration every
@@ -106,7 +108,7 @@ func (df *DetailField[T]) HTML() *DetailField[T] {
 		if s == "" {
 			return `<span class="text-muted-foreground">—</span>`
 		}
-		return template.HTML(`<div class="prose-sm max-w-none">` + sanitizeHTML(s) + `</div>`) //nolint:gosec // sanitizeHTML is the allowlist boundary
+		return template.HTML(`<div class="prose-sm max-w-none">` + htmlsafe.Sanitize(s) + `</div>`) //nolint:gosec // htmlsafe.Sanitize is the allowlist boundary
 	}
 	return df
 }
