@@ -38,6 +38,7 @@ const (
 	FieldBelongsTo
 	FieldMultiSelect
 	FieldRichtext
+	FieldIcon
 )
 
 // kindNames map kinds to template partials and schema strings.
@@ -50,6 +51,7 @@ var kindNames = map[FieldKind]string{
 	FieldDatetime: "datetime", FieldTime: "time", FieldFile: "file",
 	FieldImage: "image", FieldMarkdown: "markdown", FieldBelongsTo: "belongsto",
 	FieldMultiSelect: "multiselect", FieldRichtext: "richtext",
+	FieldIcon: "icon",
 }
 
 // Form configures a resource's create/edit view; write-only until Build.
@@ -195,6 +197,19 @@ func (f *Form[T]) Markdown(path string, label ...string) *Field[T] {
 // than vendored into the framework.
 func (f *Form[T]) Richtext(path string, label ...string) *Field[T] {
 	return f.add(FieldRichtext, path, label...)
+}
+
+// Icon adds a visual picker over the icons the panel can render, storing the
+// chosen name as a string.
+//
+// It exists because the alternative — a text input holding an icon name — fails
+// silently: a typo renders a blank space, and nobody notices until a sidebar
+// looks wrong. The picker can only produce a name that resolves.
+//
+// Choices come from the asset layers, so icons dropped into Config.AssetsFS
+// appear alongside the embedded set.
+func (f *Form[T]) Icon(path string, label ...string) *Field[T] {
+	return f.add(FieldIcon, path, label...)
 }
 
 // BelongsTo binds a foreign-key field to a searchable select over the

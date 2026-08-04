@@ -1,6 +1,7 @@
 GO ?= go
 TAILWIND_VERSION ?= v4.3.3
 CHARTJS_VERSION ?= 4.5.0
+LUCIDE_VERSION ?= 0.545.0
 UNAME_S := $(shell uname -s | tr A-Z a-z)
 UNAME_M := $(shell uname -m)
 ifeq ($(UNAME_M),x86_64)
@@ -14,7 +15,7 @@ else
   TW_OS := linux
 endif
 
-.PHONY: build test lint vet run e2e tidy assets assets-dev tailwind-bin vendor-chart
+.PHONY: build test lint vet run e2e tidy assets assets-dev tailwind-bin vendor-chart icons
 
 # One-shot frontend build (esbuild via Go + Tailwind standalone — no Node).
 assets: tailwind-bin
@@ -49,6 +50,29 @@ vendor-chart:
 	@cp frontend/vendor/chartjs/chart.umd.min.js assets/dist/chart.umd.min.js
 	@cp frontend/vendor/basecoat/js/chart.min.js assets/dist/basecoat-chart.min.js
 	@echo "chart runtime staged in assets/dist (rebuild the binary to embed it)"
+
+# Adds Lucide icons to the embedded set, e.g.
+#
+#	make icons ICONS="image video calendar tag"
+#
+# The file name is the name Icon() and the picker use, so it is kept as given.
+# Fetched from lucide-static at the pinned version, so every icon in assets/icons
+# has the same provenance as the ones already there (ISC, see its LICENSE).
+icons:
+	@test -n "$(ICONS)" || { echo 'usage: make icons ICONS="image video calendar"'; exit 1; }
+	@mkdir -p assets/icons
+	@for name in $(ICONS); do \
+	  if [ -f assets/icons/$$name.svg ]; then echo "have    $$name"; continue; fi; \
+	  if curl -sSfL -o assets/icons/$$name.svg \
+	      https://cdn.jsdelivr.net/npm/lucide-static@$(LUCIDE_VERSION)/icons/$$name.svg; then \
+	    echo "fetched $$name"; \
+	  else \
+	    rm -f assets/icons/$$name.svg; \
+	    echo "MISSING $$name — not a Lucide $(LUCIDE_VERSION) icon name"; \
+	    exit 1; \
+	  fi; \
+	done
+	@echo "rebuild the binary to embed them"
 
 build:
 	$(GO) build ./...

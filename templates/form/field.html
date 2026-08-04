@@ -15,6 +15,29 @@
       placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>
     <p class="text-sm text-muted-foreground">Markdown supported.</p>
 
+  {{else if eq .Kind "icon"}}
+    {{/* A radio group styled as a grid of glyphs. Radios rather than a
+         JavaScript widget so the field submits correctly with scripting off;
+         app.js only adds the filter box and the "none" affordance. */}}
+    <div class="steward-iconpicker" data-steward-iconpicker>
+      <div role="radiogroup" aria-label="{{.Label}}" class="steward-iconpicker-grid">
+        <label class="steward-iconpicker-item" title="No icon">
+          <input type="radio" name="{{.Name}}" value=""
+                 {{if not .Value}}checked{{end}} {{if .Disabled}}disabled{{end}}/>
+          <span class="steward-iconpicker-none" aria-hidden="true">—</span>
+          <span class="sr-only">No icon</span>
+        </label>
+        {{range .Icons}}
+        <label class="steward-iconpicker-item" title="{{.Name}}" data-icon-name="{{.Name}}">
+          <input type="radio" name="{{$.Name}}" value="{{.Name}}"
+                 {{if .Selected}}checked{{end}} {{if $.Disabled}}disabled{{end}}/>
+          {{.SVG}}
+          <span class="sr-only">{{.Name}}</span>
+        </label>
+        {{end}}
+      </div>
+    </div>
+
   {{else if eq .Kind "richtext"}}
     {{/* The textarea stays the submitted field; app.js swaps in a
          contenteditable surface beside it and mirrors the markup back. Without

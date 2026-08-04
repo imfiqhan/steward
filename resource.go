@@ -91,7 +91,10 @@ func (r *Resource[T]) indexInRegistry() int {
 // Title overrides the human name shown in menu and headings.
 func (r *Resource[T]) Title(s string) *Resource[T] { r.m.title = s; return r }
 
-// Icon sets the sidebar icon (a Tabler icon name, e.g. "news").
+// Icon sets the sidebar icon by name, resolved through the asset layers
+// ("news", "users", …). Verify reports a name that does not resolve, because at
+// runtime an unknown icon renders blank rather than failing — which is easy to
+// miss until a sidebar looks wrong.
 func (r *Resource[T]) Icon(name string) *Resource[T] { r.m.icon = name; return r }
 
 // Group places the resource under a collapsible sidebar group.

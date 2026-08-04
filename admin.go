@@ -276,6 +276,19 @@ func (a *Admin) build() error {
 	a.renderer = rend
 	a.assetVersion = rend.assetVersion
 
+	// Icon names can only be checked once the asset layers exist, so this runs
+	// after the renderer rather than during resource compilation. An unknown
+	// name renders blank at runtime instead of failing, which is easy to miss —
+	// reporting it here means a test asserting Verify catches it.
+	for _, r := range a.registry {
+		m := r.meta()
+		if m.icon != "" && !rend.hasIcon(m.icon) {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"resource %q: icon %q not found; available: %s",
+				m.slug, m.icon, strings.Join(iconNames(rend.assetLayers), ", ")))
+		}
+	}
+
 	a.mux = a.buildRoutes()
 	a.handler = a.wrap(a.mux)
 	a.built = true

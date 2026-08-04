@@ -48,7 +48,7 @@ func (df *DetailField[T]) As(fn func(v any, m *T) template.HTML) *DetailField[T]
 	return df
 }
 
-// Badge renders a colored Tabler badge (see Column.Badge).
+// Badge renders a colored badge (see Column.Badge).
 func (df *DetailField[T]) Badge(colors map[any]string) *DetailField[T] {
 	df.present = func(v any, _ *T) template.HTML { return badgeHTML(colors, v) }
 	return df

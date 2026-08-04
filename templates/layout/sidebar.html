@@ -6,35 +6,25 @@
       </a>
     </header>
     <section class="scrollbar-sm">
-      {{range .Page.Menu}}
-        {{if .Children}}
-        <div role="group" aria-labelledby="menu-group-{{.Title}}">
-          <h3 id="menu-group-{{.Title}}">{{.Title}}</h3>
-          <ul>
-            {{range .Children}}
-            <li>
-              <a href="{{.URI}}" {{if .Active}}aria-current="page"{{end}}
-                 hx-get="{{.URI}}" hx-target="#page-content" hx-push-url="true" hx-swap="innerHTML show:window:top">
-                {{if .Icon}}{{icon .Icon}}{{end}}
-                <span>{{.Title}}</span>
-              </a>
-            </li>
-            {{end}}
-          </ul>
-        </div>
-        {{else}}
-        <div role="group">
-          <ul>
-            <li>
-              <a href="{{.URI}}" {{if .Active}}aria-current="page"{{end}}
-                 hx-get="{{.URI}}" hx-target="#page-content" hx-push-url="true" hx-swap="innerHTML show:window:top">
-                {{if .Icon}}{{icon .Icon}}{{end}}
-                <span>{{.Title}}</span>
-              </a>
-            </li>
-          </ul>
-        </div>
-        {{end}}
+      {{/* One [role=group] per section, not per entry. The group carries its own
+           padding and the section adds a gap between groups, so a group per link
+           would space consecutive entries six times further apart than the
+           group's own list does. MenuSections batches the ungrouped runs. */}}
+      {{range .Page.MenuSections}}
+      <div role="group" {{if .Title}}aria-labelledby="menu-group-{{.Title}}"{{end}}>
+        {{with .Title}}<h3 id="menu-group-{{.}}">{{.}}</h3>{{end}}
+        <ul>
+          {{range .Items}}
+          <li>
+            <a href="{{.URI}}" {{if .Active}}aria-current="page"{{end}}
+               hx-get="{{.URI}}" hx-target="#page-content" hx-push-url="true" hx-swap="innerHTML show:window:top">
+              {{if .Icon}}{{icon .Icon}}{{end}}
+              <span>{{.Title}}</span>
+            </a>
+          </li>
+          {{end}}
+        </ul>
+      </div>
       {{end}}
     </section>
   </nav>

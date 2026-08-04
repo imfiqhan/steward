@@ -3,6 +3,7 @@ package steward
 import (
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"path"
@@ -32,9 +33,18 @@ type formFieldVM struct {
 	Fieldset    string
 	Divider     bool
 	Options     []optionVM
-	UploadURL   string
-	PreviewURL  string
-	Errors      []string
+	// Icons carries the choices for an Icon field, each with its rendered SVG.
+	Icons      []iconChoiceVM
+	UploadURL  string
+	PreviewURL string
+	Errors     []string
+}
+
+// iconChoiceVM is one option in an Icon field's picker.
+type iconChoiceVM struct {
+	Name     string
+	SVG      template.HTML
+	Selected bool
 }
 
 type formVM struct {
@@ -153,6 +163,14 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			}
 			for val, label := range opts {
 				fv.Options = append(fv.Options, optionVM{Value: val, Label: label, Selected: slices.Contains(selected, val)})
+			}
+		case FieldIcon:
+			for _, name := range iconNames(c.Admin.renderer.assetLayers) {
+				fv.Icons = append(fv.Icons, iconChoiceVM{
+					Name:     name,
+					SVG:      c.Admin.renderer.icon(name),
+					Selected: name == fv.Value,
+				})
 			}
 		case FieldBelongsTo:
 			fv.Options = t.belongsToOptions(c, fd, fv.Value)

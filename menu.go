@@ -15,6 +15,40 @@ type MenuNode struct {
 	Children []MenuNode
 }
 
+// MenuSection is one sidebar block: either a labelled group with its entries, or
+// a run of consecutive top-level links carrying no label.
+type MenuSection struct {
+	Title  string // "" for a run of ungrouped links
+	Items  []MenuNode
+	Active bool
+}
+
+// menuSections batches consecutive ungrouped entries into a single section.
+//
+// The sidebar styles each [role=group] with its own padding and puts a gap
+// between groups, so emitting one group per link stacked 0.5rem of padding plus
+// a 0.5rem gap between every entry — six times the 0.25rem a group uses between
+// its own items, which read as the menu being spaced out for no reason. Batching
+// restores that rhythm while preserving menu order: a labelled group interrupts
+// a run, so what follows starts a new one.
+func menuSections(roots []MenuNode) []MenuSection {
+	var out []MenuSection
+	for _, n := range roots {
+		if len(n.Children) > 0 {
+			out = append(out, MenuSection{Title: n.Title, Items: n.Children, Active: n.Active})
+			continue
+		}
+		if len(out) > 0 && out[len(out)-1].Title == "" {
+			last := &out[len(out)-1]
+			last.Items = append(last.Items, n)
+			last.Active = last.Active || n.Active
+			continue
+		}
+		out = append(out, MenuSection{Items: []MenuNode{n}, Active: n.Active})
+	}
+	return out
+}
+
 // buildMenu renders the sidebar from admin_menu (kept in sync with the
 // registered resources at Build, editable at auth/menu). Visibility derives
 // from the same permission rules that guard the routes: an entry the user

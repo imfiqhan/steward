@@ -157,8 +157,11 @@ func (r *renderer) funcs() template.FuncMap {
 	}
 }
 
-// icon inlines an embedded Tabler SVG with extra classes appended. Unknown
-// names render an empty span so a typo can't break a page.
+// icon inlines an embedded Lucide SVG with extra classes appended.
+//
+// An unknown name renders an empty span rather than failing: a typo must not
+// take down a page over a decoration. It is reported by Verify instead, so the
+// mistake surfaces in CI rather than as a silently blank sidebar.
 func (r *renderer) icon(name string, classes ...string) template.HTML {
 	key := name + "|" + strings.Join(classes, " ")
 	if !r.a.cfg.Dev {
@@ -220,18 +223,66 @@ func templateNamesAll(layers []fs.FS) []string {
 	return names
 }
 
+// iconNames lists every icon reachable through the asset layers, without the
+// "icons/" prefix or ".svg" suffix, deduped and sorted. Overlay icons appear
+// alongside the embedded set, so an app that drops its own SVGs into AssetsFS
+// gets them in the picker for free.
+func iconNames(layers []fs.FS) []string {
+	seen := map[string]bool{}
+	for _, l := range layers {
+		entries, err := fs.ReadDir(l, "icons")
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".svg") {
+				continue
+			}
+			seen[strings.TrimSuffix(e.Name(), ".svg")] = true
+		}
+	}
+	names := make([]string, 0, len(seen))
+	for n := range seen {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// Icons lists the icon names available to this panel, for a form field or a
+// custom page that lets someone choose one.
+func (a *Admin) Icons() []string {
+	if a.renderer == nil {
+		return nil
+	}
+	return iconNames(a.renderer.assetLayers)
+}
+
+// hasIcon reports whether a name resolves to an icon.
+func (r *renderer) hasIcon(name string) bool {
+	if name == "" {
+		return false
+	}
+	_, err := readLayered(r.assetLayers, "icons/"+name+".svg")
+	return err == nil
+}
+
 // pageMeta is the layout-level data every template can reach via .Page.
 type pageMeta struct {
-	Brand   string
-	Title   string
-	Prefix  string
-	CSRF    string
-	Theme   string
-	Dev     bool
-	User    *AdminUser
-	Menu    []MenuNode
-	Flashes []session.Flash
-	Path    string
+	Brand  string
+	Title  string
+	Prefix string
+	CSRF   string
+	Theme  string
+	Dev    bool
+	User   *AdminUser
+	// Menu is the raw tree. MenuSections is the same entries batched for
+	// rendering; the shipped sidebar uses the latter, and Menu stays so an
+	// overridden sidebar template keeps working.
+	Menu         []MenuNode
+	MenuSections []MenuSection
+	Flashes      []session.Flash
+	Path         string
 }
 
 // execute runs one named template with {Page, Data}.
@@ -261,17 +312,20 @@ func themeFrom(req *http.Request) string {
 }
 
 func (a *Admin) pageMetaFor(c *Context, title string) pageMeta {
+	// Built once and shared: the sections are a view of the same tree.
+	menu := a.buildMenu(c)
 	return pageMeta{
-		Brand:   a.cfg.Brand,
-		Title:   title,
-		Prefix:  a.cfg.Prefix,
-		CSRF:    c.CSRF(),
-		Theme:   themeFrom(c.R),
-		Dev:     a.cfg.Dev,
-		User:    c.User,
-		Menu:    a.buildMenu(c),
-		Flashes: c.takeFlashes(),
-		Path:    c.R.URL.Path,
+		Brand:        a.cfg.Brand,
+		Title:        title,
+		Prefix:       a.cfg.Prefix,
+		CSRF:         c.CSRF(),
+		Theme:        themeFrom(c.R),
+		Dev:          a.cfg.Dev,
+		User:         c.User,
+		Menu:         menu,
+		MenuSections: menuSections(menu),
+		Flashes:      c.takeFlashes(),
+		Path:         c.R.URL.Path,
 	}
 }
 
@@ -335,7 +389,7 @@ type overlayFS []fs.FS
 func (o overlayFS) Open(name string) (fs.File, error) { return openLayered(o, name) }
 
 // serveAsset streams an embedded (or overlaid) static file. URLs carry a
-// content-hash version segment ({prefix}/_assets/{version}/css/tabler.min.css)
+// content-hash version segment ({prefix}/_assets/{version}/dist/app.css)
 // so cache headers can be immutable outside dev.
 func (a *Admin) serveAsset(w http.ResponseWriter, r *http.Request) {
 	rel := strings.TrimPrefix(r.URL.Path, a.cfg.Prefix+"/_assets/")

@@ -26,7 +26,7 @@ func NewAction(name, label string, handler func(c *Context, ids []string) (*Enve
 	return &Action{name: name, label: label, handler: handler}
 }
 
-// Icon sets the button's Tabler icon.
+// Icon sets the button's icon, by Lucide name.
 func (a *Action) Icon(name string) *Action { a.icon = name; return a }
 
 // Confirm asks before dispatching.

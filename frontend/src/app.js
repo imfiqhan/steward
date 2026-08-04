@@ -746,6 +746,56 @@ window.htmx = htmx;
   document.addEventListener("DOMContentLoaded", initRichtext);
   document.addEventListener("htmx:afterSettle", initRichtext);
 
+  /* ---- Icon picker ------------------------------------------------------------ */
+  /*
+   * The picker is a radio group, so it already submits correctly without any of
+   * this. All that is added here is a filter box, because scrolling a few
+   * hundred glyphs to find "calendar" is the part that actually hurts.
+   */
+
+  function buildIconPicker(wrap) {
+    if (wrap.dataset.stewardIconpickerReady === "1") return;
+    wrap.dataset.stewardIconpickerReady = "1";
+
+    var grid = wrap.querySelector(".steward-iconpicker-grid");
+    if (!grid) return;
+    var items = grid.querySelectorAll("[data-icon-name]");
+    // Not worth a filter box for a handful of icons.
+    if (items.length < 12) return;
+
+    var filter = document.createElement("input");
+    filter.type = "search";
+    filter.className = "input steward-iconpicker-filter";
+    filter.placeholder = "Filter icons…";
+    filter.setAttribute("aria-label", "Filter icons");
+
+    filter.addEventListener("input", function () {
+      var q = filter.value.trim().toLowerCase();
+      for (var i = 0; i < items.length; i++) {
+        var name = items[i].dataset.iconName || "";
+        var input = items[i].querySelector("input");
+        // Never hide the current selection — hiding a checked radio would make
+        // the form look like nothing is chosen.
+        var keep = !q || name.indexOf(q) !== -1 || (input && input.checked);
+        items[i].hidden = !keep;
+      }
+    });
+    // A search field inside a form submits it on Enter; filtering is not a save.
+    filter.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") e.preventDefault();
+    });
+
+    wrap.insertBefore(filter, grid);
+  }
+
+  function initIconPickers() {
+    var nodes = document.querySelectorAll("[data-steward-iconpicker]");
+    for (var i = 0; i < nodes.length; i++) buildIconPicker(nodes[i]);
+  }
+
+  document.addEventListener("DOMContentLoaded", initIconPickers);
+  document.addEventListener("htmx:afterSettle", initIconPickers);
+
   /* ---- Theme toggle ----------------------------------------------------------- */
 
   document.addEventListener("click", function (e) {

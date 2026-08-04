@@ -165,7 +165,7 @@ func (a *Admin) registerMenuResource() {
 
 	res.Form(func(f *Form[MenuItem]) {
 		f.Text("Title").Rules("required|max:100")
-		f.Text("Icon").Help("A Tabler icon name, e.g. \"news\" — see tabler.io/icons.")
+		f.Icon("Icon").Help("Shown beside the entry in the sidebar.")
 		f.Text("URI").Placeholder("/posts").
 			Help("Relative to the admin prefix; leave empty for group headers.")
 		f.Select("ParentID", "Parent").OptionsFunc(parentOptions).
