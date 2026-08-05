@@ -33,17 +33,23 @@ type formFieldVM struct {
 	Fieldset    string
 	Divider     bool
 	Options     []optionVM
-	// Icons carries the choices for an Icon field, each with its rendered SVG.
-	Icons      []iconChoiceVM
-	UploadURL  string
-	PreviewURL string
-	Errors     []string
+	// Icons carries an Icon field's choices; SpriteURL is where the browser
+	// fetches their glyphs, once, for the whole grid.
+	Icons     []iconChoiceVM
+	SpriteURL string
+	// CurrentIcon is the selected glyph, inlined so the closed field shows it
+	// without waiting for the sprite.
+	CurrentIcon template.HTML
+	UploadURL   string
+	PreviewURL  string
+	Errors      []string
 }
 
-// iconChoiceVM is one option in an Icon field's picker.
+// iconChoiceVM is one option in an Icon field's picker. It carries the name
+// only: the glyphs come from the sprite through <use>, because inlining sixteen
+// hundred of them would add half a megabyte to the page.
 type iconChoiceVM struct {
 	Name     string
-	SVG      template.HTML
 	Selected bool
 }
 
@@ -165,12 +171,13 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 				fv.Options = append(fv.Options, optionVM{Value: val, Label: label, Selected: slices.Contains(selected, val)})
 			}
 		case FieldIcon:
-			for _, name := range iconNames(c.Admin.renderer.assetLayers) {
-				fv.Icons = append(fv.Icons, iconChoiceVM{
-					Name:     name,
-					SVG:      c.Admin.renderer.icon(name),
-					Selected: name == fv.Value,
-				})
+			rend := c.Admin.renderer
+			for _, name := range rend.iconNames() {
+				fv.Icons = append(fv.Icons, iconChoiceVM{Name: name, Selected: name == fv.Value})
+			}
+			fv.SpriteURL = c.Admin.url("_assets", rend.assetVersion, spritePath)
+			if fv.Value != "" {
+				fv.CurrentIcon = rend.icon(fv.Value)
 			}
 		case FieldBelongsTo:
 			fv.Options = t.belongsToOptions(c, fd, fv.Value)

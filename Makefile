@@ -15,7 +15,7 @@ else
   TW_OS := linux
 endif
 
-.PHONY: build test lint vet run e2e tidy assets assets-dev tailwind-bin vendor-chart icons
+.PHONY: build test lint vet run e2e tidy assets assets-dev tailwind-bin vendor-chart vendor-lucide
 
 # One-shot frontend build (esbuild via Go + Tailwind standalone — no Node).
 assets: tailwind-bin
@@ -51,28 +51,22 @@ vendor-chart:
 	@cp frontend/vendor/basecoat/js/chart.min.js assets/dist/basecoat-chart.min.js
 	@echo "chart runtime staged in assets/dist (rebuild the binary to embed it)"
 
-# Adds Lucide icons to the embedded set, e.g.
+# Vendors Lucide's full sprite (~400 KB, every icon as a <symbol>) into
+# assets/dist, where go:embed ships it. It is the source for both the icon
+# picker's grid and the server-side {{icon}} lookup, so one file covers every
+# Lucide icon without bundling any of them into app.js.
 #
-#	make icons ICONS="image video calendar tag"
-#
-# The file name is the name Icon() and the picker use, so it is kept as given.
-# Fetched from lucide-static at the pinned version, so every icon in assets/icons
-# has the same provenance as the ones already there (ISC, see its LICENSE).
-icons:
-	@test -n "$(ICONS)" || { echo 'usage: make icons ICONS="image video calendar"'; exit 1; }
-	@mkdir -p assets/icons
-	@for name in $(ICONS); do \
-	  if [ -f assets/icons/$$name.svg ]; then echo "have    $$name"; continue; fi; \
-	  if curl -sSfL -o assets/icons/$$name.svg \
-	      https://cdn.jsdelivr.net/npm/lucide-static@$(LUCIDE_VERSION)/icons/$$name.svg; then \
-	    echo "fetched $$name"; \
-	  else \
-	    rm -f assets/icons/$$name.svg; \
-	    echo "MISSING $$name — not a Lucide $(LUCIDE_VERSION) icon name"; \
-	    exit 1; \
-	  fi; \
-	done
-	@echo "rebuild the binary to embed them"
+# Committed rather than fetched per build, so a clone builds a working panel.
+# Re-run after bumping LUCIDE_VERSION.
+vendor-lucide:
+	@mkdir -p assets/dist
+	@echo "downloading lucide-static $(LUCIDE_VERSION) sprite..."
+	@curl -sSfL -o assets/dist/lucide-sprite.svg \
+	  https://cdn.jsdelivr.net/npm/lucide-static@$(LUCIDE_VERSION)/sprite.svg
+	@curl -sSfL -o assets/dist/lucide-sprite.LICENSE \
+	  https://cdn.jsdelivr.net/npm/lucide-static@$(LUCIDE_VERSION)/LICENSE
+	@echo "sprite: $$(wc -c < assets/dist/lucide-sprite.svg) bytes, \
+$$(grep -o '<symbol' assets/dist/lucide-sprite.svg | wc -l | tr -d ' ') icons"
 
 build:
 	$(GO) build ./...

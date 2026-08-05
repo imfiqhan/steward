@@ -35,8 +35,9 @@ type renderer struct {
 	mu   sync.RWMutex
 	tmpl *template.Template
 
-	iconMu sync.RWMutex
-	icons  map[string]template.HTML
+	iconMu  sync.RWMutex
+	icons   map[string]template.HTML
+	iconSet *iconSet
 }
 
 func newRenderer(a *Admin) (*renderer, error) {
@@ -57,6 +58,7 @@ func newRenderer(a *Admin) (*renderer, error) {
 		r.assetLayers = append(r.assetLayers, a.cfg.AssetsFS)
 	}
 	r.assetLayers = append(r.assetLayers, embAssets)
+	r.iconSet = loadIconSet(r.assetLayers)
 
 	if a.cfg.Dev {
 		r.assetVersion = "dev"
@@ -172,15 +174,21 @@ func (r *renderer) icon(name string, classes ...string) template.HTML {
 		}
 		r.iconMu.RUnlock()
 	}
-	raw, err := readLayered(r.assetLayers, "icons/"+name+".svg")
-	if err != nil {
-		return template.HTML(`<span class="icon"></span>`)
+	var svg string
+	if raw, err := readLayered(r.assetLayers, "icons/"+name+".svg"); err == nil {
+		// An overlay file wins, so a project can override a glyph.
+		svg = string(raw)
+		if extra := strings.Join(classes, " "); extra != "" {
+			svg = strings.Replace(svg, `class="`, `class="`+extra+` `, 1)
+		}
+	} else {
+		body, ok := r.iconSet.resolve(name)
+		if !ok {
+			return template.HTML(`<span class="icon"></span>`)
+		}
+		svg = wrapSymbol(name, body, strings.Join(classes, " "))
 	}
-	svg := string(raw)
-	if extra := strings.Join(classes, " "); extra != "" {
-		svg = strings.Replace(svg, `class="`, `class="`+extra+` `, 1)
-	}
-	out := template.HTML(svg)
+	out := template.HTML(svg) //nolint:gosec // vendored sprite and overlay files, not user input
 	if !r.a.cfg.Dev {
 		r.iconMu.Lock()
 		r.icons[key] = out
@@ -223,48 +231,17 @@ func templateNamesAll(layers []fs.FS) []string {
 	return names
 }
 
-// iconNames lists every icon reachable through the asset layers, without the
-// "icons/" prefix or ".svg" suffix, deduped and sorted. Overlay icons appear
-// alongside the embedded set, so an app that drops its own SVGs into AssetsFS
-// gets them in the picker for free.
-func iconNames(layers []fs.FS) []string {
-	seen := map[string]bool{}
-	for _, l := range layers {
-		entries, err := fs.ReadDir(l, "icons")
-		if err != nil {
-			continue
-		}
-		for _, e := range entries {
-			if e.IsDir() || !strings.HasSuffix(e.Name(), ".svg") {
-				continue
-			}
-			seen[strings.TrimSuffix(e.Name(), ".svg")] = true
-		}
-	}
-	names := make([]string, 0, len(seen))
-	for n := range seen {
-		names = append(names, n)
-	}
-	sort.Strings(names)
-	return names
-}
-
-// Icons lists the icon names available to this panel, for a form field or a
-// custom page that lets someone choose one.
-func (a *Admin) Icons() []string {
-	if a.renderer == nil {
-		return nil
-	}
-	return iconNames(a.renderer.assetLayers)
-}
-
-// hasIcon reports whether a name resolves to an icon.
+// hasIcon reports whether a name resolves, through an overlay file, the sprite,
+// or a legacy alias.
 func (r *renderer) hasIcon(name string) bool {
 	if name == "" {
 		return false
 	}
-	_, err := readLayered(r.assetLayers, "icons/"+name+".svg")
-	return err == nil
+	if _, err := readLayered(r.assetLayers, "icons/"+name+".svg"); err == nil {
+		return true
+	}
+	_, ok := r.iconSet.resolve(name)
+	return ok
 }
 
 // pageMeta is the layout-level data every template can reach via .Page.

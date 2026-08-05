@@ -748,44 +748,167 @@ window.htmx = htmx;
 
   /* ---- Icon picker ------------------------------------------------------------ */
   /*
-   * The picker is a radio group, so it already submits correctly without any of
-   * this. All that is added here is a filter box, because scrolling a few
-   * hundred glyphs to find "calendar" is the part that actually hurts.
+   * Enhancement over the field's <select>, which stays the thing that submits —
+   * with scripting off it is still a usable control. Here it is hidden behind a
+   * collapsed trigger showing the current glyph, and a popover grid that only
+   * builds when first opened.
+   *
+   * Glyphs are <use> references into the vendored sprite, so all ~1,600 icons
+   * cost one cached request rather than 1,600 inline SVGs in the page.
    */
+
+  var ICON_SVG_ATTRS =
+    'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round"';
+
+  function iconGlyph(sprite, name) {
+    return '<svg class="lucide" ' + ICON_SVG_ATTRS + ' aria-hidden="true">' +
+      '<use href="' + sprite + "#" + name + '"/></svg>';
+  }
 
   function buildIconPicker(wrap) {
     if (wrap.dataset.stewardIconpickerReady === "1") return;
+    var select = wrap.querySelector("[data-iconpicker-select]");
+    if (!select) return;
+    if (select.disabled) { wrap.dataset.stewardIconpickerReady = "1"; return; }
     wrap.dataset.stewardIconpickerReady = "1";
 
-    var grid = wrap.querySelector(".steward-iconpicker-grid");
-    if (!grid) return;
-    var items = grid.querySelectorAll("[data-icon-name]");
-    // Not worth a filter box for a handful of icons.
-    if (items.length < 12) return;
+    var sprite = wrap.dataset.sprite || "";
+    var names = [];
+    for (var i = 0; i < select.options.length; i++) {
+      var v = select.options[i].value;
+      if (v) names.push(v);
+    }
+
+    var trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "steward-iconpicker-trigger";
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.setAttribute("aria-haspopup", "true");
+
+    var panel = document.createElement("div");
+    panel.className = "steward-iconpicker-panel";
+    panel.hidden = true;
 
     var filter = document.createElement("input");
     filter.type = "search";
     filter.className = "input steward-iconpicker-filter";
-    filter.placeholder = "Filter icons…";
-    filter.setAttribute("aria-label", "Filter icons");
+    filter.placeholder = "Search " + names.length + " icons…";
+    filter.setAttribute("aria-label", "Search icons");
 
-    filter.addEventListener("input", function () {
-      var q = filter.value.trim().toLowerCase();
-      for (var i = 0; i < items.length; i++) {
-        var name = items[i].dataset.iconName || "";
-        var input = items[i].querySelector("input");
-        // Never hide the current selection — hiding a checked radio would make
-        // the form look like nothing is chosen.
-        var keep = !q || name.indexOf(q) !== -1 || (input && input.checked);
-        items[i].hidden = !keep;
+    var grid = document.createElement("div");
+    grid.className = "steward-iconpicker-grid";
+
+    var status = document.createElement("p");
+    status.className = "steward-iconpicker-status";
+
+    panel.appendChild(filter);
+    panel.appendChild(grid);
+    panel.appendChild(status);
+
+    function paintTrigger() {
+      var name = select.value;
+      trigger.innerHTML =
+        (name ? iconGlyph(sprite, name) : '<span class="steward-iconpicker-none">—</span>') +
+        '<span class="steward-iconpicker-name">' + (name || "No icon") + "</span>" +
+        '<span class="steward-iconpicker-caret" aria-hidden="true"></span>';
+      // The server-rendered preview is only needed until the trigger exists.
+      var preview = wrap.querySelector("[data-iconpicker-preview]");
+      if (preview) preview.remove();
+    }
+
+    function choose(name) {
+      select.value = name;
+      // Let anything listening on the field (validation, dirty tracking) see it.
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      paintTrigger();
+      close();
+      trigger.focus();
+    }
+
+    // The grid is built once, on first open: 1,600 buttons is not something to
+    // spend on a field nobody has touched.
+    var built = false;
+    function render(q) {
+      var frag = document.createDocumentFragment();
+      var shown = 0;
+      var none = document.createElement("button");
+      none.type = "button";
+      none.className = "steward-iconpicker-item";
+      none.title = "No icon";
+      none.innerHTML = '<span class="steward-iconpicker-none">—</span>';
+      none.addEventListener("click", function () { choose(""); });
+      if (!q) frag.appendChild(none);
+
+      for (var i = 0; i < names.length; i++) {
+        var name = names[i];
+        if (q && name.indexOf(q) === -1) continue;
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "steward-iconpicker-item";
+        b.title = name;
+        b.dataset.name = name;
+        if (name === select.value) b.setAttribute("aria-current", "true");
+        b.innerHTML = iconGlyph(sprite, name);
+        b.addEventListener("click", function (e) {
+          choose(e.currentTarget.dataset.name);
+        });
+        frag.appendChild(b);
+        shown++;
       }
+      grid.textContent = "";
+      grid.appendChild(frag);
+      status.textContent = shown === 0
+        ? "No icon matches “" + q + "”."
+        : shown + " of " + names.length;
+    }
+
+    function open() {
+      if (!built) { render(""); built = true; }
+      panel.hidden = false;
+      trigger.setAttribute("aria-expanded", "true");
+      filter.value = "";
+      filter.focus();
+      var current = grid.querySelector('[aria-current="true"]');
+      if (current) current.scrollIntoView({ block: "nearest" });
+    }
+
+    function close() {
+      panel.hidden = true;
+      trigger.setAttribute("aria-expanded", "false");
+    }
+
+    trigger.addEventListener("click", function () {
+      if (panel.hidden) open(); else close();
     });
-    // A search field inside a form submits it on Enter; filtering is not a save.
+
+    var debounce;
+    filter.addEventListener("input", function () {
+      clearTimeout(debounce);
+      debounce = setTimeout(function () {
+        render(filter.value.trim().toLowerCase());
+      }, 80);
+    });
+    // Enter in a search field would otherwise submit the form.
     filter.addEventListener("keydown", function (e) {
       if (e.key === "Enter") e.preventDefault();
     });
 
-    wrap.insertBefore(filter, grid);
+    wrap.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !panel.hidden) {
+        e.stopPropagation();
+        close();
+        trigger.focus();
+      }
+    });
+    document.addEventListener("click", function (e) {
+      if (!panel.hidden && !wrap.contains(e.target)) close();
+    });
+
+    select.classList.add("hidden");
+    wrap.appendChild(trigger);
+    wrap.appendChild(panel);
+    paintTrigger();
   }
 
   function initIconPickers() {

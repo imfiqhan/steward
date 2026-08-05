@@ -285,7 +285,7 @@ func (a *Admin) build() error {
 		if m.icon != "" && !rend.hasIcon(m.icon) {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
 				"resource %q: icon %q not found; available: %s",
-				m.slug, m.icon, strings.Join(iconNames(rend.assetLayers), ", ")))
+				m.slug, m.icon, strings.Join(rend.iconNames(), ", ")))
 		}
 	}
 

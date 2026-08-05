@@ -103,8 +103,10 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
 - [ ] File/Image/BelongsTo fields inside hasMany rows
 - [x] Per-request conditional fields (`Field.Show`) — hidden fields are refused
       on submit and omitted from `_schema`, not merely hidden
-- [x] `Icon` picker field over the panel's resolvable icons, so a name that
-      renders blank cannot be chosen; `Verify()` reports one set in code
+- [x] `Icon` picker field over the full Lucide set (~1,600), collapsed by
+      default and showing the current glyph; the grid draws from one cached
+      sprite rather than inlining every icon, and `Verify()` reports a name
+      set in code that does not resolve
 - [ ] Tabbed form layout
 
 ### Detail
@@ -165,8 +167,8 @@ cover it, and an HTML DSL in Go would be more surface for less flexibility.
 - [x] `Cache` (in-memory built in, Redis in `contrib/`), `Storage` (local
       built in, S3 in `contrib/`), SMTP `Mailer`
 - [x] `Searcher` interface with an in-memory full-text implementation
-- [x] Template overlay (override any view by dropping a file), embedded
-      Lucide icons (`make icons` adds more), dark mode, `no_ui` build tag
+- [x] Template overlay (override any view by dropping a file), every Lucide
+      icon embedded as one sprite, dark mode, `no_ui` build tag
 - [x] Node-free asset pipeline — esbuild Go API + Tailwind standalone binary
 - [x] Mount under Gin (`contrib/ginsteward`) or any `http.Handler` router
 
