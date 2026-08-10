@@ -316,6 +316,9 @@ window.htmx = htmx;
         });
       }
     });
+    // Hiding or showing a column changes whether the table overflows, which is
+    // what decides the pinned column's divider. Hoisted, so defined below.
+    initHScroll();
   }
 
   document.addEventListener("change", function (e) {
@@ -949,6 +952,35 @@ window.htmx = htmx;
 
   document.addEventListener("DOMContentLoaded", initIconPickers);
   document.addEventListener("htmx:afterSettle", initIconPickers);
+
+  /* ---- Grid: horizontal scroll state --------------------------------------- */
+  /*
+   * Flags a table container that is scrolled away from its trailing edge, which
+   * is when the pinned actions column actually overlaps something and its
+   * divider should show. Without this the divider is a permanent line on tables
+   * that fit the window and never scroll.
+   */
+
+  function syncHScroll(el) {
+    // How far the trailing edge is from the end of the content. Compared with a
+    // pixel of slack because fractional layout widths rarely land on zero.
+    var trailing = el.scrollWidth - el.clientWidth - Math.abs(el.scrollLeft);
+    el.dataset.hscroll = trailing > 1 ? "1" : "0";
+  }
+
+  function initHScroll() {
+    document.querySelectorAll("[data-steward-hscroll]").forEach(function (el) {
+      syncHScroll(el);
+      if (el.dataset.hscrollBound === "1") return;
+      el.dataset.hscrollBound = "1";
+      el.addEventListener("scroll", function () { syncHScroll(el); }, { passive: true });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", initHScroll);
+  document.addEventListener("htmx:afterSettle", initHScroll);
+  // Column show/hide and window resizing both change whether it overflows.
+  window.addEventListener("resize", initHScroll);
 
   /* ---- Theme toggle ----------------------------------------------------------- */
 

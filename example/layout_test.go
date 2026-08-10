@@ -114,3 +114,58 @@ func TestPageWrappersCannotBeWidenedByContent(t *testing.T) {
 		t.Error("the table's section must be allowed to shrink below its content")
 	}
 }
+
+// TestActionsColumnIsPinned covers the column that must stay reachable once a
+// wide table starts scrolling sideways.
+func TestActionsColumnIsPinned(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/pin.db"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&wideRow{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&wideRow{ColA: "a", ColB: "b"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("pinned-actions-test-secret-key"),
+		AuthExcept: []string{"/wide_rows*"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[wideRow](app)
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/admin/wide_rows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := string(raw)
+
+	// The header cell and the row cell both have to be pinned, or the column
+	// detaches from its heading as soon as it scrolls.
+	if n := strings.Count(html, "steward-col-actions"); n < 2 {
+		t.Errorf("expected the actions header and cell to be pinned, found %d", n)
+	}
+	if !strings.Contains(html, `<th class="w-[1%] steward-col-actions">`) {
+		t.Error("the actions header cell is not pinned")
+	}
+	if !strings.Contains(html, `<td class="text-end steward-col-actions">`) {
+		t.Error("the actions body cell is not pinned")
+	}
+	// The container is flagged so the divider can be shown only while scrolled.
+	if !strings.Contains(html, "data-steward-hscroll") {
+		t.Error("the scroll container is not tracked")
+	}
+}

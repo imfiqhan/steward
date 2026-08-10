@@ -279,3 +279,29 @@ tr.steward-dragging { opacity: 0.5; }
   white-space: nowrap;
   border-width: 0;
 }
+
+/* ---- Grid: pinned actions column ----------------------------------------- */
+
+/* The row's actions stay reachable while the table scrolls sideways. Rows are
+   transparent and the hover state is translucent, so a pinned cell has to paint
+   its own surface — otherwise the columns slide visibly underneath it. */
+.table .steward-col-actions {
+  position: sticky;
+  /* Logical, so the column pins to the trailing edge under RTL too. */
+  inset-inline-end: 0;
+  z-index: 1;
+  background-color: var(--color-card);
+}
+
+/* Compose the same translucent hover over the card rather than inheriting the
+   row's, which would let the scrolling cells show through. */
+.table tr:hover .steward-col-actions {
+  background-color: color-mix(in oklab, var(--color-muted) 50%, var(--color-card));
+}
+
+/* The divider only earns its place once something is passing beneath it, so it
+   appears while the container is scrolled away from its trailing edge and the
+   column is genuinely overlapping. */
+.table-container[data-hscroll="1"] .steward-col-actions {
+  border-inline-start: 1px solid var(--color-border);
+}

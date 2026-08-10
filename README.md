@@ -83,7 +83,9 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
 - [x] Tree grids (`Grid.Tree`) and grouped column headers
 - [x] Column show/hide picker (persisted per grid)
 - [x] Drag-and-drop row reordering (`Grid.Reorderable`)
-- [ ] Fixed (pinned) columns
+- [x] Row actions pinned to the trailing edge, so they stay reachable once a
+      wide grid scrolls sideways
+- [ ] Fixed (pinned) columns generally
 - [ ] Quick-create row
 - [ ] Quick search backed by a `Searcher` (SQL `LIKE` today)
 
