@@ -46,7 +46,7 @@
                        placeholder="xxxx-xxxx-xxxx-xxxx"/>
                 <p class="text-sm text-muted-foreground">Each recovery code works once.</p>
               </div>
-              <button type="submit" class="btn-outline w-full">Use recovery code</button>
+              <button type="submit" class="btn w-full" data-variant="outline">Use recovery code</button>
             </form>
           </details>
           {{end}}
@@ -54,7 +54,7 @@
         <footer>
           <form action="{{url "auth/logout"}}" method="post">
             <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
-            <button type="submit" class="btn-ghost btn-sm">Sign in as someone else</button>
+            <button type="submit" class="btn" data-variant="ghost" data-size="sm">Sign in as someone else</button>
           </form>
         </footer>
       </div>

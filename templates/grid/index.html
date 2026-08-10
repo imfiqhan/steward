@@ -1,4 +1,4 @@
-<div class="p-6 grid gap-4">
+<div class="p-6 grid grid-cols-1 gap-4">
   <div class="flex flex-wrap items-center gap-2">
     <div>
       <h2 class="text-2xl font-semibold">{{.Data.Title}}</h2>
@@ -23,7 +23,7 @@
   <div class="card overflow-visible" data-size="sm">
     {{template "grid/toolbar.html" .}}
     {{template "grid/filter.html" .}}
-    <section class="px-0">
+    <section class="px-0 min-w-0">
       {{template "grid/table.html" .}}
     </section>
     {{template "grid/pagination.html" .}}

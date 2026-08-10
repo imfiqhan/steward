@@ -402,6 +402,29 @@ func TestTwoFactorDisableNeedsPassword(t *testing.T) {
 	_, confirmed := c.post("/auth/profile/2fa/confirm",
 		url.Values{"code": {totpNow(t, secret)}}, c.token(page))
 
+	// The control has to look and behave like a destructive action: Basecoat keys
+	// button variants off data-variant, so a class like "btn-destructive" renders
+	// as unstyled text — which is how this shipped and why it was unrecognisable.
+	_, page2 := c.get("/auth/profile")
+	if !strings.Contains(page2, `class="btn justify-self-start" data-variant="destructive"`) {
+		t.Error("the disable control should be a destructive button, not bare text")
+	}
+	for _, cls := range []string{"btn-destructive", "btn-outline", "btn-ghost", "btn-sm"} {
+		if strings.Contains(page2, cls) {
+			t.Errorf("%q is not a Basecoat class and renders unstyled", cls)
+		}
+	}
+	// And it must ask before removing a second factor.
+	if !strings.Contains(page2, "data-steward-confirm-submit") {
+		t.Error("disabling 2FA should require confirmation")
+	}
+	if !strings.Contains(page2, `data-confirm-danger="1"`) {
+		t.Error("the confirmation should be styled as destructive")
+	}
+	if !strings.Contains(page2, "data-confirm-title=") {
+		t.Error("the confirmation needs a title")
+	}
+
 	// A wrong password leaves it on.
 	code, body := c.post("/auth/profile/2fa/disable",
 		url.Values{"password": {"wrong"}}, c.token(confirmed))

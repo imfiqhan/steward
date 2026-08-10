@@ -562,6 +562,37 @@ window.htmx = htmx;
     if (first) first.focus();
   }
 
+  /* ---- Confirm before submitting a form ------------------------------------ */
+  /*
+   * Opt a plain form into the alert dialog with data-steward-confirm-submit. The
+   * grid's actions already confirm, but they post through fetch; a native form —
+   * turning off two-factor authentication, say — had no way to ask first.
+   *
+   * Registered before the resource-form handler below so it gates that too: the
+   * first listener wins the preventDefault, and re-submits once confirmed.
+   */
+
+  document.addEventListener("submit", function (e) {
+    var form = e.target.closest("[data-steward-confirm-submit]");
+    if (!form || form.dataset.stewardConfirmed === "1") return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    confirmDialog({
+      title: form.dataset.confirmTitle || "Are you sure?",
+      description: form.dataset.confirmDescription || "",
+      action: form.dataset.confirmAction || "Confirm",
+      danger: form.dataset.confirmDanger === "1"
+    }).then(function (yes) {
+      if (!yes) return;
+      form.dataset.stewardConfirmed = "1";
+      // requestSubmit rather than submit, so validation and the other submit
+      // handlers still run; the flag above stops this one looping.
+      if (typeof form.requestSubmit === "function") form.requestSubmit();
+      else form.submit();
+      delete form.dataset.stewardConfirmed;
+    });
+  }, true);
+
   document.addEventListener("submit", function (e) {
     var form = e.target.closest("[data-steward-form]");
     if (!form) return;

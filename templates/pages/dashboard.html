@@ -1,10 +1,15 @@
-<div class="p-6 grid gap-4">
+<div class="p-6 grid grid-cols-1 gap-4">
   <div>
     <p class="text-sm text-muted-foreground">Overview</p>
     <h2 class="text-2xl font-semibold">Dashboard</h2>
   </div>
   <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-    {{template "widgets/metric.html" (dict "Label" "Signed in as" "Value" (or .Page.User.Name .Page.User.Username))}}
+    {{/* User is nil on any unauthenticated render — reachable when a panel
+         exempts "/" through Config.AuthExcept — and an unguarded dereference
+         turns that into a 500 on the home page. */}}
+    {{with .Page.User}}
+    {{template "widgets/metric.html" (dict "Label" "Signed in as" "Value" (or .Name .Username))}}
+    {{end}}
     {{template "widgets/metric.html" (dict "Label" "Registered resources" "Value" .Data.ResourceCount)}}
   </div>
   <div class="card">

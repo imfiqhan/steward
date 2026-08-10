@@ -1,4 +1,4 @@
-<div class="p-6 grid gap-6 max-w-2xl">
+<div class="p-6 grid grid-cols-1 gap-6 max-w-2xl">
   <div>
     <p class="text-sm text-muted-foreground">Account</p>
     <h2 class="text-2xl font-semibold">Profile</h2>
@@ -109,17 +109,28 @@
                  autocomplete="current-password"/>
           <p class="text-sm text-muted-foreground">Replacing the set invalidates every unused code.</p>
         </div>
-        <button type="submit" class="btn-outline justify-self-start">Generate new recovery codes</button>
+        <button type="submit" class="btn justify-self-start" data-variant="outline">Generate new recovery codes</button>
       </form>
       {{if not .Required}}
-      <form method="post" action="{{url "auth/profile/2fa/disable"}}" autocomplete="off" class="grid gap-4 border-t pt-6">
+      {{/* Removing a second factor is worth a deliberate pause, so the submit
+           goes through the shared alert dialog. The password is still checked
+           server-side — the dialog is about intent, not authorization. */}}
+      <form method="post" action="{{url "auth/profile/2fa/disable"}}" autocomplete="off"
+            class="grid gap-4 border-t pt-6"
+            data-steward-confirm-submit
+            data-confirm-title="Turn off two-factor authentication?"
+            data-confirm-description="Your account will be protected by its password alone, and your recovery codes stop working."
+            data-confirm-action="Turn it off"
+            data-confirm-danger="1">
         <input type="hidden" name="_token" value="{{$.Page.CSRF}}"/>
         <div class="grid gap-2">
           <label class="label" for="tfa-off-password">Current password</label>
           <input class="input max-w-sm" id="tfa-off-password" name="password" type="password"
                  autocomplete="current-password"/>
         </div>
-        <button type="submit" class="btn-destructive justify-self-start">Turn off two-factor authentication</button>
+        <button type="submit" class="btn justify-self-start" data-variant="destructive">
+          Turn off two-factor authentication
+        </button>
       </form>
       {{else}}
       <p class="text-sm text-muted-foreground border-t pt-6">

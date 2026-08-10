@@ -46,7 +46,7 @@
         <footer>
           <form action="{{url "auth/logout"}}" method="post">
             <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
-            <button type="submit" class="btn-ghost btn-sm">Cancel</button>
+            <button type="submit" class="btn" data-variant="ghost" data-size="sm">Cancel</button>
           </form>
         </footer>
       </div>
