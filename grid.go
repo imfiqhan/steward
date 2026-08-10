@@ -17,6 +17,8 @@ type Grid[T any] struct {
 	rowActions   []*Action
 	batchActions []*Action
 	toolActions  []*Action
+	// actionStyle overrides Config.GridActions for this grid; "" inherits it.
+	actionStyle GridActionStyle
 
 	headerGroups []headerGroup
 
@@ -115,6 +117,16 @@ func (g *Grid[T]) GroupColumns(label string, paths ...string) *Grid[T] {
 }
 
 // Feature switches, dcat-style disable pairs.
+
+// ActionStyle overrides Config.GridActions for this grid.
+//
+// Use it where one resource does not fit the panel-wide choice — a grid with a
+// single action rarely needs a menu, and a grid with six rarely wants them
+// spread across the row.
+func (g *Grid[T]) ActionStyle(style GridActionStyle) *Grid[T] {
+	g.actionStyle = style
+	return g
+}
 
 // DisableCreate hides the create button.
 func (g *Grid[T]) DisableCreate() *Grid[T] { g.off["create"] = true; return g }
@@ -367,6 +379,31 @@ type FilterItem[T any] struct {
 	options     Options
 	placeholder string
 	info        *fieldInfo
+}
+
+// GridActionStyle selects how a row's actions are presented.
+type GridActionStyle string
+
+const (
+	// GridActionsButtons lays the actions out side by side. Fastest to reach,
+	// and the default, but it costs a column's width per action.
+	GridActionsButtons GridActionStyle = "buttons"
+
+	// GridActionsMenu collapses them behind a single trigger. Worth it once a
+	// grid has several actions or many columns, at the price of one extra click.
+	GridActionsMenu GridActionStyle = "menu"
+)
+
+// resolve returns the effective style, falling back to the panel-wide default
+// and then to buttons.
+func (s GridActionStyle) resolve(fallback GridActionStyle) GridActionStyle {
+	if s == "" {
+		s = fallback
+	}
+	if s == GridActionsMenu {
+		return GridActionsMenu
+	}
+	return GridActionsButtons
 }
 
 // Options maps stored values to display labels for selects/radios.

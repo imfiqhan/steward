@@ -982,6 +982,87 @@ window.htmx = htmx;
   // Column show/hide and window resizing both change whether it overflows.
   window.addEventListener("resize", initHScroll);
 
+  /* ---- Row action menus escaping the table's clip -------------------------- */
+  /*
+   * Basecoat positions a dropdown's popover absolutely, and the grid's scroll
+   * container sets overflow-x — which per CSS also makes overflow-y compute to
+   * auto — so a row menu opened inside the table would be clipped on both axes.
+   *
+   * While open, the popover is promoted to fixed positioning against the
+   * trigger's viewport rect, which no ancestor's overflow can clip. It is closed
+   * on scroll rather than tracked, because a menu that follows its row while the
+   * table moves under the cursor is worse than one that gets out of the way.
+   */
+
+  function placeRowMenu(pop) {
+    var wrap = pop.closest("[data-steward-menu]");
+    var trigger = wrap && wrap.querySelector("[aria-haspopup]");
+    if (!trigger) return;
+    var r = trigger.getBoundingClientRect();
+
+    pop.style.position = "fixed";
+    pop.style.margin = "0";
+    // Basecoat positions with logical offsets (data-align="end" is
+    // inset-inline-end), which map onto the same physical properties set below.
+    // Cleared first so the physical values that follow are what apply.
+    pop.style.insetInlineStart = "auto";
+    pop.style.insetInlineEnd = "auto";
+    pop.style.insetBlockStart = "auto";
+    pop.style.insetBlockEnd = "auto";
+    // Measured after switching to fixed, so the width is the final one.
+    var w = pop.offsetWidth;
+    var h = pop.offsetHeight;
+
+    // Aligned to the trigger's trailing edge, then kept inside the viewport.
+    var left = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
+    var top = r.bottom + 4;
+    // Flip above when there is not room below but there is above.
+    if (top + h > window.innerHeight - 8 && r.top - h - 4 > 8) top = r.top - h - 4;
+
+    pop.style.left = left + "px";
+    pop.style.top = top + "px";
+    pop.style.right = "auto";
+    pop.style.bottom = "auto";
+  }
+
+  function clearRowMenu(pop) {
+    // Restores the component's own CSS-driven placement for the next open.
+    pop.style.cssText = "";
+  }
+
+  function closeOpenRowMenus() {
+    document.querySelectorAll('[data-steward-menu] [data-popover][aria-hidden="false"]')
+      .forEach(function (pop) {
+        var wrap = pop.closest("[data-steward-menu]");
+        // Ask the component to close, so it restores focus and aria itself.
+        if (wrap && typeof wrap.close === "function") wrap.close(false);
+        else if (wrap && typeof wrap.togglePopover === "function") wrap.togglePopover();
+      });
+  }
+
+  // Basecoat flips aria-hidden when it opens or closes; that is the signal.
+  var rowMenuObserver = new MutationObserver(function (records) {
+    records.forEach(function (rec) {
+      var pop = rec.target;
+      if (pop.getAttribute("aria-hidden") === "false") placeRowMenu(pop);
+      else clearRowMenu(pop);
+    });
+  });
+
+  function initRowMenus() {
+    document.querySelectorAll("[data-steward-menu] > [data-popover]").forEach(function (pop) {
+      if (pop.dataset.stewardMenuBound === "1") return;
+      pop.dataset.stewardMenuBound = "1";
+      rowMenuObserver.observe(pop, { attributes: true, attributeFilter: ["aria-hidden"] });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", initRowMenus);
+  document.addEventListener("htmx:afterSettle", initRowMenus);
+  // A fixed menu no longer belongs to its row once anything moves.
+  window.addEventListener("resize", closeOpenRowMenus);
+  window.addEventListener("scroll", closeOpenRowMenus, true);
+
   /* ---- Theme toggle ----------------------------------------------------------- */
 
   document.addEventListener("click", function (e) {

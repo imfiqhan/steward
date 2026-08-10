@@ -1,3 +1,79 @@
+{{/* The row's actions, laid out side by side. */}}
+{{define "grid/_row_buttons"}}
+  {{$d := .D}}{{$key := .Row.Key}}
+  <div class="inline-flex items-center gap-1 whitespace-nowrap">
+    {{range $d.RowActions}}
+    <button type="button" class="btn" data-size="sm" data-variant="{{if .Danger}}destructive{{else}}ghost{{end}}"
+            data-steward-action data-url="{{.URL}}" data-ids="{{$key}}"
+            {{with .Confirm}}data-confirm="{{.}}"{{end}}>
+      {{if .Icon}}{{icon .Icon}}{{end}} {{.Label}}
+    </button>
+    {{end}}
+    {{if $d.Features.view}}
+    <a class="btn" data-variant="ghost" data-size="icon-sm" aria-label="View" href="{{$d.BaseURL}}/{{$key}}"
+       hx-get="{{$d.BaseURL}}/{{$key}}" hx-target="#page-content" hx-push-url="true">
+      {{icon "eye"}}
+    </a>
+    {{end}}
+    {{if $d.Features.edit}}
+    <a class="btn" data-variant="ghost" data-size="icon-sm" aria-label="Edit" href="{{$d.BaseURL}}/{{$key}}/edit"
+       hx-get="{{$d.BaseURL}}/{{$key}}/edit" hx-target="#page-content" hx-push-url="true">
+      {{icon "pencil"}}
+    </a>
+    {{end}}
+    {{if $d.Features.delete}}
+    <button type="button" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="Delete"
+            data-steward-delete data-url="{{$d.DeleteURLBase}}/{{$key}}">
+      <span class="text-destructive">{{icon "trash"}}</span>
+    </button>
+    {{end}}
+  </div>
+{{end}}
+
+{{/* The same actions behind one trigger. Ids are per row, since Basecoat wires
+     each dropdown by id; data-steward-menu marks it for the repositioning that
+     keeps it out of the scroll container's clip. */}}
+{{define "grid/_row_menu"}}
+  {{$d := .D}}{{$key := .Row.Key}}{{$id := printf "rowmenu-%s-%s" $d.Slug $key}}
+  <div id="{{$id}}" class="dropdown-menu" data-steward-menu>
+    <button type="button" id="{{$id}}-trigger" aria-haspopup="menu" aria-controls="{{$id}}-menu"
+            aria-expanded="false" class="btn" data-variant="ghost" data-size="icon-sm"
+            aria-label="Actions">
+      {{icon "ellipsis"}}
+    </button>
+    <div id="{{$id}}-popover" data-popover aria-hidden="true" class="min-w-40" data-align="end">
+      <div role="menu" id="{{$id}}-menu" aria-labelledby="{{$id}}-trigger">
+        {{if $d.Features.view}}
+        <a role="menuitem" href="{{$d.BaseURL}}/{{$key}}"
+           hx-get="{{$d.BaseURL}}/{{$key}}" hx-target="#page-content" hx-push-url="true">
+          {{icon "eye"}} View
+        </a>
+        {{end}}
+        {{if $d.Features.edit}}
+        <a role="menuitem" href="{{$d.BaseURL}}/{{$key}}/edit"
+           hx-get="{{$d.BaseURL}}/{{$key}}/edit" hx-target="#page-content" hx-push-url="true">
+          {{icon "pencil"}} Edit
+        </a>
+        {{end}}
+        {{range $d.RowActions}}
+        <button type="button" role="menuitem" class="w-full"
+                data-steward-action data-url="{{.URL}}" data-ids="{{$key}}"
+                {{with .Confirm}}data-confirm="{{.}}"{{end}}>
+          {{if .Icon}}{{icon .Icon}}{{end}} {{.Label}}
+        </button>
+        {{end}}
+        {{if $d.Features.delete}}
+        <hr role="separator"/>
+        <button type="button" role="menuitem" class="w-full text-destructive"
+                data-steward-delete data-url="{{$d.DeleteURLBase}}/{{$key}}">
+          {{icon "trash"}} Delete
+        </button>
+        {{end}}
+      </div>
+    </div>
+  </div>
+{{end}}
+
 {{define "grid/_th"}}
   {{if .Col.Sortable}}
     <a href="{{.Col.SortURL}}" class="inline-flex items-center gap-1 hover:text-foreground"
@@ -82,34 +158,11 @@
         {{/* Pinned to the trailing edge: with enough columns the table scrolls,
              and the row's actions are the one thing that must stay reachable. */}}
         <td class="text-end steward-col-actions">
-          {{$key := .Key}}
-          <div class="inline-flex items-center gap-1 whitespace-nowrap">
-            {{range $.Data.RowActions}}
-            <button type="button" class="btn" data-size="sm" data-variant="{{if .Danger}}destructive{{else}}ghost{{end}}"
-                    data-steward-action data-url="{{.URL}}" data-ids="{{$key}}"
-                    {{with .Confirm}}data-confirm="{{.}}"{{end}}>
-              {{if .Icon}}{{icon .Icon}}{{end}} {{.Label}}
-            </button>
-            {{end}}
-            {{if $.Data.Features.view}}
-            <a class="btn" data-variant="ghost" data-size="icon-sm" aria-label="View" href="{{$.Data.BaseURL}}/{{.Key}}"
-               hx-get="{{$.Data.BaseURL}}/{{.Key}}" hx-target="#page-content" hx-push-url="true">
-              {{icon "eye"}}
-            </a>
-            {{end}}
-            {{if $.Data.Features.edit}}
-            <a class="btn" data-variant="ghost" data-size="icon-sm" aria-label="Edit" href="{{$.Data.BaseURL}}/{{.Key}}/edit"
-               hx-get="{{$.Data.BaseURL}}/{{.Key}}/edit" hx-target="#page-content" hx-push-url="true">
-              {{icon "pencil"}}
-            </a>
-            {{end}}
-            {{if $.Data.Features.delete}}
-            <button type="button" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="Delete"
-                    data-steward-delete data-url="{{$.Data.DeleteURLBase}}/{{.Key}}">
-              <span class="text-destructive">{{icon "trash"}}</span>
-            </button>
-            {{end}}
-          </div>
+          {{if eq $.Data.ActionStyle "menu"}}
+            {{template "grid/_row_menu" (dict "D" $.Data "Row" .)}}
+          {{else}}
+            {{template "grid/_row_buttons" (dict "D" $.Data "Row" .)}}
+          {{end}}
         </td>
         {{end}}
       </tr>

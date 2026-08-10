@@ -78,6 +78,8 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
 - [x] CSV export
 - [x] Batch delete and custom row/batch/tool actions, confirmed via
       alert dialogs
+- [x] Row actions as side-by-side buttons or a dropdown menu, panel-wide via
+      `Config.GridActions` and per grid via `Grid.ActionStyle`
 - [x] Inline editing (`Column.Editable()`, `Column.Switch()`) routed through
       form validation
 - [x] Tree grids (`Grid.Tree`) and grouped column headers

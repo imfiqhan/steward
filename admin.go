@@ -69,6 +69,12 @@ type Config struct {
 	// that skip authentication and permission checks.
 	AuthExcept []string
 
+	// GridActions chooses how every grid presents a row's actions:
+	// GridActionsButtons (the default) lays them side by side, GridActionsMenu
+	// collapses them behind one trigger. A single grid can differ via
+	// Grid.ActionStyle.
+	GridActions GridActionStyle
+
 	// Require2FA makes TOTP two-factor authentication mandatory: an account
 	// that has not enrolled is redirected to its profile page and can reach
 	// nothing else until it does. Off by default, in which case each user

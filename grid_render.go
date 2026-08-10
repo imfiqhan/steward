@@ -277,12 +277,14 @@ type gridVM struct {
 	ResetURL       string
 	Features       map[string]bool
 	DeleteURLBase  string
-	RowActions     []actionVM
-	BatchActions   []actionVM
-	ToolActions    []actionVM
-	ReorderURL     string
-	HeaderTop      []headTopVM // non-empty → two-row grouped header
-	HeaderSub      []headSubVM
+	// ActionStyle is "buttons" or "menu"; the template branches on it.
+	ActionStyle  string
+	RowActions   []actionVM
+	BatchActions []actionVM
+	ToolActions  []actionVM
+	ReorderURL   string
+	HeaderTop    []headTopVM // non-empty → two-row grouped header
+	HeaderSub    []headSubVM
 }
 
 // headTopVM is one first-row header cell: a group label spanning columns,
@@ -331,6 +333,7 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		ExportURL:      urlWith(c, map[string]string{"export": "all"}),
 		ResetURL:       c.URL(m.slug),
 		DeleteURLBase:  c.URL(m.slug),
+		ActionStyle:    string(g.actionStyle.resolve(c.Admin.cfg.GridActions)),
 		RowActions:     actionVMs(c.URL(m.slug), g.rowActions),
 		BatchActions:   actionVMs(c.URL(m.slug), g.batchActions),
 		ToolActions:    actionVMs(c.URL(m.slug), g.toolActions),
