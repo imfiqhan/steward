@@ -32,7 +32,8 @@ func (a *Action) Icon(name string) *Action { a.icon = name; return a }
 // Confirm asks before dispatching.
 func (a *Action) Confirm(message string) *Action { a.confirm = message; return a }
 
-// Danger styles the button red.
+// Danger marks the action destructive: a red button, or a destructive item in
+// the menu style.
 func (a *Action) Danger() *Action { a.danger = true; return a }
 
 var actionNameRe = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)

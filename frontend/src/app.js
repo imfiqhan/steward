@@ -998,7 +998,19 @@ window.htmx = htmx;
     var wrap = pop.closest("[data-steward-menu]");
     var trigger = wrap && wrap.querySelector("[aria-haspopup]");
     if (!trigger) return;
+
+    // Reset to the component's own placement before measuring, so a previous
+    // open's pinned width is not what gets measured.
+    pop.style.cssText = "";
     var r = trigger.getBoundingClientRect();
+
+    // Measured while still absolute: [data-popover] carries min-width:100%,
+    // which resolves against the containing block — the wrapper now, the
+    // viewport once fixed. Pinning the measured width keeps the switch from
+    // stretching the menu across the screen.
+    var w = pop.offsetWidth;
+    var h = pop.offsetHeight;
+    pop.style.minWidth = w + "px";
 
     pop.style.position = "fixed";
     pop.style.margin = "0";
@@ -1009,9 +1021,6 @@ window.htmx = htmx;
     pop.style.insetInlineEnd = "auto";
     pop.style.insetBlockStart = "auto";
     pop.style.insetBlockEnd = "auto";
-    // Measured after switching to fixed, so the width is the final one.
-    var w = pop.offsetWidth;
-    var h = pop.offsetHeight;
 
     // Aligned to the trigger's trailing edge, then kept inside the viewport.
     var left = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
@@ -1025,27 +1034,24 @@ window.htmx = htmx;
     pop.style.bottom = "auto";
   }
 
-  function clearRowMenu(pop) {
-    // Restores the component's own CSS-driven placement for the next open.
-    pop.style.cssText = "";
-  }
-
-  function closeOpenRowMenus() {
+  function closeOpenRowMenus(e) {
+    // A tall menu scrolling its own overflow is not the table moving under it.
+    var t = e && e.target;
+    if (t && t.closest && t.closest("[data-steward-menu] > [data-popover]")) return;
     document.querySelectorAll('[data-steward-menu] [data-popover][aria-hidden="false"]')
       .forEach(function (pop) {
         var wrap = pop.closest("[data-steward-menu]");
         // Ask the component to close, so it restores focus and aria itself.
         if (wrap && typeof wrap.close === "function") wrap.close(false);
-        else if (wrap && typeof wrap.togglePopover === "function") wrap.togglePopover();
       });
   }
 
-  // Basecoat flips aria-hidden when it opens or closes; that is the signal.
+  // Basecoat flips aria-hidden when it opens; that is the signal. The placement
+  // is left in place on close, since the popover stays visible through its fade
+  // and resetting it there would snap the menu back to the trigger first.
   var rowMenuObserver = new MutationObserver(function (records) {
     records.forEach(function (rec) {
-      var pop = rec.target;
-      if (pop.getAttribute("aria-hidden") === "false") placeRowMenu(pop);
-      else clearRowMenu(pop);
+      if (rec.target.getAttribute("aria-hidden") === "false") placeRowMenu(rec.target);
     });
   });
 

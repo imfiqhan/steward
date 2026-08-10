@@ -20,15 +20,17 @@
         <div role="menu" id="user-menu-menu" aria-labelledby="user-menu-trigger">
           <div role="group" aria-labelledby="user-menu-account">
             <div role="heading" id="user-menu-account">{{.Page.User.Username}}</div>
-            <a role="menuitem" href="{{url "auth/profile"}}"
+            <a role="menuitem" id="user-menu-profile" tabindex="-1" href="{{url "auth/profile"}}"
                hx-get="{{url "auth/profile"}}" hx-target="#page-content" hx-push-url="true">
               Profile
             </a>
           </div>
           <hr role="separator"/>
-          <form method="post" action="{{url "auth/logout"}}">
+          {{/* role="none" keeps the form out of the menu's accessibility tree:
+               a menu's children must be items, groups, or separators. */}}
+          <form method="post" action="{{url "auth/logout"}}" role="none">
             <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
-            <button type="submit" role="menuitem" class="w-full">Sign out</button>
+            <button type="submit" role="menuitem" id="user-menu-logout" tabindex="-1">Sign out</button>
           </form>
         </div>
       </div>

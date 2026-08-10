@@ -50,6 +50,10 @@ func newActionServer(t *testing.T, global steward.GridActionStyle, override stew
 			func(c *steward.Context, ids []string) (*steward.Envelope, error) {
 				return steward.Success("done"), nil
 			}))
+		g.RowAction(steward.NewAction("purge", "Purge",
+			func(c *steward.Context, ids []string) (*steward.Envelope, error) {
+				return steward.Success("done"), nil
+			}).Danger())
 	})
 	if err := app.Build(); err != nil {
 		t.Fatal(err)
@@ -70,6 +74,20 @@ func newActionServer(t *testing.T, global steward.GridActionStyle, override stew
 		t.Fatalf("GET grid = %d", resp.StatusCode)
 	}
 	return string(raw)
+}
+
+// tagWithID returns the opening tag of the element carrying the given id.
+func tagWithID(html, id string) string {
+	i := strings.Index(html, `id="`+id+`"`)
+	if i < 0 {
+		return ""
+	}
+	start := strings.LastIndex(html[:i], "<")
+	end := strings.Index(html[i:], ">")
+	if start < 0 || end < 0 {
+		return ""
+	}
+	return html[start : i+end+1]
 }
 
 func TestGridActionStyles(t *testing.T) {
@@ -103,13 +121,32 @@ func TestGridActionStyles(t *testing.T) {
 				if !strings.Contains(html, "rowmenu-action_rows-1-trigger") {
 					t.Error("the menu id is not per row")
 				}
+				// Items stay out of the tab order: the component keeps focus on
+				// the trigger and tracks the active item by id, so a focusable
+				// item would be reachable by Tab yet activate nothing on Enter.
+				if strings.Count(html, `role="menuitem"`) != strings.Count(html, `tabindex="-1"`) {
+					t.Error("every menu item needs tabindex=-1")
+				}
+				if !strings.Contains(html, `id="rowmenu-action_rows-1-edit"`) {
+					t.Error("items need ids for aria-activedescendant")
+				}
+				// Destructive items use the component's own variant, not a
+				// hand-rolled text colour, so highlighting them works too.
+				for _, id := range []string{"rowmenu-action_rows-1-delete", "rowmenu-action_rows-1-action-1"} {
+					if !strings.Contains(tagWithID(html, id), `data-variant="destructive"`) {
+						t.Errorf("%s should be a destructive item", id)
+					}
+				}
+				if strings.Contains(tagWithID(html, "rowmenu-action_rows-1-action-0"), "destructive") {
+					t.Error("a plain row action should not be destructive")
+				}
 			} else {
 				if !strings.Contains(html, `aria-label="Edit"`) {
 					t.Error("the edit button is missing from the button style")
 				}
 			}
 			// Whatever the presentation, every action has to be present.
-			for _, want := range []string{"Publish", "/action_rows/1/edit", "/action_rows/1"} {
+			for _, want := range []string{"Publish", "Purge", "/action_rows/1/edit", "/action_rows/1"} {
 				if !strings.Contains(html, want) {
 					t.Errorf("%q is missing in %s style", want, map[bool]string{true: "menu", false: "button"}[tc.wantMenu])
 				}

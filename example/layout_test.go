@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -167,5 +168,42 @@ func TestActionsColumnIsPinned(t *testing.T) {
 	// The container is flagged so the divider can be shown only while scrolled.
 	if !strings.Contains(html, "data-steward-hscroll") {
 		t.Error("the scroll container is not tracked")
+	}
+}
+
+// menuItemRe matches the opening tag of a dropdown menu item.
+var menuItemRe = regexp.MustCompile(`<[a-z]+[^>]*role="menuitem"[^>]*>`)
+
+// TestMenuItemsStayOutOfTheTabOrder guards the dropdown component's contract:
+// focus stays on the trigger while the highlighted item is tracked through
+// aria-activedescendant. A focusable item would be reachable by Tab with the
+// component's own index still at -1, and its Enter handler — which activates
+// that index and swallows the key — would then do nothing at all.
+func TestMenuItemsStayOutOfTheTabOrder(t *testing.T) {
+	srv, a := new2FAServer(t, false)
+	seedUser(t, a, "editor", "editor-password")
+
+	c := new2FAClient(t, srv)
+	if code, body := c.login("editor", "editor-password"); code != http.StatusOK {
+		t.Fatalf("login = %d: %s", code, body)
+	}
+	_, page := c.get("/auth/profile")
+
+	items := menuItemRe.FindAllString(page, -1)
+	if len(items) == 0 {
+		t.Fatal("the header's user menu did not render")
+	}
+	for _, item := range items {
+		if !strings.Contains(item, `tabindex="-1"`) {
+			t.Errorf("menu item is in the tab order: %s", item)
+		}
+		if !strings.Contains(item, ` id="`) {
+			t.Errorf("menu item has no id for aria-activedescendant: %s", item)
+		}
+	}
+	// A menu's children have to be items, groups, or separators, so the form
+	// wrapping the sign-out item is marked presentational.
+	if !strings.Contains(page, `action="/admin/auth/logout" role="none"`) {
+		t.Error("the sign-out form should be out of the menu's accessibility tree")
 	}
 }

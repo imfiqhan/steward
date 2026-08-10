@@ -41,30 +41,35 @@
             aria-label="Actions">
       {{icon "ellipsis"}}
     </button>
+    {{/* Items carry tabindex="-1" because the component keeps focus on the
+         trigger and tracks the highlighted item through aria-activedescendant.
+         A focusable item would be reachable by Tab while activeIndex stayed
+         -1, and the component's Enter handler would then activate nothing. */}}
     <div id="{{$id}}-popover" data-popover aria-hidden="true" class="min-w-40" data-align="end">
       <div role="menu" id="{{$id}}-menu" aria-labelledby="{{$id}}-trigger">
         {{if $d.Features.view}}
-        <a role="menuitem" href="{{$d.BaseURL}}/{{$key}}"
+        <a role="menuitem" id="{{$id}}-view" tabindex="-1" href="{{$d.BaseURL}}/{{$key}}"
            hx-get="{{$d.BaseURL}}/{{$key}}" hx-target="#page-content" hx-push-url="true">
           {{icon "eye"}} View
         </a>
         {{end}}
         {{if $d.Features.edit}}
-        <a role="menuitem" href="{{$d.BaseURL}}/{{$key}}/edit"
+        <a role="menuitem" id="{{$id}}-edit" tabindex="-1" href="{{$d.BaseURL}}/{{$key}}/edit"
            hx-get="{{$d.BaseURL}}/{{$key}}/edit" hx-target="#page-content" hx-push-url="true">
           {{icon "pencil"}} Edit
         </a>
         {{end}}
-        {{range $d.RowActions}}
-        <button type="button" role="menuitem" class="w-full"
-                data-steward-action data-url="{{.URL}}" data-ids="{{$key}}"
-                {{with .Confirm}}data-confirm="{{.}}"{{end}}>
-          {{if .Icon}}{{icon .Icon}}{{end}} {{.Label}}
+        {{range $i, $a := $d.RowActions}}
+        <button type="button" role="menuitem" id="{{$id}}-action-{{$i}}" tabindex="-1"
+                {{if $a.Danger}}data-variant="destructive"{{end}}
+                data-steward-action data-url="{{$a.URL}}" data-ids="{{$key}}"
+                {{with $a.Confirm}}data-confirm="{{.}}"{{end}}>
+          {{if $a.Icon}}{{icon $a.Icon}}{{end}} {{$a.Label}}
         </button>
         {{end}}
         {{if $d.Features.delete}}
         <hr role="separator"/>
-        <button type="button" role="menuitem" class="w-full text-destructive"
+        <button type="button" role="menuitem" id="{{$id}}-delete" tabindex="-1" data-variant="destructive"
                 data-steward-delete data-url="{{$d.DeleteURLBase}}/{{$key}}">
           {{icon "trash"}} Delete
         </button>
