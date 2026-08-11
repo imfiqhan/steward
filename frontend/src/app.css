@@ -305,3 +305,18 @@ tr.steward-dragging { opacity: 0.5; }
 .table-container[data-hscroll="1"] .steward-col-actions {
   border-inline-start: 1px solid var(--color-border);
 }
+
+/* A pinned cell is positioned with a z-index, so it is a stacking context: its
+   menu cannot paint above a sibling cell however high the popover's own z-index
+   is, and equal-z siblings paint in tree order, putting every row below on top.
+   The open row's cell is lifted out of that tie. */
+.table .steward-col-actions:has([aria-expanded="true"]) {
+  z-index: 3;
+}
+
+/* Row menus are placed in script, and left/top are interpolable, so the shared
+   transition would animate the popover in from wherever the stylesheet had put
+   it. Only the fade and scale should move. */
+[data-steward-menu] > [data-popover] {
+  transition-property: opacity, transform, visibility;
+}

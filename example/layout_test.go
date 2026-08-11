@@ -207,3 +207,71 @@ func TestMenuItemsStayOutOfTheTabOrder(t *testing.T) {
 		t.Error("the sign-out form should be out of the menu's accessibility tree")
 	}
 }
+
+// TestRowMenuStylesheetRules guards two CSS rules that no markup assertion can
+// reach, both of which failed visibly before they existed.
+//
+// A pinned cell is positioned with a z-index, which makes it a stacking
+// context: its open menu paints inside that context however high the popover's
+// own z-index is, and cells tied at the same z-index paint in tree order — so
+// every row below the open one covered the menu.
+//
+// The popover's shared transition is transition-all, and left/top interpolate,
+// so promoting it to script-computed fixed coordinates animated it in from
+// wherever the stylesheet had put it instead of from the trigger.
+func TestRowMenuStylesheetRules(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/css.db"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("row-menu-css-test-secret-key"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	defer srv.Close()
+
+	// The stylesheet URL carries a cache-busting version, so it is read off a
+	// rendered page rather than guessed.
+	page, err := http.Get(srv.URL + "/admin/auth/login")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = page.Body.Close() }()
+	body, err := io.ReadAll(page.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`href="([^"]+app\.css)"`).FindStringSubmatch(string(body))
+	if m == nil {
+		t.Fatal("no stylesheet link on the login page")
+	}
+
+	resp, err := http.Get(srv.URL + m[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET %s = %d", m[1], resp.StatusCode)
+	}
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	css := string(raw)
+
+	for _, want := range []string{
+		`steward-col-actions:has([aria-expanded=true]){z-index:3}`,
+		`[data-steward-menu]>[data-popover]{transition-property:opacity,transform,visibility}`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("the built stylesheet is missing %s", want)
+		}
+	}
+}
