@@ -356,9 +356,17 @@ tr.steward-dragging { opacity: 0.5; }
   z-index: 5;
 }
 
-/* Row menus are placed in script, and left/top are interpolable, so the shared
-   transition would animate the popover in from wherever the stylesheet had put
-   it. Only the fade and scale should move. */
+/* Fixed even while closed. An absolutely positioned box pads its scroll
+   container's scrollable overflow whether or not it is visible, so a closed menu
+   sitting below the last row left the table scrollable past its own end — spare
+   space under the final row on every grid. Fixed boxes are excluded from that
+   overflow, here and on the document, and being out of the container's clip is
+   what an open menu needs anyway. Script positions it; see app.js.
+
+   left and top are interpolable, so the shared transition would animate the
+   popover in from wherever the stylesheet had put it. Only the fade and the
+   scale should move. */
 [data-steward-menu] > [data-popover] {
+  position: fixed;
   transition-property: opacity, transform, visibility;
 }

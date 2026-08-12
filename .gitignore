@@ -14,6 +14,8 @@ uploads/
 coverage.out
 frontend/.bin/
 frontend/node_modules/
+node_modules/
+package-lock.json
 .claude/
 
 # note: assets/dist/ stays committed — go:embed ships it in the binary

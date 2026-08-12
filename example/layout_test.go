@@ -269,12 +269,16 @@ func builtStylesheet(t *testing.T) string {
 // The popover's shared transition is transition-all, and left/top interpolate,
 // so promoting it to script-computed fixed coordinates animated it in from
 // wherever the stylesheet had put it instead of from the trigger.
+//
+// It is fixed even while closed, because an absolutely positioned box pads its
+// scroll container's scrollable overflow whether or not it is visible: a closed
+// menu below the last row left every grid scrollable past the end of its table.
 func TestRowMenuStylesheetRules(t *testing.T) {
 	css := builtStylesheet(t)
 
 	for _, want := range []string{
 		`steward-col-actions:has([aria-expanded=true]){z-index:3}`,
-		`[data-steward-menu]>[data-popover]{transition-property:opacity,transform,visibility}`,
+		`[data-steward-menu]>[data-popover]{transition-property:opacity,transform,visibility;position:fixed}`,
 	} {
 		if !strings.Contains(css, want) {
 			t.Errorf("the built stylesheet is missing %s", want)

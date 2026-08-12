@@ -142,6 +142,13 @@ func registerResources(app *steward.Admin) {
 		Title("Authors").
 		Icon("users").
 		Group("Content").
+		Grid(func(g *steward.Grid[models.Author]) {
+			g.Column("ID").Sortable()
+			g.Column("Name").Sortable()
+			g.Column("Email")
+			// Posts uses buttons, so this grid covers the other presentation.
+			g.ActionStyle(steward.GridActionsMenu)
+		}).
 		Detail(func(d *steward.Detail[models.Author]) {
 			d.Field("ID")
 			d.Field("Name")

@@ -1,0 +1,11 @@
+{
+  "name": "steward-devtools",
+  "private": true,
+  "description": "Browser-only checks for layout and interaction that Go tests cannot observe. See scripts/visual.mjs.",
+  "scripts": {
+    "visual": "node scripts/visual.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}

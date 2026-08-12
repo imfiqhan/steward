@@ -97,6 +97,101 @@ if (await act.count()) {
   check(false, "row action button present");
 }
 
+// --- one scrollbar per page, and none of it spare -----------------------------
+// The height chain hands the table's container whatever the card has left, so
+// the rows scroll there and nowhere else. An absolutely positioned box also pads
+// its scroll container's scrollable overflow even while invisible, which a
+// closed row menu below the last row did — leaving the table scrollable past its
+// own end. Both are computed layout, so they can only be checked in an engine.
+await page.goto(BASE + "/posts");
+await page.waitForSelector(".table-container table");
+const scroll = await page.evaluate(() => {
+  const cont = document.querySelector(".table-container");
+  const table = cont.querySelector("table");
+  const pane = document.getElementById("page-content");
+  return {
+    excess: cont.scrollHeight - Math.ceil(table.getBoundingClientRect().height),
+    fits: cont.scrollHeight <= cont.clientHeight,
+    tableH: Math.ceil(table.getBoundingClientRect().height),
+    contClient: cont.clientHeight,
+    windowOver: document.documentElement.scrollHeight - window.innerHeight,
+    paneOver: pane.scrollHeight - pane.clientHeight,
+    headerSticks: getComputedStyle(table.querySelector("thead th")).position === "sticky",
+  };
+});
+check(scroll.excess <= 1,
+  `container scrolls no further than its table (excess ${scroll.excess}px)`);
+check(scroll.windowOver <= 0, `the window itself does not scroll (${scroll.windowOver}px)`);
+check(scroll.paneOver <= 0, `the content pane does not scroll on a grid (${scroll.paneOver}px)`);
+check(scroll.headerSticks, "the header row is sticky");
+// Whichever way this grid falls, it has to be consistent: rows that fit must
+// leave nothing to scroll.
+if (scroll.tableH <= scroll.contClient) {
+  check(scroll.fits, "a table that fits its container leaves nothing to scroll");
+} else {
+  check(!scroll.fits, "a table taller than its container scrolls");
+}
+
+// --- row action menus: where they land, and the keyboard path -----------------
+// The popover is fixed and positioned from script, so its placement, its width
+// and what paints over it are all computed layout. The keyboard path is checked
+// because the component keeps focus on the trigger and tracks the highlighted
+// item by id — activation goes through that, not through the item's own focus.
+await page.goto(BASE + "/authors");
+await page.waitForSelector("[data-steward-menu] > button");
+const trigs = await page.locator("[data-steward-menu] > button").all();
+check(trigs.length > 0, "the menu-style grid renders row menus");
+for (const idx of [...new Set([0, trigs.length - 1])]) {
+  await trigs[idx].click();
+  await page.waitForTimeout(250);
+  const m = await page.evaluate(() => {
+    const wrap = [...document.querySelectorAll("[data-steward-menu]")]
+      .find((w) => w.querySelector("button").getAttribute("aria-expanded") === "true");
+    if (!wrap) return null;
+    const pop = wrap.querySelector("[data-popover]");
+    const t = wrap.querySelector("button").getBoundingClientRect();
+    const p = pop.getBoundingClientRect();
+    const hit = document.elementFromPoint(p.left + p.width / 2, p.top + 8);
+    return {
+      gap: p.top >= t.bottom ? p.top - t.bottom : t.top - p.bottom,
+      edge: Math.abs(p.right - t.right),
+      inView: p.top >= 0 && p.bottom <= window.innerHeight &&
+        p.left >= 0 && p.right <= window.innerWidth,
+      width: p.width,
+      onTop: pop.contains(hit) || pop === hit,
+    };
+  });
+  if (!m) { check(false, `row ${idx} menu opens`); continue; }
+  check(Math.abs(m.gap) < 12, `row ${idx} menu sits against its trigger (${m.gap.toFixed(1)}px)`);
+  check(m.edge < 40, `row ${idx} menu aligns to the trigger's edge`);
+  check(m.inView, `row ${idx} menu stays inside the viewport`);
+  check(m.width > 100 && m.width < 400, `row ${idx} menu is not stretched (${m.width.toFixed(0)}px)`);
+  check(m.onTop, `row ${idx} menu paints above the rows below it`);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+}
+
+await trigs[0].click();
+await page.waitForTimeout(200);
+await page.keyboard.press("ArrowDown");
+const kb = await page.evaluate(() => {
+  const wrap = [...document.querySelectorAll("[data-steward-menu]")]
+    .find((w) => w.querySelector("button").getAttribute("aria-expanded") === "true");
+  const trig = wrap.querySelector("button");
+  return {
+    active: trig.getAttribute("aria-activedescendant"),
+    onTrigger: document.activeElement === trig,
+    tabbable: [...wrap.querySelectorAll('[role="menuitem"]')]
+      .every((i) => i.getAttribute("tabindex") === "-1"),
+  };
+});
+check(kb.onTrigger, "opening a menu leaves focus on its trigger");
+check(!!kb.active, `arrow keys track the highlighted item by id (${kb.active})`);
+check(kb.tabbable, "menu items stay out of the tab order");
+await page.keyboard.press("Enter");
+await page.waitForTimeout(700);
+check(/\/authors\/\d/.test(page.url()), `Enter activates the highlighted item (${page.url()})`);
+
 await page.screenshot({
   path: "/tmp/steward-visual.png",
   fullPage: false,

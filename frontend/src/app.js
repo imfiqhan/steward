@@ -1004,14 +1004,16 @@ window.htmx = htmx;
 
   /* ---- Row action menus escaping the table's clip -------------------------- */
   /*
-   * Basecoat positions a dropdown's popover absolutely, and the grid's scroll
-   * container sets overflow-x — which per CSS also makes overflow-y compute to
-   * auto — so a row menu opened inside the table would be clipped on both axes.
+   * Basecoat places a dropdown's popover with offsets against its wrapper, and
+   * the grid's scroll container sets overflow-x — which per CSS also makes
+   * overflow-y compute to auto — so a row menu left there would be clipped on
+   * both axes. The stylesheet takes these popovers out of the container by
+   * making them fixed; that leaves their offsets resolving against the viewport,
+   * which is what this recomputes from the trigger's own rect.
    *
-   * While open, the popover is promoted to fixed positioning against the
-   * trigger's viewport rect, which no ancestor's overflow can clip. It is closed
-   * on scroll rather than tracked, because a menu that follows its row while the
-   * table moves under the cursor is worse than one that gets out of the way.
+   * Menus are closed on scroll rather than tracked, because one that follows its
+   * row while the table moves under the cursor is worse than one that gets out
+   * of the way.
    */
 
   function placeRowMenu(pop) {
@@ -1019,20 +1021,18 @@ window.htmx = htmx;
     var trigger = wrap && wrap.querySelector("[aria-haspopup]");
     if (!trigger) return;
 
-    // Reset to the component's own placement before measuring, so a previous
+    // Reset to the stylesheet's own placement before measuring, so a previous
     // open's pinned width is not what gets measured.
     pop.style.cssText = "";
     var r = trigger.getBoundingClientRect();
 
-    // Measured while still absolute: [data-popover] carries min-width:100%,
-    // which resolves against the containing block — the wrapper now, the
-    // viewport once fixed. Pinning the measured width keeps the switch from
-    // stretching the menu across the screen.
+    // [data-popover] carries min-width:100%, which against a fixed box's
+    // containing block is the whole viewport. Pinned to the width it actually
+    // has so nothing can stretch it there.
     var w = pop.offsetWidth;
     var h = pop.offsetHeight;
     pop.style.minWidth = w + "px";
 
-    pop.style.position = "fixed";
     pop.style.margin = "0";
     // Basecoat positions with logical offsets (data-align="end" is
     // inset-inline-end), which map onto the same physical properties set below.
@@ -1052,6 +1052,15 @@ window.htmx = htmx;
     pop.style.top = top + "px";
     pop.style.right = "auto";
     pop.style.bottom = "auto";
+
+    // WebKit does not focus a button when it is clicked, so a menu opened with
+    // the mouse there left focus on the body — and the component binds its keys
+    // to the wrapper, so arrows and Escape did nothing. The menu pattern wants
+    // focus on the trigger regardless. preventScroll matters: the trigger sits
+    // in a scroll container, and scrolling it into view would close the menu.
+    if (!wrap.contains(document.activeElement)) {
+      trigger.focus({ preventScroll: true });
+    }
   }
 
   function closeOpenRowMenus(e) {
