@@ -219,13 +219,17 @@ func TestMenuItemsStayOutOfTheTabOrder(t *testing.T) {
 // The popover's shared transition is transition-all, and left/top interpolate,
 // so promoting it to script-computed fixed coordinates animated it in from
 // wherever the stylesheet had put it instead of from the trigger.
-func TestRowMenuStylesheetRules(t *testing.T) {
+// builtStylesheet serves the panel and returns the CSS it links to. The URL
+// carries a cache-busting version, so it is read off a rendered page rather
+// than guessed.
+func builtStylesheet(t *testing.T) string {
+	t.Helper()
 	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/css.db"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("row-menu-css-test-secret-key"),
+		DB: db, SecretKey: []byte("stylesheet-test-secret-key"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -236,8 +240,6 @@ func TestRowMenuStylesheetRules(t *testing.T) {
 	srv := httptest.NewServer(app)
 	defer srv.Close()
 
-	// The stylesheet URL carries a cache-busting version, so it is read off a
-	// rendered page rather than guessed.
 	page, err := http.Get(srv.URL + "/admin/auth/login")
 	if err != nil {
 		t.Fatal(err)
@@ -264,7 +266,11 @@ func TestRowMenuStylesheetRules(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	css := string(raw)
+	return string(raw)
+}
+
+func TestRowMenuStylesheetRules(t *testing.T) {
+	css := builtStylesheet(t)
 
 	for _, want := range []string{
 		`steward-col-actions:has([aria-expanded=true]){z-index:3}`,
@@ -272,6 +278,71 @@ func TestRowMenuStylesheetRules(t *testing.T) {
 	} {
 		if !strings.Contains(css, want) {
 			t.Errorf("the built stylesheet is missing %s", want)
+		}
+	}
+}
+
+// TestGridHeaderStaysPinned covers the header row holding still while the body
+// scrolls under it, which takes two things that only work together.
+//
+// Sticky resolves against the nearest scrollport, and overflow-x on the
+// container makes overflow-y compute to auto as well — so the container, not
+// the page, is already that scrollport. A header inside it can only stick once
+// the container has a bounded height to scroll within; otherwise the container
+// grows to fit every row and the page scrolls the table whole.
+//
+// The corner cell is sticky on both axes at once, so it has to out-rank both
+// the header row it sits in and the actions column passing beneath it.
+func TestGridHeaderStaysPinned(t *testing.T) {
+	css := builtStylesheet(t)
+
+	for _, want := range []string{
+		`.table-container[data-steward-hscroll]{max-height:var(--steward-table-max-height,max(16rem, calc(100dvh - 18rem)))}`,
+		`.table[data-steward-grid] thead th{z-index:4;background-color:var(--color-card);` +
+			`box-shadow:inset 0 -1px 0 var(--color-border);position:sticky;inset-block-start:0}`,
+		`.table[data-steward-grid] thead tr:nth-child(2) th{inset-block-start:var(--steward-header-row-h,0px)}`,
+		`.table[data-steward-grid] thead th.steward-col-actions{z-index:5}`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("the built stylesheet is missing %s", want)
+		}
+	}
+
+	// The hooks both rules select on have to be on the rendered grid.
+	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/hdr.db"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&wideRow{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("grid-header-test-secret-key"),
+		AuthExcept: []string{"/wide_rows*"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[wideRow](app)
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/admin/wide_rows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := string(raw)
+	for _, want := range []string{`data-steward-hscroll`, `data-steward-grid="wide_rows"`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("the grid is missing the %s hook the stylesheet selects on", want)
 		}
 	}
 }

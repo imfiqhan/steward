@@ -294,8 +294,9 @@ tr.steward-dragging { opacity: 0.5; }
 }
 
 /* Compose the same translucent hover over the card rather than inheriting the
-   row's, which would let the scrolling cells show through. */
-.table tr:hover .steward-col-actions {
+   row's, which would let the scrolling cells show through. Body rows only: the
+   header's corner cell paints the header surface, not a row's. */
+.table tbody tr:hover .steward-col-actions {
   background-color: color-mix(in oklab, var(--color-muted) 50%, var(--color-card));
 }
 
@@ -312,6 +313,44 @@ tr.steward-dragging { opacity: 0.5; }
    The open row's cell is lifted out of that tie. */
 .table .steward-col-actions:has([aria-expanded="true"]) {
   z-index: 3;
+}
+
+/* ---- Grid: pinned header row --------------------------------------------- */
+
+/* Sticky resolves against the nearest scrollport. overflow-x on the container
+   makes overflow-y compute to auto as well, so the container — not the page —
+   is already that scrollport, and a header inside it can only stick once the
+   container has a height to scroll within. Bounding it here is what makes the
+   header hold still; without it the container grows to fit every row and the
+   page scrolls the whole table, header included.
+   Tune with --steward-table-max-height on .table-container. */
+.table-container[data-steward-hscroll] {
+  max-height: var(--steward-table-max-height, max(16rem, calc(100dvh - 18rem)));
+}
+
+.table[data-steward-grid] thead th {
+  position: sticky;
+  inset-block-start: 0;
+  /* Above the actions column that scrolls beneath it, including a row whose
+     menu is open. */
+  z-index: 4;
+  background-color: var(--color-card);
+  /* border-collapse leaves the row's own border behind when a cell sticks, so
+     the divider is painted inside the cell instead. */
+  box-shadow: inset 0 -1px 0 var(--color-border);
+}
+
+/* Grouped columns render a second header row, which sticks below the first.
+   The offset is measured in script — the row's height comes from the style
+   pack, not from here. */
+.table[data-steward-grid] thead tr:nth-child(2) th {
+  inset-block-start: var(--steward-header-row-h, 0px);
+}
+
+/* Sticky on both axes, so the corner has to clear the header row it sits in as
+   well as the actions column below it. */
+.table[data-steward-grid] thead th.steward-col-actions {
+  z-index: 5;
 }
 
 /* Row menus are placed in script, and left/top are interpolable, so the shared

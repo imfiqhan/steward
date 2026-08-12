@@ -982,6 +982,26 @@ window.htmx = htmx;
   // Column show/hide and window resizing both change whether it overflows.
   window.addEventListener("resize", initHScroll);
 
+  /* ---- Grouped header rows -------------------------------------------------- */
+  /*
+   * Grouped columns render a second header row, which has to stick below the
+   * first rather than on top of it. The offset is the first row's height, which
+   * comes from the style pack's cell padding, so it is measured here and handed
+   * to the stylesheet.
+   */
+
+  function setHeaderRowOffset() {
+    document.querySelectorAll("[data-steward-grid]").forEach(function (table) {
+      var rows = table.querySelectorAll("thead > tr");
+      if (rows.length < 2) return;
+      table.style.setProperty("--steward-header-row-h", rows[0].offsetHeight + "px");
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", setHeaderRowOffset);
+  document.addEventListener("htmx:afterSettle", setHeaderRowOffset);
+  window.addEventListener("resize", setHeaderRowOffset);
+
   /* ---- Row action menus escaping the table's clip -------------------------- */
   /*
    * Basecoat positions a dropdown's popover absolutely, and the grid's scroll
