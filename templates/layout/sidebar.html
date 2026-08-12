@@ -17,7 +17,9 @@
           {{range .Items}}
           <li>
             <a href="{{.URI}}" {{if .Active}}aria-current="page"{{end}}
-               hx-get="{{.URI}}" hx-target="#page-content" hx-push-url="true" hx-swap="innerHTML show:window:top">
+               {{/* The window does not scroll — #page-content does. */}}
+               hx-get="{{.URI}}" hx-target="#page-content" hx-push-url="true"
+               hx-swap="innerHTML scroll:#page-content:top">
               {{if .Icon}}{{icon .Icon}}{{end}}
               <span>{{.Title}}</span>
             </a>

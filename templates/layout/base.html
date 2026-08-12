@@ -10,13 +10,17 @@
 </head>
 <body>
   {{template "layout/sidebar.html" .}}
-  <main class="min-h-screen flex flex-col">
+  {{/* The shell is exactly the viewport, so the window never scrolls: pages
+       that outgrow it scroll inside #page-content, and a page that sizes itself
+       to the shell — the grid does — scrolls only where it chooses to. One
+       scrollbar either way. */}}
+  <main class="h-dvh flex flex-col">
     {{template "layout/header.html" .}}
-    <div id="page-content" class="flex-1">
+    <div id="page-content" class="flex-1 min-h-0 flex flex-col overflow-y-auto">
       {{template "layout/flash.html" .}}
       {{.Data.Content}}
     </div>
-    <footer class="border-t px-6 py-3 text-center text-xs text-muted-foreground">
+    <footer class="shrink-0 border-t px-6 py-3 text-center text-xs text-muted-foreground">
       Powered by Steward
     </footer>
   </main>

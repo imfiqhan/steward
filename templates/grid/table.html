@@ -91,7 +91,9 @@
   {{end}}
   {{if .Col.Help}}<span data-tooltip="{{.Col.Help}}" data-side="top">{{icon "info-circle"}}</span>{{end}}
 {{end}}
-<div class="table-container" data-steward-hscroll>
+{{/* flex-auto rather than flex-1: the basis stays the content's height, so a
+     short table is still what sizes the card. */}}
+<div class="table-container flex-auto min-h-0" data-steward-hscroll>
   <table class="table" data-steward-grid="{{.Data.Slug}}">
     <thead>
       {{if .Data.HeaderTop}}

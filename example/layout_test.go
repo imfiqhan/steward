@@ -287,9 +287,11 @@ func TestRowMenuStylesheetRules(t *testing.T) {
 //
 // Sticky resolves against the nearest scrollport, and overflow-x on the
 // container makes overflow-y compute to auto as well — so the container, not
-// the page, is that scrollport. Unbounded it grows to fit every row, which
-// leaves a header nothing to hold still against and hands the vertical
-// scrolling to the page. The height is what makes the pinning real.
+// the page, is that scrollport. Grown to fit every row it gives a header nothing
+// to hold still against, so the container's height is what makes the pinning
+// real, and that height is handed down a chain: shell → content pane → page →
+// card → section → container. Any one link missing collapses it back to
+// content-sized, so every link is asserted.
 //
 // The corner cell is sticky on both axes at once, so it has to out-rank both
 // the header row it sits in and the actions column passing beneath it.
@@ -297,7 +299,7 @@ func TestGridHeaderPinning(t *testing.T) {
 	css := builtStylesheet(t)
 
 	for _, want := range []string{
-		`.table-container[data-steward-hscroll]{max-height:var(--steward-table-max-height,max(16rem, calc(100dvh - 19.5rem)))}`,
+		`.table-container[data-steward-hscroll]{max-height:var(--steward-table-max-height,none)}`,
 		`.table[data-steward-grid] thead th{z-index:4;background-color:var(--color-card);` +
 			`box-shadow:inset 0 -1px 0 var(--color-border);position:sticky;inset-block-start:0}`,
 		`.table[data-steward-grid] thead tr:nth-child(2) th{inset-block-start:var(--steward-header-row-h,0px)}`,
@@ -308,7 +310,8 @@ func TestGridHeaderPinning(t *testing.T) {
 		}
 	}
 
-	// The hooks both rules select on have to be on the rendered grid.
+	// The hooks the rules select on, and the height chain, both have to be on
+	// the rendered page.
 	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/hdr.db"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
@@ -344,5 +347,21 @@ func TestGridHeaderPinning(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Errorf("the grid is missing the %s hook the stylesheet selects on", want)
 		}
+	}
+	for _, link := range []struct{ what, class string }{
+		{"the shell is the viewport", `<main class="h-dvh flex flex-col">`},
+		{"the content pane fills it and can shrink", `id="page-content" class="flex-1 min-h-0 flex flex-col overflow-y-auto"`},
+		{"the page fills the pane, card row taking the leftover", `grid-rows-[auto_minmax(0,1fr)] gap-4 flex-1 min-h-0`},
+		{"the card is capped by the page rather than stretched", `self-start max-h-full min-h-0`},
+		{"the table's section takes the card's leftover", `px-0 min-w-0 flex flex-col flex-auto min-h-0`},
+		{"the container takes the section's, on a content basis", `table-container flex-auto min-h-0`},
+	} {
+		if !strings.Contains(html, link.class) {
+			t.Errorf("the height chain is broken where %s (%s)", link.what, link.class)
+		}
+	}
+	// The window cannot scroll, so navigation resets the pane instead.
+	if !strings.Contains(html, `hx-swap="innerHTML scroll:#page-content:top"`) {
+		t.Error("sidebar navigation still scrolls the window, which no longer scrolls")
 	}
 }

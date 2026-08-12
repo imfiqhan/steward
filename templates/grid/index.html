@@ -1,4 +1,6 @@
-<div class="p-6 grid grid-cols-1 gap-4">
+{{/* Sized to the shell rather than to its rows: the title takes what it needs
+     and the card gets the rest, so the page itself never scrolls. */}}
+<div class="p-6 grid grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-4 flex-1 min-h-0">
   <div class="flex flex-wrap items-center gap-2">
     <div>
       <h2 class="text-2xl font-semibold">{{.Data.Title}}</h2>
@@ -20,10 +22,15 @@
   </div>
   {{/* overflow-visible: the column-picker popover must escape the card
        (Basecoat clips cards for image corners, which grids never have) */}}
-  <div class="card overflow-visible" data-size="sm">
+  {{/* self-start with a cap, so a short grid still hugs its rows while a long
+       one stops at the page and scrolls its rows instead. The toolbar, filter
+       and pagination keep their own height, which is what leaves the pagination
+       in view without needing to be sticky — it sits outside the scroll area,
+       not pinned inside it. */}}
+  <div class="card overflow-visible self-start max-h-full min-h-0" data-size="sm">
     {{template "grid/toolbar.html" .}}
     {{template "grid/filter.html" .}}
-    <section class="px-0 min-w-0">
+    <section class="px-0 min-w-0 flex flex-col flex-auto min-h-0">
       {{template "grid/table.html" .}}
     </section>
     {{template "grid/pagination.html" .}}
