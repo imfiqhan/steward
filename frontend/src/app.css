@@ -317,15 +317,21 @@ tr.steward-dragging { opacity: 0.5; }
 
 /* ---- Grid: pinned header row --------------------------------------------- */
 
-/* Sticky resolves against the nearest scrollport. overflow-x on the container
-   makes overflow-y compute to auto as well, so the container — not the page —
-   is already that scrollport, and a header inside it can only stick once the
-   container has a height to scroll within. Bounding it here is what makes the
-   header hold still; without it the container grows to fit every row and the
-   page scrolls the whole table, header included.
-   Tune with --steward-table-max-height on .table-container. */
+/* The rows scroll inside the container so the header below can stay put: sticky
+   resolves against the nearest scrollport, and overflow-x here makes overflow-y
+   compute to auto, so the container is that scrollport whether or not it can
+   scroll. Unbounded it grows to fit every row, leaving a header nothing to hold
+   still against and handing the vertical scrolling to the page.
+
+   The reserve is the panel's chrome around the table: the app header (3.5rem),
+   the page's padding (1.5rem each side) and title block (3.25rem) plus its gap
+   (1rem), and the card's padding, toolbar and pagination (4.25rem each side).
+   Overshoot only costs a little page scroll, so it is rounded up.
+   Override with --steward-table-max-height when a panel puts more above the
+   table than this. */
 .table-container[data-steward-hscroll] {
-  max-height: var(--steward-table-max-height, max(16rem, calc(100dvh - 18rem)));
+  /* Never so short that the rows are unreadable on a small window. */
+  max-height: var(--steward-table-max-height, max(16rem, calc(100dvh - 19.5rem)));
 }
 
 .table[data-steward-grid] thead th {

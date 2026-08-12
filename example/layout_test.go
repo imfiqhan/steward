@@ -208,17 +208,6 @@ func TestMenuItemsStayOutOfTheTabOrder(t *testing.T) {
 	}
 }
 
-// TestRowMenuStylesheetRules guards two CSS rules that no markup assertion can
-// reach, both of which failed visibly before they existed.
-//
-// A pinned cell is positioned with a z-index, which makes it a stacking
-// context: its open menu paints inside that context however high the popover's
-// own z-index is, and cells tied at the same z-index paint in tree order — so
-// every row below the open one covered the menu.
-//
-// The popover's shared transition is transition-all, and left/top interpolate,
-// so promoting it to script-computed fixed coordinates animated it in from
-// wherever the stylesheet had put it instead of from the trigger.
 // builtStylesheet serves the panel and returns the CSS it links to. The URL
 // carries a cache-busting version, so it is read off a rendered page rather
 // than guessed.
@@ -269,6 +258,17 @@ func builtStylesheet(t *testing.T) string {
 	return string(raw)
 }
 
+// TestRowMenuStylesheetRules guards two CSS rules that no markup assertion can
+// reach, both of which failed visibly before they existed.
+//
+// A pinned cell is positioned with a z-index, which makes it a stacking
+// context: its open menu paints inside that context however high the popover's
+// own z-index is, and cells tied at the same z-index paint in tree order — so
+// every row below the open one covered the menu.
+//
+// The popover's shared transition is transition-all, and left/top interpolate,
+// so promoting it to script-computed fixed coordinates animated it in from
+// wherever the stylesheet had put it instead of from the trigger.
 func TestRowMenuStylesheetRules(t *testing.T) {
 	css := builtStylesheet(t)
 
@@ -282,22 +282,22 @@ func TestRowMenuStylesheetRules(t *testing.T) {
 	}
 }
 
-// TestGridHeaderStaysPinned covers the header row holding still while the body
-// scrolls under it, which takes two things that only work together.
+// TestGridHeaderPinning covers the header row holding still while the rows
+// scroll under it, which takes two rules that only work together.
 //
 // Sticky resolves against the nearest scrollport, and overflow-x on the
 // container makes overflow-y compute to auto as well — so the container, not
-// the page, is already that scrollport. A header inside it can only stick once
-// the container has a bounded height to scroll within; otherwise the container
-// grows to fit every row and the page scrolls the table whole.
+// the page, is that scrollport. Unbounded it grows to fit every row, which
+// leaves a header nothing to hold still against and hands the vertical
+// scrolling to the page. The height is what makes the pinning real.
 //
 // The corner cell is sticky on both axes at once, so it has to out-rank both
 // the header row it sits in and the actions column passing beneath it.
-func TestGridHeaderStaysPinned(t *testing.T) {
+func TestGridHeaderPinning(t *testing.T) {
 	css := builtStylesheet(t)
 
 	for _, want := range []string{
-		`.table-container[data-steward-hscroll]{max-height:var(--steward-table-max-height,max(16rem, calc(100dvh - 18rem)))}`,
+		`.table-container[data-steward-hscroll]{max-height:var(--steward-table-max-height,max(16rem, calc(100dvh - 19.5rem)))}`,
 		`.table[data-steward-grid] thead th{z-index:4;background-color:var(--color-card);` +
 			`box-shadow:inset 0 -1px 0 var(--color-border);position:sticky;inset-block-start:0}`,
 		`.table[data-steward-grid] thead tr:nth-child(2) th{inset-block-start:var(--steward-header-row-h,0px)}`,
