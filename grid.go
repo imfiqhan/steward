@@ -184,6 +184,10 @@ type Column[T any] struct {
 	// present renders the final cell; nil falls back to the type default.
 	present func(v any, row *T) template.HTML
 
+	// storageRef resolves the value through Storage before presenting it, for
+	// helpers that put it straight into a src or an href.
+	storageRef bool
+
 	info *fieldInfo // resolved at compile
 }
 
@@ -305,11 +309,14 @@ func (c *Column[T]) Link(href func(row *T) string) *Column[T] {
 	return c
 }
 
-// Image renders the value (a URL or storage path) as a thumbnail.
+// Image renders the value (a URL or storage path) as a thumbnail. A
+// storage-relative path resolves through the configured Storage; see
+// Admin.StorageURL.
 func (c *Column[T]) Image(width, height int) *Column[T] {
+	c.storageRef = true
 	c.present = func(v any, _ *T) template.HTML {
-		s := fmt.Sprint(v)
-		if s == "" || v == nil {
+		_, s := refParts(v)
+		if s == "" {
 			return ""
 		}
 		style := ""
@@ -329,15 +336,18 @@ func (c *Column[T]) Image(width, height int) *Column[T] {
 func (c *Column[T]) Copyable() *Column[T] {
 	prev := c.present
 	c.present = func(v any, row *T) template.HTML {
+		// The stored value, not the resolved URL: what is worth copying off a
+		// storage column is the path it holds.
+		raw, _ := refParts(v)
 		var inner template.HTML
 		if prev != nil {
 			inner = prev(v, row)
 		} else {
-			inner = template.HTML(template.HTMLEscapeString(fmt.Sprint(v)))
+			inner = template.HTML(template.HTMLEscapeString(raw))
 		}
 		return template.HTML(fmt.Sprintf(
 			`<span class="steward-copy" data-steward-copy="%s">%s</span>`,
-			template.HTMLEscapeString(fmt.Sprint(v)), inner))
+			template.HTMLEscapeString(raw), inner))
 	}
 	return c
 }

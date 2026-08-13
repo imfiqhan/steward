@@ -483,6 +483,12 @@ func (t *typedResource[T]) renderCell(col *Column[T], row *T) template.HTML {
 	for _, tr := range col.transform {
 		val = tr(val, row)
 	}
+	// After the transforms, so Using can pick the path and this resolves it —
+	// and before the presenter, which is what needs a fetchable reference.
+	if col.storageRef && val != nil {
+		s := fmt.Sprint(val)
+		val = resolvedRef{raw: s, url: t.res.a.StorageURL(s)}
+	}
 	if col.present != nil {
 		return col.present(val, row)
 	}

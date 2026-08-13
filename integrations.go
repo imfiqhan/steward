@@ -131,6 +131,53 @@ func (c *MemoryCache) Delete(_ context.Context, keys ...string) error {
 	return nil
 }
 
+// StorageURL turns a stored value into something a browser can fetch.
+//
+// File and Image form fields store a storage-relative path, not a URL, so a
+// column or field that puts one straight into an href or a src produces a
+// reference the browser resolves against the current page. Anything already
+// absolute is returned untouched, since an app may store full URLs instead.
+//
+// Use this inside a Display or Link function, where the URL is yours to compute:
+//
+//	g.Column("File").Link(func(m *Magazine) string { return app.StorageURL(m.File) })
+func (a *Admin) StorageURL(name string) string {
+	if name == "" || absoluteRef(name) {
+		return name
+	}
+	return a.cfg.Storage.URL(name)
+}
+
+// resolvedRef carries a stored value alongside its fetchable URL, so a presenter
+// can put one in an href and still show the other. The render substitutes it for
+// the raw value on a column or field marked storageRef.
+type resolvedRef struct{ raw, url string }
+
+// refParts splits a presenter's value into what to show and what to fetch. They
+// differ only for a storageRef helper; everything else gets the same string
+// twice, so a presenter can use this unconditionally.
+func refParts(v any) (raw, href string) {
+	if r, ok := v.(resolvedRef); ok {
+		return r.raw, r.url
+	}
+	if v == nil {
+		return "", ""
+	}
+	s := fmt.Sprint(v)
+	return s, s
+}
+
+// absoluteRef reports whether a stored value is already fetchable as it stands.
+// Deliberately a prefix test rather than a URL parse: a filename containing a
+// colon parses as having a scheme, and treating that as absolute would leave it
+// unresolved.
+func absoluteRef(s string) bool {
+	return strings.HasPrefix(s, "/") || // rooted at the host, and protocol-relative
+		strings.HasPrefix(s, "http://") ||
+		strings.HasPrefix(s, "https://") ||
+		strings.HasPrefix(s, "data:")
+}
+
 // LocalStorage stores uploads on the local filesystem below Dir and serves
 // them under BaseURL (the admin wires BaseURL to {prefix}/_uploads).
 type LocalStorage struct {

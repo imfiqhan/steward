@@ -40,6 +40,10 @@ type DetailField[T any] struct {
 
 	present func(v any, m *T) template.HTML
 	info    *fieldInfo
+
+	// storageRef resolves the value through Storage before presenting it, for
+	// helpers that put it straight into a src or an href.
+	storageRef bool
 }
 
 // As renders the value with a custom function.
@@ -63,9 +67,10 @@ func (df *DetailField[T]) Bool() *DetailField[T] {
 // Image renders the value (URL or storage path) as an image; storage paths
 // resolve through the configured Storage at render time.
 func (df *DetailField[T]) Image(width, height int) *DetailField[T] {
+	df.storageRef = true
 	df.present = func(v any, _ *T) template.HTML {
-		s := fmt.Sprint(v)
-		if s == "" || v == nil {
+		_, s := refParts(v)
+		if s == "" {
 			return `<span class="text-muted-foreground">—</span>`
 		}
 		style := ""
@@ -81,15 +86,21 @@ func (df *DetailField[T]) Image(width, height int) *DetailField[T] {
 	return df
 }
 
-// Link renders the value as an external link.
+// Link renders the value as a link to itself, for a column holding a URL or an
+// uploaded file's path. A storage-relative path resolves through the configured
+// Storage, so a File field's value downloads rather than 404ing; an absolute URL
+// is left as it stands.
 func (df *DetailField[T]) Link() *DetailField[T] {
+	df.storageRef = true
 	df.present = func(v any, _ *T) template.HTML {
-		s := fmt.Sprint(v)
-		if s == "" {
+		// The link shows the stored value and points at the resolved one, so a
+		// file path stays readable instead of being replaced by its URL.
+		raw, href := refParts(v)
+		if raw == "" {
 			return `<span class="text-muted-foreground">—</span>`
 		}
-		esc := template.HTMLEscapeString(s)
-		return template.HTML(`<a href="` + esc + `" target="_blank" rel="noopener">` + esc + `</a>`)
+		return template.HTML(`<a href="` + template.HTMLEscapeString(href) +
+			`" target="_blank" rel="noopener">` + template.HTMLEscapeString(raw) + `</a>`)
 	}
 	return df
 }
@@ -254,6 +265,10 @@ func (t *typedResource[T]) show(c *Context) error {
 		var val any
 		if ok {
 			val = v
+		}
+		if df.storageRef && val != nil {
+			s := fmt.Sprint(val)
+			val = resolvedRef{raw: s, url: c.Admin.StorageURL(s)}
 		}
 		html := defaultCell(val)
 		if df.present != nil {
