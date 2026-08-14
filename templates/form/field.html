@@ -84,8 +84,11 @@
                {{if .Errors}}aria-invalid="true"{{end}} {{if .Disabled}}disabled{{end}}/>
         <span role="group" data-align="inline-end">
           {{if not .Required}}
+          {{/* Sized explicitly: this is not a .btn, so the rule that shrinks a
+               button's icon does not reach it and the glyph keeps its intrinsic
+               24px. */}}
           <button type="button" data-clear aria-label="Clear {{.Label}}">
-            {{icon "x"}}
+            {{icon "x" "size-4"}}
           </button>
           {{end}}
           <button type="button" class="btn" data-variant="ghost" data-size="icon-xs"
