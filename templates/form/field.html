@@ -195,6 +195,54 @@
       </div>
     </div>
 
+  {{else if or (eq .Kind "files") (eq .Kind "images")}}
+    {{/* The same control as a single upload, holding a list. The column stores
+         a JSON array of storage paths; the script keeps that array in the
+         hidden input as files arrive and leave. */}}
+    <div class="steward-upload" data-steward-upload="{{.UploadURL}}" data-kind="{{.Kind}}"
+         data-multiple="1" data-max-files="{{.MaxFiles}}"
+         {{if .Disabled}}data-disabled="1"{{end}}>
+      <input type="hidden" name="{{.Name}}" value="{{.Value}}" data-steward-upload-value/>
+      <input id="field-{{.Name}}" type="file" class="sr-only" multiple data-steward-upload-input
+             {{with .Accept}}accept="{{.}}"{{end}} {{if .Disabled}}disabled{{end}}/>
+
+      <ul class="steward-upload-list" data-steward-upload-list {{if not .Files}}hidden{{end}}>
+        {{range .Files}}
+        <li class="steward-upload-current" data-steward-upload-item data-path="{{.Path}}">
+          {{if eq $.Kind "images"}}
+          <img class="steward-upload-thumb" data-steward-upload-thumb src="{{.URL}}" alt=""/>
+          {{end}}
+          <span class="steward-upload-icon" data-steward-upload-icon
+                {{if eq $.Kind "images"}}hidden{{end}}>{{icon "file" "size-4"}}</span>
+          <span class="steward-upload-meta">
+            <a class="steward-upload-name" href="{{.URL}}" target="_blank" rel="noopener">{{.Name}}</a>
+            <span class="steward-upload-note" data-steward-upload-note hidden></span>
+          </span>
+          {{if not $.Disabled}}
+          <button type="button" class="btn" data-variant="ghost" data-size="icon-xs"
+                  data-steward-upload-remove aria-label="Remove {{.Name}}">{{icon "x"}}</button>
+          {{end}}
+        </li>
+        {{end}}
+      </ul>
+
+      <button type="button" class="steward-upload-drop" data-steward-upload-pick
+              {{if .Disabled}}disabled{{end}}>
+        {{icon "upload" "size-4"}}
+        <span class="steward-upload-prompt">
+          <span class="steward-upload-action">Choose files</span>
+          <span class="steward-upload-hint">or drag them here</span>
+        </span>
+        <span class="steward-upload-limits">
+          {{with .AcceptLabel}}{{.}} · {{end}}up to {{.MaxSizeLabel}} each · max {{.MaxFiles}}
+        </span>
+      </button>
+
+      <div class="steward-upload-progress" data-steward-upload-progress hidden>
+        <div data-steward-upload-bar></div>
+      </div>
+    </div>
+
   {{else if eq .Kind "currency"}}
     <div class="input-group">
       <span data-align="start" aria-hidden="true">$</span>

@@ -218,3 +218,60 @@ func TestUploadsAreServedInert(t *testing.T) {
 		t.Errorf("X-Content-Type-Options = %q", got)
 	}
 }
+
+// TestFilesFieldHoldsAJSONArray covers the column's shape. The list in the DOM
+// and the value in the column are the same thing said twice, so the array is
+// rebuilt from the list rather than edited alongside it.
+func TestFilesFieldHoldsAJSONArray(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/files.db"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&uploadRow{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&uploadRow{
+		Doc: `["docs/20260101-aaaaaaaaaaaa-Notulen.pdf","docs/20260101-bbbbbbbbbbbb-Lampiran.pdf"]`,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("files-field-test-secret-key"),
+		AuthExcept: []string{"/upload_rows*"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[uploadRow](app).Form(func(f *steward.Form[uploadRow]) {
+		f.Files("Doc").Dir("docs").MaxFiles(3)
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	defer srv.Close()
+
+	page := getBody(t, srv.URL+"/admin/upload_rows/1/edit")
+
+	if n := strings.Count(page, "data-steward-upload-item"); n != 2 {
+		t.Errorf("the stored array rendered %d rows, want 2", n)
+	}
+	for _, want := range []string{"Notulen.pdf", "Lampiran.pdf", `data-multiple="1"`, `data-max-files="3"`, "max 3"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the field is missing %s", want)
+		}
+	}
+	// A column promoted from File to Files still holds its one path, and losing
+	// it on the first edit would be silent.
+	if err := db.Model(&uploadRow{}).Where("id = 1").
+		Update("doc", "docs/old-single.pdf").Error; err != nil {
+		t.Fatal(err)
+	}
+	page = getBody(t, srv.URL+"/admin/upload_rows/1/edit")
+	if n := strings.Count(page, "data-steward-upload-item"); n != 1 {
+		t.Errorf("a bare path rendered %d rows, want 1", n)
+	}
+	if !strings.Contains(page, "old-single.pdf") {
+		t.Error("a bare path was dropped rather than shown")
+	}
+}

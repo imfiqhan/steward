@@ -53,6 +53,10 @@ type formFieldVM struct {
 	FileName     string
 	MaxSizeLabel string
 	AcceptLabel  string
+	// Files is a multi-file field's contents, in stored order; MaxFiles bounds
+	// how many more may be added.
+	Files    []uploadedVM
+	MaxFiles int
 	// SelectedJSON is a MultiSelect's selection as a JSON array, which is what
 	// the combobox stores in its hidden input and submits.
 	SelectedJSON string
@@ -64,6 +68,13 @@ type formFieldVM struct {
 	// Multiple marks the combobox as a multi-select.
 	Multiple bool
 	Errors   []string
+}
+
+// uploadedVM is one file held by a Files or Images field.
+type uploadedVM struct {
+	Path string
+	URL  string
+	Name string
 }
 
 // iconChoiceVM is one option in an Icon field's picker. It carries the name
@@ -227,6 +238,19 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			}
 			fv.MaxSizeLabel = sizeLabel(fd.maxSize)
 			fv.AcceptLabel = acceptLabel(fd.accept)
+		case FieldFiles, FieldImages:
+			fv.UploadURL = c.URL(m.slug, "_upload") + "?field=" + url.QueryEscape(fd.path)
+			fv.MaxSizeLabel = sizeLabel(fd.maxSize)
+			fv.AcceptLabel = acceptLabel(fd.accept)
+			fv.MaxFiles = fd.maxFiles
+			if fv.MaxFiles <= 0 {
+				fv.MaxFiles = defaultMaxFiles
+			}
+			for _, p := range decodePaths(fv.Value) {
+				fv.Files = append(fv.Files, uploadedVM{
+					Path: p, URL: c.Admin.cfg.Storage.URL(p), Name: displayFileName(p),
+				})
+			}
 		}
 		vm.Fields = append(vm.Fields, fv)
 	}
@@ -777,7 +801,7 @@ func (t *typedResource[T]) uploadFile(c *Context) error {
 	name := c.R.URL.Query().Get("field")
 	var target *Field[T]
 	for _, fd := range t.form.fields {
-		if fd.path == name && (fd.kind == FieldFile || fd.kind == FieldImage) {
+		if fd.path == name && isUploadKind(fd.kind) {
 			target = fd
 			break
 		}
@@ -803,10 +827,10 @@ func (t *typedResource[T]) uploadFile(c *Context) error {
 	}
 
 	ext := strings.ToLower(path.Ext(header.Filename))
-	if target.kind == FieldImage && !allowedImageExt[ext] {
+	if (target.kind == FieldImage || target.kind == FieldImages) && !allowedImageExt[ext] {
 		return c.Envelope(Error("Only image files are allowed here.").Code(http.StatusUnsupportedMediaType))
 	}
-	if target.kind == FieldFile && activeExt[ext] {
+	if (target.kind == FieldFile || target.kind == FieldFiles) && activeExt[ext] {
 		return c.Envelope(Error("That file type cannot be uploaded.").Code(http.StatusUnsupportedMediaType))
 	}
 	if !acceptAllows(target.accept, ext) {
@@ -1007,4 +1031,40 @@ func acceptAllows(accept, ext string) bool {
 		}
 	}
 	return false
+}
+
+// isUploadKind reports whether a field takes uploads, singly or several.
+func isUploadKind(k FieldKind) bool {
+	switch k {
+	case FieldFile, FieldImage, FieldFiles, FieldImages:
+		return true
+	}
+	return false
+}
+
+// defaultMaxFiles bounds a multi-file field that names no limit of its own.
+const defaultMaxFiles = 10
+
+// decodePaths reads a Files column: a JSON array of storage paths.
+//
+// A value that is not one is treated as a single path, so a column promoted
+// from File to Files keeps the row it already held rather than losing it.
+func decodePaths(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	if strings.HasPrefix(raw, "[") {
+		var out []string
+		if err := json.Unmarshal([]byte(raw), &out); err == nil {
+			kept := out[:0]
+			for _, p := range out {
+				if strings.TrimSpace(p) != "" {
+					kept = append(kept, p)
+				}
+			}
+			return kept
+		}
+	}
+	return []string{raw}
 }

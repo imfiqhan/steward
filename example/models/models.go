@@ -14,12 +14,15 @@ type Author struct {
 
 // Post is the example resource showcasing grid, form, and detail features.
 type Post struct {
-	ID          uint   `gorm:"primaryKey"`
-	Title       string `gorm:"size:255"`
-	Body        string `gorm:"type:text"`
-	Status      string `gorm:"size:20;default:draft"` // draft | published
-	Featured    bool   `gorm:"default:false"`
-	Cover       string `gorm:"size:255"`
+	ID       uint   `gorm:"primaryKey"`
+	Title    string `gorm:"size:255"`
+	Body     string `gorm:"type:text"`
+	Status   string `gorm:"size:20;default:draft"` // draft | published
+	Featured bool   `gorm:"default:false"`
+	Cover    string `gorm:"size:255"`
+	// A Files field's column: a JSON array of storage paths, so text rather
+	// than a sized string.
+	Attachments string `gorm:"type:text"`
 	PublishedAt *time.Time
 	AuthorID    uint
 	Author      Author

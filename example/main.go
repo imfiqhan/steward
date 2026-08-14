@@ -133,6 +133,12 @@ func registerResources(app *steward.Admin) {
 				}).
 				Help("Filter by typing; pick as many as apply.")
 			f.Image("Cover").Dir("posts").MaxSize(2 << 20)
+			// A JSON array of storage paths in one column: files the panel
+			// hands over and never queries. Anything needing a caption or an
+			// order wants HasMany instead.
+			f.Files("Attachments").Dir("posts/docs").
+				Accept(".pdf,.txt").MaxSize(2 << 20).MaxFiles(4).
+				Help("Up to four documents.")
 			f.Saving(func(c *steward.Context, p *models.Post) error {
 				if p.Status == "published" && p.PublishedAt == nil {
 					now := time.Now()

@@ -364,6 +364,39 @@ if (await up.count()) {
   check(false, "the posts form renders an upload field");
 }
 
+// --- several files in one field ------------------------------------------------
+// The list in the DOM and the JSON array in the column have to stay the same
+// thing; only a browser can add three files and check what the column ends up
+// holding.
+{
+  const multi = page.locator('[data-steward-field="Attachments"] .steward-upload');
+  if (await multi.count()) {
+    const mk = (name) => ({ name, mimeType: "text/plain", buffer: Buffer.from(name) });
+    await page.setInputFiles('[data-steward-field="Attachments"] input[type=file]',
+      [mk("One.txt"), mk("Two.txt")]);
+    await page.waitForTimeout(2000);
+    const st = await multi.evaluate((r) => ({
+      rows: r.querySelectorAll("[data-steward-upload-item]").length,
+      value: r.querySelector("[data-steward-upload-value]").value,
+    }));
+    let arr = [];
+    try { arr = JSON.parse(st.value); } catch { /* checked below */ }
+    check(st.rows === 2, `two files land as two rows (${st.rows})`);
+    check(Array.isArray(arr) && arr.length === 2,
+      `the column holds a JSON array (${st.value.slice(0, 80)})`);
+
+    await multi.locator("[data-steward-upload-remove]").first().click();
+    await page.waitForTimeout(300);
+    const after = await multi.evaluate((r) => ({
+      rows: r.querySelectorAll("[data-steward-upload-item]").length,
+      len: JSON.parse(r.querySelector("[data-steward-upload-value]").value || "[]").length,
+    }));
+    check(after.rows === 1 && after.len === 1, "removing a row drops it from the array");
+  } else {
+    check(false, "the posts form renders a multi-file field");
+  }
+}
+
 await page.screenshot({
   path: "/tmp/steward-visual.png",
   fullPage: false,

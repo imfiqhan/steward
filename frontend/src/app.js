@@ -701,9 +701,9 @@ window.htmx = htmx;
     p.bar.style.width = Math.round(ratio * 100) + "%";
   }
 
-  function sendUpload(root, file) {
+  function sendUpload(root, file, done) {
     var p = uploadParts(root);
-    if (!file || !p.hidden) return;
+    if (!file || !p.hidden) { if (done) done(false); return; }
     root.dataset.busy = "1";
     uploadProgress(root, 0);
 
@@ -724,8 +724,10 @@ window.htmx = htmx;
       try { out = JSON.parse(xhr.responseText); } catch (err) { /* reported below */ }
       if (!out || out.status !== true) {
         toast("error", (out && out.data && out.data.message) || "Upload failed.");
+        if (done) done(false);
         return;
       }
+      if (done) { done(true, out); return; }
       showUpload(root, { path: out.path, url: out.url, name: file.name });
       toast("success", "Uploaded.");
     });
@@ -733,8 +735,134 @@ window.htmx = htmx;
       delete root.dataset.busy;
       uploadProgress(root, null);
       toast("error", "Upload failed — check your connection and retry.");
+      if (done) done(false);
     });
     xhr.send(fd);
+  }
+
+  /* ---- Several files in one field ------------------------------------------ */
+  /*
+   * The column holds a JSON array of storage paths, so the list in the DOM and
+   * that array are the same thing said twice; the array is rebuilt from the
+   * list after every change rather than edited in parallel, which is what keeps
+   * them from drifting.
+   *
+   * Uploads run one at a time. Ten parallel requests would race for the one
+   * progress bar and give the server a burst it has no reason to take.
+   */
+
+  function isMulti(root) { return root && root.dataset.multiple === "1"; }
+
+  function syncFileList(root) {
+    var list = root.querySelector("[data-steward-upload-list]");
+    var hidden = root.querySelector("[data-steward-upload-value]");
+    if (!list || !hidden) return;
+    var paths = [];
+    list.querySelectorAll("[data-steward-upload-item]").forEach(function (li) {
+      paths.push(li.dataset.path);
+    });
+    hidden.value = paths.length ? JSON.stringify(paths) : "";
+    list.hidden = paths.length === 0;
+
+    var max = parseInt(root.dataset.maxFiles || "10", 10);
+    var pick = root.querySelector("[data-steward-upload-pick]");
+    if (pick) pick.hidden = paths.length >= max;
+  }
+
+  function addFileRow(root, file) {
+    var list = root.querySelector("[data-steward-upload-list]");
+    if (!list) return;
+    var li = document.createElement("li");
+    li.className = "steward-upload-current";
+    li.dataset.stewardUploadItem = "";
+    li.dataset.path = file.path;
+
+    if (root.dataset.kind === "images") {
+      var img = document.createElement("img");
+      img.className = "steward-upload-thumb";
+      img.dataset.stewardUploadThumb = "";
+      img.src = file.url || "";
+      img.alt = "";
+      li.appendChild(img);
+    } else {
+      var icon = document.createElement("span");
+      icon.className = "steward-upload-icon";
+      icon.innerHTML = '<svg class="size-4 lucide" xmlns="http://www.w3.org/2000/svg" ' +
+        'width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>' +
+        '<path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>';
+      li.appendChild(icon);
+    }
+
+    var meta = document.createElement("span");
+    meta.className = "steward-upload-meta";
+    var link = document.createElement("a");
+    link.className = "steward-upload-name";
+    link.href = file.url || "";
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = file.name || file.path;
+    var note = document.createElement("span");
+    note.className = "steward-upload-note";
+    note.dataset.stewardUploadNote = "";
+    note.hidden = true;
+    meta.appendChild(link);
+    meta.appendChild(note);
+    li.appendChild(meta);
+
+    var remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "btn";
+    remove.dataset.variant = "ghost";
+    remove.dataset.size = "icon-xs";
+    remove.dataset.stewardUploadRemove = "";
+    remove.setAttribute("aria-label", "Remove " + (file.name || file.path));
+    remove.innerHTML = '<svg class="lucide" xmlns="http://www.w3.org/2000/svg" width="24" ' +
+      'height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+      'stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/>' +
+      '<path d="m6 6 12 12"/></svg>';
+    li.appendChild(remove);
+
+    list.appendChild(li);
+    syncFileList(root);
+  }
+
+  // acceptFiles is the one entry point for a picked or dropped set, whichever
+  // kind of field received it.
+  function acceptFiles(root, fileList) {
+    if (!root) return;
+    var files = Array.prototype.slice.call(fileList);
+    if (!isMulti(root)) {
+      sendUpload(root, files[0]);
+      return;
+    }
+    var list = root.querySelector("[data-steward-upload-list]");
+    var held = list ? list.querySelectorAll("[data-steward-upload-item]").length : 0;
+    var max = parseInt(root.dataset.maxFiles || "10", 10);
+    var room = max - held;
+    if (room <= 0) {
+      toast("error", "This field holds at most " + max + " files.");
+      return;
+    }
+    if (files.length > room) {
+      toast("warning", "Only " + room + " more file(s) fit here; the rest were skipped.");
+      files = files.slice(0, room);
+    }
+    uploadQueue(root, files);
+  }
+
+  function uploadQueue(root, files) {
+    var i = 0;
+    function next() {
+      if (i >= files.length) return;
+      var file = files[i++];
+      sendUpload(root, file, function (ok, out) {
+        if (ok) addFileRow(root, { path: out.path, url: out.url, name: file.name });
+        next();
+      });
+    }
+    next();
   }
 
   document.addEventListener("click", function (e) {
@@ -750,14 +878,20 @@ window.htmx = htmx;
       var r = remove.closest("[data-steward-upload]");
       var inp = r && r.querySelector("[data-steward-upload-input]");
       if (inp) inp.value = "";
-      showUpload(r, null);
+      var item = remove.closest("[data-steward-upload-item]");
+      if (item) {
+        item.remove();
+        syncFileList(r);
+      } else {
+        showUpload(r, null);
+      }
     }
   });
 
   document.addEventListener("change", function (e) {
     var input = e.target.closest("[data-steward-upload-input]");
     if (!input || !input.files || input.files.length === 0) return;
-    sendUpload(input.closest("[data-steward-upload]"), input.files[0]);
+    acceptFiles(input.closest("[data-steward-upload]"), input.files);
   });
 
   // Dropping anywhere on the field, rather than only on the input the native
@@ -779,8 +913,8 @@ window.htmx = htmx;
       if (type !== "drop") return;
       e.preventDefault();
       if (root.dataset.disabled === "1") return;
-      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-      if (f) sendUpload(root, f);
+      var files = e.dataTransfer && e.dataTransfer.files;
+      if (files && files.length) acceptFiles(root, files);
     });
   });
 

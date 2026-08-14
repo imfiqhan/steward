@@ -39,6 +39,8 @@ const (
 	FieldMultiSelect
 	FieldRichtext
 	FieldIcon
+	FieldFiles
+	FieldImages
 )
 
 // kindNames map kinds to template partials and schema strings.
@@ -51,7 +53,7 @@ var kindNames = map[FieldKind]string{
 	FieldDatetime: "datetime", FieldTime: "time", FieldFile: "file",
 	FieldImage: "image", FieldMarkdown: "markdown", FieldBelongsTo: "belongsto",
 	FieldMultiSelect: "multiselect", FieldRichtext: "richtext",
-	FieldIcon: "icon",
+	FieldIcon: "icon", FieldFiles: "files", FieldImages: "images",
 }
 
 // Form configures a resource's create/edit view; write-only until Build.
@@ -178,6 +180,25 @@ func (f *Form[T]) Image(path string, label ...string) *Field[T] {
 	return fd
 }
 
+// Files adds a multi-file upload. The column holds a JSON array of storage
+// paths, in the order they were added.
+//
+// It is for files the panel shows and hands over and never asks questions
+// about: a JSON column cannot be filtered, sorted or counted in SQL. Where the
+// panel should list them, caption them or order them, model each as a row and
+// use HasMany instead.
+func (f *Form[T]) Files(path string, label ...string) *Field[T] {
+	return f.add(FieldFiles, path, label...)
+}
+
+// Images is Files for pictures: the same JSON array, thumbnails instead of
+// names, and the image-only rule File carries.
+func (f *Form[T]) Images(path string, label ...string) *Field[T] {
+	fd := f.add(FieldImages, path, label...)
+	fd.accept = "image/*"
+	return fd
+}
+
 // Markdown adds a markdown editor (textarea with preview styling).
 func (f *Form[T]) Markdown(path string, label ...string) *Field[T] {
 	return f.add(FieldMarkdown, path, label...)
@@ -300,9 +321,10 @@ type Field[T any] struct {
 	optionsFn func(c *Context) Options
 
 	// uploads
-	dir     string
-	maxSize int64
-	accept  string
+	dir      string
+	maxSize  int64
+	maxFiles int
+	accept   string
 
 	// belongsTo
 	relName     string
@@ -400,6 +422,9 @@ func (fd *Field[T]) Dir(dir string) *Field[T] { fd.dir = strings.Trim(dir, "/");
 
 // MaxSize caps upload size in bytes.
 func (fd *Field[T]) MaxSize(n int64) *Field[T] { fd.maxSize = n; return fd }
+
+// MaxFiles bounds how many a Files or Images field accepts (default 10).
+func (fd *Field[T]) MaxFiles(n int) *Field[T] { fd.maxFiles = n; return fd }
 
 // Accept sets the upload MIME filter ("image/*").
 func (fd *Field[T]) Accept(mimes string) *Field[T] { fd.accept = mimes; return fd }
