@@ -794,6 +794,9 @@ func (t *typedResource[T]) uploadFile(c *Context) error {
 	if target.kind == FieldImage && !allowedImageExt[ext] {
 		return c.Envelope(Error("Only image files are allowed here.").Code(http.StatusUnsupportedMediaType))
 	}
+	if target.kind == FieldFile && activeExt[ext] {
+		return c.Envelope(Error("That file type cannot be uploaded.").Code(http.StatusUnsupportedMediaType))
+	}
 	tok, err := session.NewToken()
 	if err != nil {
 		return err
@@ -812,4 +815,17 @@ func (t *typedResource[T]) uploadFile(c *Context) error {
 
 var allowedImageExt = map[string]bool{
 	".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".webp": true, ".svg": false, ".avif": true,
+}
+
+// activeExt lists what a browser will execute or render as a document rather
+// than hand to the reader as bytes. Uploads are served with an attachment
+// disposition, which is the boundary; this refuses them outright as well, so a
+// File field cannot become a page-hosting service by accident.
+//
+// SVG is here for the same reason it is false above: it is a document format
+// that carries script.
+var activeExt = map[string]bool{
+	".html": true, ".htm": true, ".xhtml": true, ".shtml": true, ".xml": true,
+	".svg": true, ".js": true, ".mjs": true, ".css": true, ".swf": true,
+	".jar": true, ".htaccess": true, ".php": true, ".phtml": true,
 }

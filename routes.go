@@ -88,7 +88,7 @@ func (a *Admin) buildRoutes() *http.ServeMux {
 	// give absolute URLs and never hit this route.
 	if ls, ok := a.cfg.Storage.(*LocalStorage); ok {
 		fileServer := http.StripPrefix(p+"/_uploads/", http.FileServer(http.Dir(ls.Dir)))
-		mux.Handle("GET "+p+"/_uploads/", fileServer)
+		mux.Handle("GET "+p+"/_uploads/", uploadHeaders(fileServer))
 	}
 
 	for _, res := range a.registry {
@@ -101,4 +101,22 @@ func (a *Admin) buildRoutes() *http.ServeMux {
 		return nil
 	}))
 	return mux
+}
+
+// uploadHeaders makes a stored file inert.
+//
+// Uploads are user-supplied bytes served from the panel's own origin, and the
+// file server types them from their extension — an uploaded .html came back as
+// text/html and ran its script as the panel. Content-Disposition turns a visit
+// to one into a download instead of a page, and nosniff stops a mistyped file
+// being re-guessed into something executable.
+//
+// Neither header affects a subresource: Content-Disposition applies to
+// navigation, so <img src> and <a download> keep working exactly as before.
+func uploadHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Disposition", "attachment")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		next.ServeHTTP(w, r)
+	})
 }
