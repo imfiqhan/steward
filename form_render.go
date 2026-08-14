@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"mime"
 	"net/http"
 	"net/url"
 	"path"
@@ -808,6 +809,10 @@ func (t *typedResource[T]) uploadFile(c *Context) error {
 	if target.kind == FieldFile && activeExt[ext] {
 		return c.Envelope(Error("That file type cannot be uploaded.").Code(http.StatusUnsupportedMediaType))
 	}
+	if !acceptAllows(target.accept, ext) {
+		return c.Envelope(Error("Only " + acceptLabel(target.accept) + " can be uploaded here.").
+			Code(http.StatusUnsupportedMediaType))
+	}
 	tok, err := session.NewToken()
 	if err != nil {
 		return err
@@ -929,4 +934,77 @@ func acceptLabel(accept string) string {
 		out = append(out, strings.ToUpper(strings.TrimPrefix(p, ".")))
 	}
 	return strings.Join(out, ", ")
+}
+
+// uploadTypes maps the extensions people name in an Accept that Go's own table
+// does not carry. Go falls back to the host's MIME database, which a scratch
+// container has none of — so without this an accept rule would hold on a
+// developer's machine and reject the same file in production.
+var uploadTypes = map[string]string{
+	".doc":  "application/msword",
+	".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	".xls":  "application/vnd.ms-excel",
+	".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	".ppt":  "application/vnd.ms-powerpoint",
+	".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+	".odt":  "application/vnd.oasis.opendocument.text",
+	".ods":  "application/vnd.oasis.opendocument.spreadsheet",
+	".csv":  "text/csv",
+	".txt":  "text/plain",
+	".rtf":  "application/rtf",
+	".zip":  "application/zip",
+	".mp4":  "video/mp4",
+	".mp3":  "audio/mpeg",
+}
+
+// extType is the media type an extension stands for, resolved the same way
+// everywhere this runs.
+func extType(ext string) string {
+	if t, ok := uploadTypes[ext]; ok {
+		return t
+	}
+	t := mime.TypeByExtension(ext)
+	if i := strings.IndexByte(t, ';'); i >= 0 {
+		t = strings.TrimSpace(t[:i])
+	}
+	return t
+}
+
+// acceptAllows reports whether a field's Accept admits this file.
+//
+// Accept takes what the HTML attribute takes — extensions (".pdf"), types
+// ("application/pdf") and wildcards ("image/*") — so one declaration serves the
+// browser's file picker and this check.
+//
+// The type is derived from the extension, never from the Content-Type the
+// client sent: that header is chosen by whoever is uploading, so trusting it
+// would make the check decorative. An extension the table cannot type therefore
+// only matches a rule naming that extension, which is why naming extensions is
+// the dependable form.
+func acceptAllows(accept, ext string) bool {
+	accept = strings.TrimSpace(accept)
+	if accept == "" || accept == "*/*" {
+		return true
+	}
+	actual := extType(strings.ToLower(ext))
+	for _, rule := range strings.Split(accept, ",") {
+		rule = strings.ToLower(strings.TrimSpace(rule))
+		switch {
+		case rule == "":
+			continue
+		case strings.HasPrefix(rule, "."):
+			if rule == strings.ToLower(ext) {
+				return true
+			}
+		case strings.HasSuffix(rule, "/*"):
+			if actual != "" && strings.HasPrefix(actual, strings.TrimSuffix(rule, "*")) {
+				return true
+			}
+		default:
+			if actual != "" && actual == rule {
+				return true
+			}
+		}
+	}
+	return false
 }

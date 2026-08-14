@@ -483,6 +483,21 @@ tr.steward-dragging { opacity: 0.5; }
 
 .steward-upload-note { font-size: 0.75rem; color: var(--destructive); }
 
+/* An auxiliary control, like the combobox's clear button beside it: muted at
+   rest, and only as dark as the text once it is the thing being reached for.
+   The ghost variant alone paints it foreground, which made two buttons doing
+   the same job different colours on the same form. */
+.steward-upload [data-steward-upload-remove],
+.combobox [data-clear] {
+  color: var(--muted-foreground);
+}
+.steward-upload [data-steward-upload-remove]:hover,
+.steward-upload [data-steward-upload-remove]:focus-visible,
+.combobox [data-clear]:hover,
+.combobox [data-clear]:focus-visible {
+  color: var(--foreground);
+}
+
 .steward-upload-progress {
   height: 0.25rem;
   overflow: hidden;

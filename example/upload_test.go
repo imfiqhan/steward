@@ -131,6 +131,63 @@ func TestUploadRefusesActiveContent(t *testing.T) {
 	}
 }
 
+// TestUploadAcceptIsEnforced covers Accept becoming a rule rather than a hint.
+// It is an attribute the browser reads; until now the server never did, so a
+// field declaring PDF-only stored a .docx or a .zip just the same.
+func TestUploadAcceptIsEnforced(t *testing.T) {
+	srv, _ := newUploadServer(t)
+
+	// Doc declares Accept("application/pdf").
+	for _, name := range []string{"sheet.xlsx", "archive.zip", "photo.png", "notes.txt"} {
+		code, body := postUpload(t, srv, "Doc", name, "x")
+		if code < 400 {
+			t.Errorf("%s was stored on a PDF-only field: %d %s", name, code, body)
+		}
+	}
+	if code, body := postUpload(t, srv, "Doc", "report.pdf", "%PDF-1.4"); code != http.StatusOK {
+		t.Errorf("report.pdf = %d: %s", code, body)
+	}
+	// The message names what the field takes, rather than only refusing.
+	if _, body := postUpload(t, srv, "Doc", "sheet.xlsx", "x"); !strings.Contains(body, "PDF") {
+		t.Errorf("the refusal does not say what is allowed: %s", body)
+	}
+
+	// Image carries Accept("image/*") by default; the wildcard has to match
+	// every image extension it already allows.
+	for _, name := range []string{"a.png", "a.jpg", "a.jpeg", "a.gif", "a.webp", "a.avif"} {
+		if code, body := postUpload(t, srv, "Pic", name, "x"); code != http.StatusOK {
+			t.Errorf("%s was refused by the default image accept: %d %s", name, code, body)
+		}
+	}
+}
+
+// TestAcceptResolvesTypesTheSameEverywhere guards the deployment trap: Go types
+// an extension from the host's MIME database, which a scratch container has
+// none of. An office type has to resolve from the table shipped in the binary,
+// or a rule that holds in development rejects the same file in production.
+func TestAcceptResolvesTypesTheSameEverywhere(t *testing.T) {
+	for _, tc := range []struct {
+		accept, ext string
+		want        bool
+	}{
+		{"application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx", true},
+		{"application/vnd.ms-excel", ".xls", true},
+		{"text/csv", ".csv", true},
+		{"application/zip", ".zip", true},
+		{"application/pdf", ".docx", false},
+		// Extensions are the form that never depends on a lookup at all.
+		{".docx,.pdf", ".pdf", true},
+		{".docx,.pdf", ".png", false},
+		{"image/*", ".png", true},
+		{"image/*", ".pdf", false},
+		{"", ".anything", true},
+	} {
+		if got := steward.AcceptAllowsForTest(tc.accept, tc.ext); got != tc.want {
+			t.Errorf("Accept(%q) with %s = %v, want %v", tc.accept, tc.ext, got, tc.want)
+		}
+	}
+}
+
 // TestUploadsAreServedInert covers the boundary itself, for the files already
 // on disk from before the check existed and for anything the check misses.
 func TestUploadsAreServedInert(t *testing.T) {
