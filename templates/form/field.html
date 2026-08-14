@@ -256,6 +256,9 @@
     <input id="field-{{.Name}}"
       type="{{if eq .Kind "number"}}number{{else if eq .Kind "decimal"}}number{{else if eq .Kind "email"}}email{{else if eq .Kind "password"}}password{{else if eq .Kind "url"}}url{{else if eq .Kind "color"}}color{{else if eq .Kind "date"}}date{{else if eq .Kind "datetime"}}datetime-local{{else if eq .Kind "time"}}time{{else}}text{{end}}"
       {{if eq .Kind "decimal"}}step="any"{{end}}
+      {{/* Without a step the control works to the minute and drops the seconds
+           it was given, so a save rewrites them to zero. */}}
+      {{if or (eq .Kind "datetime") (eq .Kind "time")}}step="1"{{end}}
       name="{{.Name}}" value="{{.Value}}"
       class="input {{if eq .Kind "color"}}w-16 p-1{{end}}"
       placeholder="{{.Placeholder}}"

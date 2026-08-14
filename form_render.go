@@ -113,9 +113,12 @@ func (fd *Field[T]) valueString(row *T) string {
 		case FieldDate:
 			return x.Format("2006-01-02")
 		case FieldTime:
-			return x.Format("15:04")
+			return x.Format("15:04:05")
 		default:
-			return x.Format("2006-01-02T15:04")
+			// Seconds included, and the input asks for them: rendering to the
+			// minute meant the browser never sent any back, so opening a record
+			// and saving it untouched rewrote its seconds to zero.
+			return x.Format("2006-01-02T15:04:05")
 		}
 	case bool:
 		if x {
@@ -531,7 +534,6 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 		val any
 	}
 	var writes []pending
-	var dirty []string
 
 	for _, fd := range f.fields {
 		if fd.info == nil || fd.ignored || !fd.visible(c, creating) {
@@ -581,7 +583,6 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 			continue
 		}
 		writes = append(writes, pending{fd, val})
-		dirty = append(dirty, fd.path)
 	}
 
 	// Nested rows validate alongside the parent so one 422 carries all
@@ -610,6 +611,13 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 		}
 	}
 
+	// Every column as the record currently stands, so what is written can be
+	// what actually moved.
+	var before map[string]any
+	if !creating {
+		before = t.snapshotColumns(m)
+	}
+
 	for _, w := range writes {
 		if err := setField(m, w.fd.info, w.val); err != nil {
 			return fmt.Errorf("setting %s: %w", w.fd.path, err)
@@ -626,7 +634,13 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	if creating {
 		err = t.repo.Create(c.Ctx(), m)
 	} else {
-		err = t.repo.Update(c.Ctx(), m, dirty)
+		// After the hook, not before: a Saving hook that sets a field the form
+		// never submitted was writing nothing at all, because the column list
+		// came from the form alone.
+		dirty := t.changedColumns(m, before)
+		if len(dirty) > 0 {
+			err = t.repo.Update(c.Ctx(), m, dirty)
+		}
 	}
 	if err != nil {
 		return err
@@ -1137,4 +1151,76 @@ func (t *typedResource[T]) dropReplacedUploads(c *Context, m *T, held map[string
 			}
 		}
 	}
+}
+
+// snapshotColumns records every direct column's value, for comparison once the
+// form and any hook have had their say. Relation paths are skipped: they are
+// read through a join and are not this record's to write.
+func (t *typedResource[T]) snapshotColumns(m *T) map[string]any {
+	out := make(map[string]any, len(t.ft.byPath))
+	rv := reflect.ValueOf(m)
+	for path, info := range t.ft.byPath {
+		if info.Relation != "" || info.DBName == "" {
+			continue
+		}
+		if v, ok := info.value(rv); ok {
+			out[path] = v
+		}
+	}
+	return out
+}
+
+// changedColumns lists what moved since the snapshot.
+//
+// This is what makes an update write only what changed — including a field a
+// Saving hook touched, which the form's own list could never have named.
+func (t *typedResource[T]) changedColumns(m *T, before map[string]any) []string {
+	var changed []string
+	rv := reflect.ValueOf(m)
+	for path, info := range t.ft.byPath {
+		if info.Relation != "" || info.DBName == "" || info.Primary {
+			continue
+		}
+		now, ok := info.value(rv)
+		if !ok {
+			continue
+		}
+		if !sameValue(before[path], now) {
+			changed = append(changed, path)
+		}
+	}
+	sort.Strings(changed) // a stable column list keeps statements comparable
+	return changed
+}
+
+// sameValue compares two column values.
+//
+// Times get their own comparison: two that name the same instant can differ
+// under DeepEqual over their monotonic reading and location, and a row read
+// from the database rarely carries the same location as one parsed from a form.
+func sameValue(a, b any) bool {
+	at, aok := timeOf(a)
+	bt, bok := timeOf(b)
+	if aok || bok {
+		if aok != bok {
+			return false
+		}
+		return at.Equal(bt)
+	}
+	return reflect.DeepEqual(a, b)
+}
+
+// timeOf reads a time out of a value or a pointer to one; a nil pointer is not
+// a time, so a value becoming null counts as a change.
+func timeOf(v any) (time.Time, bool) {
+	switch x := v.(type) {
+	case time.Time:
+		return x, true
+	case *time.Time:
+		if x == nil {
+			return time.Time{}, false
+		}
+		return *x, true
+	}
+	return time.Time{}, false
 }

@@ -491,6 +491,13 @@ func (fd *Field[T]) decode(raw string) (any, error) {
 	case FieldDatetime:
 		return parseTimeInput(raw, "2006-01-02T15:04", info)
 	case FieldTime:
+		// A time-of-day column is usually a string, but it may be a time.Time.
+		// Returning the raw string for both left the second kind rendering
+		// correctly and failing on save with "cannot assign string to
+		// time.Time" — read worked, write did not.
+		if info != nil && info.GoType == reflect.TypeOf(time.Time{}) {
+			return parseTimeInput(raw, "15:04", info)
+		}
 		return raw, nil
 	case FieldRichtext:
 		// Sanitize on the way in, so a stored value is always safe to render
