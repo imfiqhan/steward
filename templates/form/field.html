@@ -101,7 +101,10 @@
              aria-orientation="vertical" {{if .Multiple}}aria-multiselectable="true"{{end}}
              data-empty="No matches.">
           {{range .Options}}
-          <div role="option" data-value="{{.Value}}" data-label="{{.Label}}"
+          {{/* title, because a label wider than the field is truncated: the
+               list is capped to the field's width so one long option cannot
+               stretch it. */}}
+          <div role="option" data-value="{{.Value}}" data-label="{{.Label}}" title="{{.Label}}"
                {{if .Selected}}aria-selected="true"{{end}}>{{.Label}}</div>
           {{end}}
         </div>

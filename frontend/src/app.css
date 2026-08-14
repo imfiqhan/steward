@@ -370,3 +370,26 @@ tr.steward-dragging { opacity: 0.5; }
   position: fixed;
   transition-property: opacity, transform, visibility;
 }
+
+/* ---- Combobox: keeping a long option inside the field --------------------- */
+
+/* The popover is width:max-content, so one long option widened the whole list
+   past the field it belongs to — and the component's own truncate on an option
+   never engages without a width to truncate against. Capping it here supplies
+   that width. */
+.combobox [data-popover] {
+  max-width: 100%;
+}
+
+/* A chip is shrink-0 and nowrap, so a long value pushed the input out of its
+   own field. The label truncates; the remove button must not. */
+.combobox-chip {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.combobox-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

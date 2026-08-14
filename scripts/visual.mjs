@@ -215,6 +215,20 @@ if (hasCombo) {
   const total = await box.locator("[role=option]").count();
   check(total > 0 && total <= 50, `the page ships one page of options (${total})`);
 
+  // The popover is width:max-content, so one long label used to stretch the
+  // whole list past the field and out of the form. Options carry truncate, but
+  // truncation needs a width to truncate against.
+  const w = await page.evaluate(() => {
+    const root = document.querySelector(".combobox:has([aria-multiselectable=true])");
+    const pop = root.querySelector("[data-popover]");
+    return {
+      over: Math.round(pop.getBoundingClientRect().right - root.getBoundingClientRect().right),
+      titled: [...pop.querySelectorAll('[role="option"]')].every((o) => !!o.title),
+    };
+  });
+  check(w.over <= 1, `the list stays inside its field (${w.over}px past it)`);
+  check(w.titled, "a truncated option is still readable in full on hover");
+
   // Filtering is the server's now, so this is a round trip rather than a
   // client-side hide: the list should come back different.
   const label = await box.locator("[role=option]").first().getAttribute("data-label");

@@ -976,6 +976,8 @@ window.htmx = htmx;
     el.setAttribute("role", "option");
     el.dataset.value = opt.value;
     el.dataset.label = opt.label;
+    // Readable in full even when the field's width truncates it.
+    el.title = opt.label;
     if (selected) el.setAttribute("aria-selected", "true");
     el.textContent = opt.label;
     return el;
