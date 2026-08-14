@@ -38,4 +38,15 @@ var All = []migrate.Migration{
 		},
 		Down: func(tx *gorm.DB) error { return nil },
 	},
+	{
+		// A second author, so the Author picker has something to choose
+		// between. With one row a combobox cannot be told from a label.
+		Name: "20260814000001_seed_second_author",
+		Up: func(tx *gorm.DB) error {
+			return tx.Create(&models.Author{
+				Name: "Grace Hopper", Email: "grace@example.com",
+			}).Error
+		},
+		Down: func(tx *gorm.DB) error { return nil },
+	},
 }

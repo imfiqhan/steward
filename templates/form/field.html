@@ -49,40 +49,51 @@
         placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>
     </div>
 
-  {{else if or (eq .Kind "select") (eq .Kind "belongsto")}}
-    <select id="field-{{.Name}}" name="{{.Name}}" class="select w-full" {{if .Disabled}}disabled{{end}}>
-      <option value="">—</option>
-      {{range .Options}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}
-    </select>
 
-  {{else if eq .Kind "multiselect"}}
-    {{/* The visible input filters; the hidden one carries the selection as a
-         JSON array, which the server expands back into repeated form values so
-         a handler still reads a plain list. */}}
-    {{/* Filtering is the server's: the page carries one page of suggestions and
-         fetches the rest as the reader types, so a field over thousands of rows
-         does not ship all of them. Selections are stored as objects because the
-         list is replaced — a chip whose option has gone has nowhere else to read
-         its label from. */}}
+  {{else if or (eq .Kind "select") (eq .Kind "belongsto") (eq .Kind "multiselect")}}
+    {{/* One control for every list-of-choices field: type to narrow, arrow to
+         move, Enter to take. A short list ships whole and is filtered in the
+         browser; a long one carries its first page and fetches the rest, which
+         is what .Search marks.
+
+         A multi-select stores objects rather than bare values, because its list
+         is replaced as the reader types and a chip has nowhere else to read its
+         own label from. A single one stores the value, exactly as the <select>
+         it replaced did, so nothing downstream changes. */}}
     <div id="field-{{.Name}}-combobox" class="combobox w-full" data-auto-highlight="true"
-         data-filter="manual" data-format="object"
-         data-steward-options="{{.OptionsURL}}">
-      <input type="text" role="combobox" id="field-{{.Name}}"
-             placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}Type to search…{{end}}"
-             autocomplete="off" autocorrect="off" spellcheck="false"
-             aria-autocomplete="list" aria-expanded="false"
-             aria-controls="field-{{.Name}}-listbox"
-             {{if .Errors}}aria-invalid="true"{{end}} {{if .Disabled}}disabled{{end}}/>
+         {{if .Search}}data-filter="manual" data-steward-options="{{.OptionsURL}}"{{end}}
+         {{if .Multiple}}data-format="object"{{end}}>
+      <div class="input-group">
+        <input type="text" role="combobox" id="field-{{.Name}}"
+               placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}Type to search…{{end}}"
+               autocomplete="off" autocorrect="off" spellcheck="false"
+               aria-autocomplete="list" aria-expanded="false"
+               aria-controls="field-{{.Name}}-listbox"
+               {{if .Errors}}aria-invalid="true"{{end}} {{if .Disabled}}disabled{{end}}/>
+        <span role="group" data-align="inline-end">
+          {{if not .Required}}
+          <button type="button" data-clear aria-label="Clear {{.Label}}">
+            {{icon "x"}}
+          </button>
+          {{end}}
+          <button type="button" class="btn" data-variant="ghost" data-size="icon-xs"
+                  aria-label="Open suggestions" aria-haspopup="listbox" aria-expanded="false"
+                  aria-controls="field-{{.Name}}-listbox" {{if .Disabled}}disabled{{end}}>
+            {{icon "chevron-down"}}
+          </button>
+        </span>
+      </div>
       <div id="field-{{.Name}}-popover" data-popover aria-hidden="true">
         <div role="listbox" id="field-{{.Name}}-listbox" class="scrollbar-sm"
-             aria-orientation="vertical" aria-multiselectable="true"
+             aria-orientation="vertical" {{if .Multiple}}aria-multiselectable="true"{{end}}
              data-empty="No matches.">
           {{range .Options}}
-          <div role="option" data-value="{{.Value}}" data-label="{{.Label}}">{{.Label}}</div>
+          <div role="option" data-value="{{.Value}}" data-label="{{.Label}}"
+               {{if .Selected}}aria-selected="true"{{end}}>{{.Label}}</div>
           {{end}}
         </div>
       </div>
-      <input type="hidden" name="{{.Name}}" value="{{.SelectedJSON}}"/>
+      <input type="hidden" name="{{.Name}}" value="{{if .Multiple}}{{.SelectedJSON}}{{else}}{{.Value}}{{end}}"/>
     </div>
 
   {{else if eq .Kind "radio"}}

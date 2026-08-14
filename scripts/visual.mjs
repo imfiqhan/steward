@@ -198,7 +198,9 @@ check(/\/authors\/\d/.test(page.url()), `Enter activates the highlighted item ($
 await page.goto(BASE + "/posts/1/edit");
 const hasCombo = await page.locator(".combobox [role=listbox][aria-multiselectable=true]").count();
 if (hasCombo) {
-  const box = page.locator(".combobox").first();
+  // Scoped to the multiple one: the same form now renders single-select
+  // comboboxes too, and they store a plain value rather than an array.
+  const box = page.locator(".combobox:has([role=listbox][aria-multiselectable=true])").first();
   const input = box.locator("input[role=combobox]");
   const hidden = box.locator("input[type=hidden]");
 
@@ -260,6 +262,38 @@ if (hasCombo) {
   check(chips > 0 || parsed.length > 0, "the selection is represented in the control");
 } else {
   check(false, "the posts form renders a multi-select combobox");
+}
+
+// --- single-select combobox ---------------------------------------------------
+// Select and BelongsTo render the same control, storing the value the <select>
+// they replaced would have submitted.
+{
+  const box = page.locator(".combobox:not(:has([aria-multiselectable=true]))").first();
+  if (await box.count()) {
+    const input = box.locator("input[role=combobox]");
+    const hidden = box.locator("input[type=hidden]");
+    const before = await hidden.inputValue();
+    check(!before.trim().startsWith("["),
+      `a single select stores a bare value, not an array (${JSON.stringify(before)})`);
+    check((await input.inputValue()).length > 0,
+      `the control shows the current selection's label (${JSON.stringify(await input.inputValue())})`);
+
+    await input.click();
+    await page.waitForTimeout(300);
+    const opts = box.locator("[role=option]:visible");
+    const n = await opts.count();
+    if (n > 1) {
+      const wanted = await opts.nth(1).getAttribute("data-value");
+      await opts.nth(1).click();
+      await page.waitForTimeout(250);
+      check((await hidden.inputValue()) === wanted,
+        `picking one writes its value (${await hidden.inputValue()} === ${wanted})`);
+    } else {
+      check(false, `the single select offered ${n} options to choose between`);
+    }
+  } else {
+    check(false, "the form renders a single-select combobox");
+  }
 }
 
 await page.screenshot({

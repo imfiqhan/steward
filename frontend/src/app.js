@@ -1065,9 +1065,10 @@ window.htmx = htmx;
       clearTimeout(timer);
       timer = setTimeout(function () { load(input.value.trim()); }, OPTION_DEBOUNCE_MS);
     });
-    // The first open should show the server's page rather than the one baked
-    // into the HTML, which may be stale by the time the form is opened.
-    input.addEventListener("focus", function () { load(input.value.trim()); }, { once: true });
+    // Opening asks for an unfiltered page, never for input.value: on a single
+    // select that holds the current selection's label, and searching for it
+    // would offer the reader only what they have already chosen.
+    input.addEventListener("focus", function () { load(""); }, { once: true });
   }
 
   function initOptionSearches() {

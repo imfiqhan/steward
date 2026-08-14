@@ -47,9 +47,14 @@ type formFieldVM struct {
 	// SelectedJSON is a MultiSelect's selection as a JSON array, which is what
 	// the combobox stores in its hidden input and submits.
 	SelectedJSON string
-	// OptionsURL is where a manually-filtered combobox fetches its suggestions.
+	// OptionsURL is where a combobox fetches its suggestions, and Search says
+	// whether it should: a list that fits one page is shipped whole and filtered
+	// in the browser, which costs no request at all.
 	OptionsURL string
-	Errors     []string
+	Search     bool
+	// Multiple marks the combobox as a multi-select.
+	Multiple bool
+	Errors   []string
 }
 
 // iconChoiceVM is one option in an Icon field's picker. It carries the name
@@ -158,14 +163,18 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 		}
 		switch fd.kind {
 		case FieldSelect, FieldRadio:
-			opts := fd.options
-			if fd.optionsFn != nil {
-				opts = fd.optionsFn(c)
-			}
+			opts := fd.choices(c)
 			for val, label := range opts {
 				fv.Options = append(fv.Options, optionVM{Value: val, Label: label, Selected: val == fv.Value})
 			}
 			sortOptions(fv.Options)
+			if fd.kind == FieldSelect {
+				fv.Search = len(fv.Options) > optionSearchLimit
+				if fv.Search {
+					fv.Options = firstPage(fv.Options)
+					fv.OptionsURL = optionsURL(c, m.slug, fd.path)
+				}
+			}
 		case FieldMultiSelect:
 			var selected []string
 			if fd.valuesFn != nil && row != nil {
@@ -177,12 +186,15 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			}
 			sortOptions(fv.Options)
 			fv.SelectedJSON = selectedJSON(fv.Options)
-			// Only what the field needs before the reader types: the current
-			// selection, and enough suggestions to make the first open useful.
-			// The rest is a fetch away, which is what keeps a page holding
-			// thousands of options from carrying all of them.
-			fv.Options = firstPage(fv.Options)
-			fv.OptionsURL = c.URL(m.slug, "_options") + "?field=" + url.QueryEscape(fd.path)
+			fv.Multiple = true
+			// Past one page, ship the selection plus enough to make the first
+			// open useful and fetch the rest as the reader types. That is what
+			// keeps a field over thousands of rows from carrying all of them.
+			fv.Search = len(fv.Options) > optionSearchLimit
+			if fv.Search {
+				fv.Options = firstPage(fv.Options)
+				fv.OptionsURL = optionsURL(c, m.slug, fd.path)
+			}
 		case FieldIcon:
 			rend := c.Admin.renderer
 			for _, name := range rend.iconNames() {
@@ -193,7 +205,11 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 				fv.CurrentIcon = rend.icon(fv.Value)
 			}
 		case FieldBelongsTo:
+			// Always fetched: the target is a table, and how big it is now says
+			// nothing about how big it will be.
 			fv.Options = t.belongsToOptions(c, fd, fv.Value)
+			fv.Search = true
+			fv.OptionsURL = optionsURL(c, m.slug, fd.path)
 		case FieldFile, FieldImage:
 			fv.UploadURL = c.URL(m.slug, "_upload") + "?field=" + url.QueryEscape(fd.path)
 			if fv.Value != "" {
@@ -213,7 +229,14 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 	return vm
 }
 
-// belongsToOptions loads up to 200 related rows as select options.
+// optionsURL is where a field's combobox fetches its suggestions.
+func optionsURL(c *Context, slug, field string) string {
+	return c.URL(slug, "_options") + "?field=" + url.QueryEscape(field)
+}
+
+// belongsToOptions loads one page of related rows, and the selected row with
+// them — the control reads its own label off the option, so a selection missing
+// from the list would show as an id.
 func (t *typedResource[T]) belongsToOptions(c *Context, fd *Field[T], selected string) []optionVM {
 	if fd.relTable == "" {
 		return nil
@@ -221,19 +244,38 @@ func (t *typedResource[T]) belongsToOptions(c *Context, fd *Field[T], selected s
 	rows, err := c.Admin.db.WithContext(c.Ctx()).
 		Table(fd.relTable).
 		Select(fd.relPKCol + ", " + fd.relTitleCol).
-		Limit(200).Rows()
+		Limit(optionSearchLimit).Rows()
 	if err != nil {
 		c.Admin.log.Error("steward: belongsTo options", "field", fd.path, "err", err)
 		return nil
 	}
 	defer func() { _ = rows.Close() }()
 	var opts []optionVM
+	found := false
 	for rows.Next() {
 		var id, title string
 		if err := rows.Scan(&id, &title); err != nil {
 			continue
 		}
+		if id == selected {
+			found = true
+		}
 		opts = append(opts, optionVM{Value: id, Label: title, Selected: id == selected})
+	}
+	sortOptions(opts)
+
+	// The selected row need not be in the first page, and the control has
+	// nowhere but its option to read a label from.
+	if selected != "" && !found {
+		var title string
+		err := c.Admin.db.WithContext(c.Ctx()).
+			Table(fd.relTable).
+			Select(fd.relTitleCol).
+			Where(fd.relPKCol+" = ?", selected).
+			Limit(1).Scan(&title).Error
+		if err == nil && title != "" {
+			opts = append([]optionVM{{Value: selected, Label: title, Selected: true}}, opts...)
+		}
 	}
 	return opts
 }
@@ -666,7 +708,7 @@ func (t *typedResource[T]) optionsJSON(c *Context) error {
 			}
 			return c.JSON(http.StatusOK, map[string]any{"options": opts})
 		}
-		if fd.kind == FieldMultiSelect {
+		if fd.kind == FieldMultiSelect || fd.kind == FieldSelect {
 			list, more := searchOptions(fd.choices(c), c.R.URL.Query().Get("q"))
 			out := make([]map[string]string, 0, len(list))
 			for _, o := range list {

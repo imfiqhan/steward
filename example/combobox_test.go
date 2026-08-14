@@ -127,13 +127,15 @@ func TestMultiSelectRendersCombobox(t *testing.T) {
 
 	for _, want := range []string{
 		`class="combobox w-full" data-auto-highlight="true"`,
+		// A short list is filtered in the browser: no endpoint, no request.
+		`data-format="object"`,
 		`<input type="text" role="combobox" id="field-Tags"`,
 		`aria-controls="field-Tags-listbox"`,
 		`id="field-Tags-popover" data-popover aria-hidden="true"`,
 		`id="field-Tags-listbox"`,
 		// Without this the component renders a single-select, silently.
 		`aria-multiselectable="true"`,
-		`<div role="option" data-value="1" data-label="cherry">cherry</div>`,
+		`role="option" data-value="1" data-label="cherry"`,
 		`<input type="hidden" name="Tags" value="[]"/>`,
 	} {
 		if !strings.Contains(html, want) {
@@ -143,6 +145,11 @@ func TestMultiSelectRendersCombobox(t *testing.T) {
 	// The old widget told the reader to hold a modifier key; nothing should.
 	if strings.Contains(html, "Ctrl to select") {
 		t.Error("the multiple-select hint outlived the <select multiple> it described")
+	}
+	// Three options fit one page, so they ship with it rather than costing a
+	// request the moment the field is opened.
+	if strings.Contains(html, `data-filter="manual"`) {
+		t.Error("a list this short should be filtered in the browser")
 	}
 }
 
@@ -338,5 +345,65 @@ func TestMultiSelectSubmission(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestSingleSelectRendersCombobox covers the other half: Select and BelongsTo
+// render the same control, but store the value the <select> they replaced would
+// have submitted, so nothing downstream changes.
+func TestSingleSelectRendersCombobox(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/single.db"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&comboRow{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&comboRow{Name: "two"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("single-combobox-test-secret-key"),
+		AuthExcept: []string{"/combo_rows*"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := steward.Register[comboRow](app)
+	res.Form(func(f *steward.Form[comboRow]) {
+		f.Select("Name").Options(steward.Options{"one": "One", "two": "Two"})
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	defer srv.Close()
+
+	page := getBody(t, srv.URL+"/admin/combo_rows/1/edit")
+
+	if strings.Contains(page, `<select id="field-Name"`) {
+		t.Error("Name still renders a plain select")
+	}
+	for _, want := range []string{
+		`id="field-Name-combobox" class="combobox w-full"`,
+		`role="option" data-value="two" data-label="Two"`,
+		// The control reads its own label off the selected option.
+		`aria-selected="true"`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the combobox is missing %s", want)
+		}
+	}
+	// A single select submits a bare value, exactly as the select did.
+	if got := hiddenValue(t, page, "Name"); got != "two" {
+		t.Errorf("hidden value = %q, want %q", got, "two")
+	}
+	// Two options need no endpoint.
+	if strings.Contains(page, `data-filter="manual"`) {
+		t.Error("a two-option select should be filtered in the browser")
+	}
+	// And it must still be clearable, which the empty <option> used to do.
+	if !strings.Contains(page, `data-clear`) {
+		t.Error("an optional select has no way to clear its value")
 	}
 }
