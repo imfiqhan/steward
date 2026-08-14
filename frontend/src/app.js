@@ -626,37 +626,170 @@ window.htmx = htmx;
     });
   });
 
-  document.addEventListener("change", function (e) {
-    var input = e.target.closest("[data-steward-upload]");
-    if (!input || !input.files || input.files.length === 0) return;
-    var wrap = input.closest("[data-steward-field]");
-    var hidden = wrap.querySelector("[data-steward-upload-value]");
-    var preview = wrap.querySelector("[data-steward-upload-preview]");
+  /* ---- File and image uploads ---------------------------------------------- */
+  /*
+   * The native input draws its own control and cannot show a value it did not
+   * receive, so an edit form said "no file selected" over a record that had one.
+   * It stays as the file source — clicks and drops are forwarded to it — and
+   * everything visible is built around it.
+   *
+   * XHR rather than fetch: fetch reports no upload progress, and a large file on
+   * a slow line otherwise leaves the field looking dead.
+   */
+
+  function uploadParts(root) {
+    return {
+      input: root.querySelector("[data-steward-upload-input]"),
+      hidden: root.querySelector("[data-steward-upload-value]"),
+      pick: root.querySelector("[data-steward-upload-pick]"),
+      current: root.querySelector("[data-steward-upload-current]"),
+      thumb: root.querySelector("[data-steward-upload-thumb]"),
+      fileIcon: root.querySelector("[data-steward-upload-icon]"),
+      link: root.querySelector("[data-steward-upload-link]"),
+      note: root.querySelector("[data-steward-upload-note]"),
+      progress: root.querySelector("[data-steward-upload-progress]"),
+      bar: root.querySelector("[data-steward-upload-bar]"),
+    };
+  }
+
+  // showUpload switches between the two states the field has: nothing held, or
+  // one file held and named.
+  function showUpload(root, file) {
+    var p = uploadParts(root);
+    var isImage = root.dataset.kind === "image";
+    if (!file || !file.path) {
+      if (p.hidden) p.hidden.value = "";
+      if (p.pick) p.pick.hidden = false;
+      if (p.current) p.current.hidden = true;
+      return;
+    }
+    if (p.hidden) p.hidden.value = file.path;
+    if (p.pick) p.pick.hidden = true;
+    if (p.current) p.current.hidden = false;
+    if (p.link) {
+      p.link.textContent = file.name || file.path;
+      p.link.href = file.url || "";
+    }
+    if (p.note) { p.note.hidden = true; p.note.textContent = ""; }
+    if (isImage && p.thumb) {
+      p.thumb.hidden = false;
+      if (p.fileIcon) p.fileIcon.hidden = true;
+      p.thumb.src = file.url || "";
+    }
+  }
+
+  // A stored file can be missing — the row outlived it, or the media was never
+  // carried across. A broken-image glyph says nothing, so the field says it.
+  function markUploadMissing(root) {
+    var p = uploadParts(root);
+    if (p.thumb) p.thumb.hidden = true;
+    if (p.fileIcon) p.fileIcon.hidden = false;
+    if (p.note) {
+      p.note.textContent = "This file is missing from storage.";
+      p.note.hidden = false;
+    }
+  }
+
+  function uploadProgress(root, ratio) {
+    var p = uploadParts(root);
+    if (!p.progress || !p.bar) return;
+    if (ratio === null) {
+      p.progress.hidden = true;
+      return;
+    }
+    p.progress.hidden = false;
+    p.bar.style.width = Math.round(ratio * 100) + "%";
+  }
+
+  function sendUpload(root, file) {
+    var p = uploadParts(root);
+    if (!file || !p.hidden) return;
+    root.dataset.busy = "1";
+    uploadProgress(root, 0);
+
     var fd = new FormData();
-    fd.append("file", input.files[0]);
-    input.disabled = true;
-    fetch(input.getAttribute("data-steward-upload"), {
-      method: "POST",
-      headers: { "X-CSRF-Token": csrfToken(), "Accept": "application/json" },
-      body: fd,
-      credentials: "same-origin"
-    }).then(function (resp) { return resp.json(); }).then(function (out) {
+    fd.append("file", file);
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", root.dataset.stewardUpload, true);
+    xhr.setRequestHeader("X-CSRF-Token", csrfToken());
+    xhr.setRequestHeader("Accept", "application/json");
+    xhr.withCredentials = true;
+    xhr.upload.addEventListener("progress", function (ev) {
+      if (ev.lengthComputable) uploadProgress(root, ev.loaded / ev.total);
+    });
+    xhr.addEventListener("load", function () {
+      delete root.dataset.busy;
+      uploadProgress(root, null);
+      var out = null;
+      try { out = JSON.parse(xhr.responseText); } catch (err) { /* reported below */ }
       if (!out || out.status !== true) {
         toast("error", (out && out.data && out.data.message) || "Upload failed.");
         return;
       }
-      if (hidden) hidden.value = out.path;
-      if (preview) {
-        preview.classList.remove("hidden");
-        var img = preview.querySelector("img");
-        if (img) { img.src = out.url; }
-        else { preview.innerHTML = '<a href="' + out.url + '" target="_blank" rel="noopener" class="underline">Uploaded file</a>'; }
-      }
+      showUpload(root, { path: out.path, url: out.url, name: file.name });
       toast("success", "Uploaded.");
-    }).catch(function () {
+    });
+    xhr.addEventListener("error", function () {
+      delete root.dataset.busy;
+      uploadProgress(root, null);
       toast("error", "Upload failed — check your connection and retry.");
-    }).finally(function () { input.disabled = false; });
+    });
+    xhr.send(fd);
+  }
+
+  document.addEventListener("click", function (e) {
+    var pick = e.target.closest("[data-steward-upload-pick]");
+    if (pick) {
+      var root = pick.closest("[data-steward-upload]");
+      var input = root && root.querySelector("[data-steward-upload-input]");
+      if (input) input.click();
+      return;
+    }
+    var remove = e.target.closest("[data-steward-upload-remove]");
+    if (remove) {
+      var r = remove.closest("[data-steward-upload]");
+      var inp = r && r.querySelector("[data-steward-upload-input]");
+      if (inp) inp.value = "";
+      showUpload(r, null);
+    }
   });
+
+  document.addEventListener("change", function (e) {
+    var input = e.target.closest("[data-steward-upload-input]");
+    if (!input || !input.files || input.files.length === 0) return;
+    sendUpload(input.closest("[data-steward-upload]"), input.files[0]);
+  });
+
+  // Dropping anywhere on the field, rather than only on the input the native
+  // control would have offered.
+  ["dragenter", "dragover"].forEach(function (type) {
+    document.addEventListener(type, function (e) {
+      var root = e.target.closest("[data-steward-upload]");
+      if (!root || root.dataset.disabled === "1") return;
+      e.preventDefault();
+      root.dataset.dropping = "1";
+    });
+  });
+  ["dragleave", "drop"].forEach(function (type) {
+    document.addEventListener(type, function (e) {
+      var root = e.target.closest("[data-steward-upload]");
+      if (!root) return;
+      if (type === "dragleave" && root.contains(e.relatedTarget)) return;
+      delete root.dataset.dropping;
+      if (type !== "drop") return;
+      e.preventDefault();
+      if (root.dataset.disabled === "1") return;
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) sendUpload(root, f);
+    });
+  });
+
+  // A thumbnail that fails to load is the only signal the file is gone.
+  document.addEventListener("error", function (e) {
+    var thumb = e.target.closest && e.target.closest("[data-steward-upload-thumb]");
+    if (!thumb || !thumb.getAttribute("src")) return;
+    markUploadMissing(thumb.closest("[data-steward-upload]"));
+  }, true);
 
   /* ---- Rich text editor ------------------------------------------------------- */
   /*

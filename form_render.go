@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -44,6 +46,12 @@ type formFieldVM struct {
 	CurrentIcon template.HTML
 	UploadURL   string
 	PreviewURL  string
+	// FileName is what an upload is called for the reader; MaxSizeLabel and
+	// AcceptLabel state the field's limits, which the server knows and the
+	// reader otherwise discovers by having an upload refused.
+	FileName     string
+	MaxSizeLabel string
+	AcceptLabel  string
 	// SelectedJSON is a MultiSelect's selection as a JSON array, which is what
 	// the combobox stores in its hidden input and submits.
 	SelectedJSON string
@@ -214,7 +222,10 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			fv.UploadURL = c.URL(m.slug, "_upload") + "?field=" + url.QueryEscape(fd.path)
 			if fv.Value != "" {
 				fv.PreviewURL = c.Admin.cfg.Storage.URL(fv.Value)
+				fv.FileName = displayFileName(fv.Value)
 			}
+			fv.MaxSizeLabel = sizeLabel(fd.maxSize)
+			fv.AcceptLabel = acceptLabel(fd.accept)
 		}
 		vm.Fields = append(vm.Fields, fv)
 	}
@@ -775,7 +786,7 @@ func (t *typedResource[T]) uploadFile(c *Context) error {
 	}
 	maxSize := target.maxSize
 	if maxSize <= 0 {
-		maxSize = 8 << 20
+		maxSize = defaultMaxUpload
 	}
 	c.R.Body = http.MaxBytesReader(c.W, c.R.Body, maxSize+1<<20)
 	if err := c.R.ParseMultipartForm(maxSize); err != nil {
@@ -805,13 +816,22 @@ func (t *typedResource[T]) uploadFile(c *Context) error {
 	if dir == "" {
 		dir = t.res.m.slug
 	}
-	stored := dir + "/" + time.Now().Format("20060102") + "-" + tok[:12] + ext
+	// The original name is kept after the unique part: a download prompt, and
+	// the field itself, would otherwise offer nothing but a token.
+	stored := dir + "/" + time.Now().Format("20060102") + "-" + tok[:12]
+	if base := safeFileBase(header.Filename); base != "" {
+		stored += "-" + base
+	}
+	stored += ext
 	url, err := c.Admin.cfg.Storage.Put(c.Ctx(), stored, file, header.Size, header.Header.Get("Content-Type"))
 	if err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, map[string]any{"status": true, "path": stored, "url": url})
 }
+
+// defaultMaxUpload bounds a field that names no limit of its own.
+const defaultMaxUpload = 8 << 20
 
 var allowedImageExt = map[string]bool{
 	".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".webp": true, ".svg": false, ".avif": true,
@@ -828,4 +848,85 @@ var activeExt = map[string]bool{
 	".html": true, ".htm": true, ".xhtml": true, ".shtml": true, ".xml": true,
 	".svg": true, ".js": true, ".mjs": true, ".css": true, ".swf": true,
 	".jar": true, ".htaccess": true, ".php": true, ".phtml": true,
+}
+
+// storedNamePrefix matches the date-and-token prefix a stored upload carries, so
+// a name can be shown without it.
+var storedNamePrefix = regexp.MustCompile(`^\d{8}-[A-Za-z0-9_-]{12}-?`)
+
+// displayFileName is what an upload is called on screen. Rows written before
+// the original name was kept, and rows carried over from another system, have no
+// prefix to strip and show whatever they hold.
+func displayFileName(stored string) string {
+	base := path.Base(stored)
+	if trimmed := storedNamePrefix.ReplaceAllString(base, ""); trimmed != "" {
+		return trimmed
+	}
+	return base
+}
+
+// safeFileBase reduces a submitted filename to something safe to put in a path
+// and still recognisable to whoever uploaded it. Everything outside the allowed
+// set becomes a dash, because a stored name ends up in a URL, on a filesystem,
+// and in a download prompt.
+func safeFileBase(name string) string {
+	base := strings.TrimSuffix(path.Base(filepath.ToSlash(name)), path.Ext(name))
+	var b strings.Builder
+	dash := false
+	for _, r := range base {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			dash = false
+		case r == '.' || r == '_' || r == '-' || r == ' ':
+			if !dash && b.Len() > 0 {
+				b.WriteByte('-')
+				dash = true
+			}
+		}
+		if b.Len() >= 60 {
+			break
+		}
+	}
+	return strings.Trim(b.String(), "-.")
+}
+
+// sizeLabel renders a byte limit the way a person would say it.
+func sizeLabel(n int64) string {
+	if n <= 0 {
+		n = defaultMaxUpload
+	}
+	switch {
+	case n >= 1<<20:
+		return fmt.Sprintf("%d MB", n>>20)
+	case n >= 1<<10:
+		return fmt.Sprintf("%d KB", n>>10)
+	default:
+		return fmt.Sprintf("%d bytes", n)
+	}
+}
+
+// acceptLabel turns an accept attribute into something readable, so a field can
+// say what it takes before refusing something.
+func acceptLabel(accept string) string {
+	accept = strings.TrimSpace(accept)
+	switch accept {
+	case "", "*/*":
+		return ""
+	case "image/*":
+		return "images"
+	}
+	parts := strings.Split(accept, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		if i := strings.LastIndex(p, "/"); i >= 0 {
+			p = p[i+1:]
+		}
+		out = append(out, strings.ToUpper(strings.TrimPrefix(p, ".")))
+	}
+	return strings.Join(out, ", ")
 }

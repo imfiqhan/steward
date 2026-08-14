@@ -142,15 +142,55 @@
     <input type="hidden" name="{{.Name}}" value="{{.Value}}"/>
 
   {{else if or (eq .Kind "file") (eq .Kind "image")}}
-    <input type="hidden" name="{{.Name}}" value="{{.Value}}" data-steward-upload-value/>
-    <input id="field-{{.Name}}" type="file" class="input" {{with .Accept}}accept="{{.}}"{{end}}
-           data-steward-upload="{{.UploadURL}}" {{if .Disabled}}disabled{{end}}/>
-    <div class="{{if not .PreviewURL}}hidden{{end}}" data-steward-upload-preview>
-      {{if eq .Kind "image"}}
-        <img src="{{.PreviewURL}}" class="max-h-32 max-w-52 rounded-md border object-cover" alt="Current file"/>
-      {{else if .PreviewURL}}
-        <a href="{{.PreviewURL}}" target="_blank" rel="noopener" class="text-sm underline-offset-4 hover:underline">Current file</a>
-      {{end}}
+    {{/* The native input draws itself and cannot show a value it did not
+         receive, so an edit form reported "no file selected" over a record that
+         had one. It stays as the file source — clicks and drops go through it —
+         and everything visible is built beside it. */}}
+    <div class="steward-upload" data-steward-upload="{{.UploadURL}}" data-kind="{{.Kind}}"
+         {{if .Disabled}}data-disabled="1"{{end}}>
+      <input type="hidden" name="{{.Name}}" value="{{.Value}}" data-steward-upload-value/>
+      <input id="field-{{.Name}}" type="file" class="sr-only" data-steward-upload-input
+             {{with .Accept}}accept="{{.}}"{{end}} {{if .Disabled}}disabled{{end}}/>
+
+      {{/* Empty state: the whole box is the target, for a click or a drop. */}}
+      <button type="button" class="steward-upload-drop" data-steward-upload-pick
+              {{if .Value}}hidden{{end}} {{if .Disabled}}disabled{{end}}>
+        {{icon "upload" "size-5"}}
+        <span class="steward-upload-prompt">
+          <span class="steward-upload-action">Choose a file</span>
+          <span class="steward-upload-hint">or drag it here</span>
+        </span>
+        {{if or .AcceptLabel .MaxSizeLabel}}
+        <span class="steward-upload-limits">
+          {{with .AcceptLabel}}{{.}} · {{end}}up to {{.MaxSizeLabel}}
+        </span>
+        {{end}}
+      </button>
+
+      {{/* Filled state: what is held, named, with a way out of it. */}}
+      <div class="steward-upload-current" data-steward-upload-current {{if not .Value}}hidden{{end}}>
+        {{if eq .Kind "image"}}
+        <img class="steward-upload-thumb" data-steward-upload-thumb
+             src="{{.PreviewURL}}" alt="" {{if not .PreviewURL}}hidden{{end}}/>
+        {{end}}
+        <span class="steward-upload-icon" data-steward-upload-icon
+              {{if eq .Kind "image"}}hidden{{end}}>{{icon "file" "size-5"}}</span>
+        <span class="steward-upload-meta">
+          <a class="steward-upload-name" data-steward-upload-link
+             href="{{.PreviewURL}}" target="_blank" rel="noopener">{{.FileName}}</a>
+          <span class="steward-upload-note" data-steward-upload-note hidden></span>
+        </span>
+        {{if not .Disabled}}
+        <button type="button" class="btn" data-variant="ghost" data-size="icon-sm"
+                data-steward-upload-remove aria-label="Remove {{.Label}}">
+          {{icon "x" "size-4"}}
+        </button>
+        {{end}}
+      </div>
+
+      <div class="steward-upload-progress" data-steward-upload-progress hidden>
+        <div data-steward-upload-bar></div>
+      </div>
     </div>
 
   {{else if eq .Kind "currency"}}

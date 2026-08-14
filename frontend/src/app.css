@@ -393,3 +393,106 @@ tr.steward-dragging { opacity: 0.5; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ---- File and image upload (Form.File, Form.Image) ----------------------- */
+
+.steward-upload {
+  display: grid;
+  gap: 0.5rem;
+}
+
+/* The empty state is the drop target, so it is the size of one. */
+.steward-upload-drop {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.875rem 0.875rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  text-align: start;
+  cursor: pointer;
+}
+.steward-upload-drop:hover {
+  border-color: var(--ring);
+  background: var(--muted);
+}
+.steward-upload-drop:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+.steward-upload-drop:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.steward-upload[data-dropping="1"] .steward-upload-drop,
+.steward-upload[data-dropping="1"] .steward-upload-current {
+  border-color: var(--primary);
+  background: var(--accent);
+}
+
+.steward-upload-prompt { display: flex; gap: 0.3rem; flex: 1; min-width: 0; }
+.steward-upload-action { color: var(--foreground); font-weight: 500; }
+.steward-upload-limits { flex-shrink: 0; font-size: 0.75rem; }
+
+/* The filled state names what is held and offers the way out of it. */
+.steward-upload-current {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+}
+
+.steward-upload-thumb {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  border-radius: calc(var(--radius) - 2px);
+  border: 1px solid var(--border);
+  object-fit: cover;
+  background: var(--muted);
+}
+
+.steward-upload-icon { flex-shrink: 0; color: var(--muted-foreground); }
+
+/* min-width:0 so a long name truncates rather than pushing the remove button
+   out of the field. */
+.steward-upload-meta {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.875rem;
+}
+
+.steward-upload-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.steward-upload-name:hover { color: var(--primary); }
+
+.steward-upload-note { font-size: 0.75rem; color: var(--destructive); }
+
+.steward-upload-progress {
+  height: 0.25rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--muted);
+}
+.steward-upload-progress > div {
+  width: 0;
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--primary);
+  transition: width 120ms linear;
+}

@@ -319,6 +319,51 @@ if (hasCombo) {
   }
 }
 
+// --- upload field --------------------------------------------------------------
+// The native control draws itself and cannot show a value it did not receive,
+// so an edit form used to report "no file selected" over a record that had one.
+await page.goto(BASE + "/posts/1/edit");
+const up = page.locator("[data-steward-upload]").first();
+if (await up.count()) {
+  const empty = await up.evaluate((r) => ({
+    native: !!r.querySelector('input[type=file]:not(.sr-only)'),
+    prompt: !r.querySelector("[data-steward-upload-pick]").hidden,
+    text: r.textContent.replace(/\s+/g, " ").trim(),
+  }));
+  check(!empty.native, "the native file control is not what you see");
+  check(/up to \d+ ?(MB|KB)/.test(empty.text), `the field states its size limit (${empty.text})`);
+
+  await page.setInputFiles("[data-steward-upload] input[type=file]", {
+    name: "Annual Report 2026.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==",
+      "base64"),
+  });
+  await page.waitForTimeout(1200);
+  const filled = await up.evaluate((r) => ({
+    value: r.querySelector("[data-steward-upload-value]").value,
+    name: r.querySelector("[data-steward-upload-link]").textContent.trim(),
+    prompt: !r.querySelector("[data-steward-upload-pick]").hidden,
+    remove: !!r.querySelector("[data-steward-upload-remove]"),
+  }));
+  check(!!filled.value, `uploading sets the submitted value (${filled.value})`);
+  check(!filled.prompt, "the prompt gives way to what is held");
+  check(/Annual.Report.2026/.test(filled.name),
+    `the name survives instead of a token (${filled.name})`);
+  check(filled.remove, "an uploaded file can be removed");
+
+  await up.locator("[data-steward-upload-remove]").click();
+  await page.waitForTimeout(200);
+  const cleared = await up.evaluate((r) => ({
+    value: r.querySelector("[data-steward-upload-value]").value,
+    prompt: !r.querySelector("[data-steward-upload-pick]").hidden,
+  }));
+  check(cleared.value === "" && cleared.prompt, "removing clears the value");
+} else {
+  check(false, "the posts form renders an upload field");
+}
+
 await page.screenshot({
   path: "/tmp/steward-visual.png",
   fullPage: false,
