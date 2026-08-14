@@ -211,11 +211,26 @@ if (hasCombo) {
   check(opened === "false", "clicking the input opens the list");
 
   const total = await box.locator("[role=option]").count();
+  check(total > 0 && total <= 50, `the page ships one page of options (${total})`);
+
+  // Filtering is the server's now, so this is a round trip rather than a
+  // client-side hide: the list should come back different.
   const label = await box.locator("[role=option]").first().getAttribute("data-label");
   await input.fill(label.slice(0, 3));
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(600);
   const visible = await box.locator("[role=option]:visible").count();
-  check(visible > 0 && visible <= total, `typing filters the list (${visible}/${total})`);
+  check(visible > 0 && visible <= total, `typing fetches a narrower list (${visible}/${total})`);
+  const stillMatches = await box.locator("[role=option]:visible").first().getAttribute("data-label");
+  check(stillMatches.toLowerCase().includes(label.slice(0, 3).toLowerCase()),
+    `what came back matches the query (${stillMatches})`);
+
+  // A query with no matches must not leave the previous list on screen.
+  await input.fill("zzzzqqq");
+  await page.waitForTimeout(600);
+  const none = await box.locator("[role=option]:visible").count();
+  check(none === 0, `a query matching nothing empties the list (${none} left)`);
+  await input.fill(label.slice(0, 3));
+  await page.waitForTimeout(600);
 
   await box.locator("[role=option]:visible").first().click();
   await page.waitForTimeout(200);

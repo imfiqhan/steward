@@ -59,7 +59,14 @@
     {{/* The visible input filters; the hidden one carries the selection as a
          JSON array, which the server expands back into repeated form values so
          a handler still reads a plain list. */}}
-    <div id="field-{{.Name}}-combobox" class="combobox w-full" data-auto-highlight="true">
+    {{/* Filtering is the server's: the page carries one page of suggestions and
+         fetches the rest as the reader types, so a field over thousands of rows
+         does not ship all of them. Selections are stored as objects because the
+         list is replaced — a chip whose option has gone has nowhere else to read
+         its label from. */}}
+    <div id="field-{{.Name}}-combobox" class="combobox w-full" data-auto-highlight="true"
+         data-filter="manual" data-format="object"
+         data-steward-options="{{.OptionsURL}}">
       <input type="text" role="combobox" id="field-{{.Name}}"
              placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}Type to search…{{end}}"
              autocomplete="off" autocorrect="off" spellcheck="false"

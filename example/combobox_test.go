@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"html"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -45,6 +47,16 @@ func (s *seenTags) get() []string {
 }
 
 func newComboServer(t *testing.T, seen *seenTags) *httptest.Server {
+	return newComboServerWith(t, steward.Options{
+		// Labels deliberately out of alphabetical order relative to their
+		// values, so a sorted render cannot be mistaken for map luck.
+		"3": "apple",
+		"1": "cherry",
+		"2": "banana",
+	}, seen)
+}
+
+func newComboServerWith(t *testing.T, opts steward.Options, seen *seenTags) *httptest.Server {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/combo.db"), &gorm.Config{})
 	if err != nil {
@@ -66,14 +78,8 @@ func newComboServer(t *testing.T, seen *seenTags) *httptest.Server {
 	res := steward.Register[comboRow](app)
 	res.Form(func(f *steward.Form[comboRow]) {
 		f.Text("Name")
-		// Labels deliberately out of alphabetical order relative to their
-		// values, so a sorted render cannot be mistaken for map luck.
 		f.MultiSelect("Tags", "Tags").
-			Options(steward.Options{
-				"3": "apple",
-				"1": "cherry",
-				"2": "banana",
-			}).
+			Options(opts).
 			ValuesFunc(func(_ *steward.Context, m any) []string {
 				if r, ok := m.(*comboRow); ok && r.ID == 1 {
 					return []string{"2"}
@@ -171,14 +177,92 @@ func TestSelectOptionsAreOrdered(t *testing.T) {
 	}
 }
 
+// hiddenValue pulls a field's submitted value out of the rendered form.
+func hiddenValue(t *testing.T, page, name string) string {
+	t.Helper()
+	re := regexp.MustCompile(`<input type="hidden" name="` + name + `" value="([^"]*)"`)
+	m := re.FindStringSubmatch(page)
+	if m == nil {
+		t.Fatalf("no hidden input for %q", name)
+	}
+	return html.UnescapeString(m[1])
+}
+
 // TestMultiSelectSelectionRoundTrips covers the edit form: what is already
-// selected has to come back as the combobox's own JSON, or reopening a record
-// silently clears its choices.
+// selected has to come back, or reopening a record silently clears its choices.
+//
+// Objects rather than bare values, because the list is fetched and replaced as
+// the reader types — a chip whose option has gone has nowhere else to read its
+// label from, and would show its id.
 func TestMultiSelectSelectionRoundTrips(t *testing.T) {
 	srv := newComboServer(t, nil)
-	html := getBody(t, srv.URL+"/admin/combo_rows/1/edit")
-	if !strings.Contains(html, `<input type="hidden" name="Tags" value="[&#34;2&#34;]"/>`) {
-		t.Error("the selection did not render as the combobox's JSON value")
+	page := getBody(t, srv.URL+"/admin/combo_rows/1/edit")
+
+	got := hiddenValue(t, page, "Tags")
+	var sel []struct{ Value, Label string }
+	if err := json.Unmarshal([]byte(got), &sel); err != nil {
+		t.Fatalf("the selection is not a JSON array of objects: %s", got)
+	}
+	if len(sel) != 1 || sel[0].Value != "2" || sel[0].Label != "banana" {
+		t.Fatalf("selection = %s, want one entry {2, banana}", got)
+	}
+}
+
+// TestMultiSelectShipsOnePage guards the reason this field is fetched rather
+// than rendered whole: a form holding thousands of options was most of the page.
+func TestMultiSelectShipsOnePage(t *testing.T) {
+	opts := steward.Options{}
+	for i := 0; i < 500; i++ {
+		opts[itoa(uint(i))] = "option " + itoa(uint(i))
+	}
+	srv := newComboServerWith(t, opts, nil)
+	page := getBody(t, srv.URL+"/admin/combo_rows/create")
+
+	rendered := strings.Count(page, `role="option"`)
+	if rendered > 50 {
+		t.Errorf("the form rendered %d options; one page is 50", rendered)
+	}
+	if rendered == 0 {
+		t.Error("the form rendered no options at all, so the first open is empty")
+	}
+	// And it has to say where the rest live.
+	if !strings.Contains(page, `data-filter="manual"`) ||
+		!strings.Contains(page, `data-steward-options="/admin/combo_rows/_options?field=Tags"`) {
+		t.Error("the field does not point at its options endpoint")
+	}
+}
+
+// TestOptionsEndpointFilters covers what the typing actually calls.
+func TestOptionsEndpointFilters(t *testing.T) {
+	opts := steward.Options{}
+	for i := 0; i < 500; i++ {
+		opts[itoa(uint(i))] = "option " + itoa(uint(i))
+	}
+	opts["x"] = "banana"
+	srv := newComboServerWith(t, opts, nil)
+
+	var body struct {
+		Options []struct{ Value, Label string }
+		More    bool
+	}
+	raw := getBody(t, srv.URL+"/admin/combo_rows/_options?field=Tags&q=banana")
+	if err := json.Unmarshal([]byte(raw), &body); err != nil {
+		t.Fatalf("not JSON: %s", raw)
+	}
+	if len(body.Options) != 1 || body.Options[0].Label != "banana" {
+		t.Fatalf("q=banana returned %d options, want just banana", len(body.Options))
+	}
+
+	raw = getBody(t, srv.URL+"/admin/combo_rows/_options?field=Tags")
+	body.Options = nil
+	if err := json.Unmarshal([]byte(raw), &body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body.Options) != 50 {
+		t.Errorf("an unfiltered page returned %d options, want 50", len(body.Options))
+	}
+	if !body.More {
+		t.Error("the reply should say more were left out, so the reader is told to keep typing")
 	}
 }
 

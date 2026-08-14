@@ -121,9 +121,15 @@ func registerResources(app *steward.Admin) {
 			// exercises the multi-select combobox, which the browser harness
 			// then drives.
 			f.MultiSelect("Topics", "Topics").
-				Options(steward.Options{
-					"go": "Go", "css": "CSS", "sql": "SQL",
-					"html": "HTML", "http": "HTTP",
+				OptionsFunc(func(*steward.Context) steward.Options {
+					// Deliberately larger than one page, so the example
+					// exercises the fetch rather than the baked-in list.
+					opts := steward.Options{"go": "Go", "css": "CSS", "sql": "SQL"}
+					for i := 1; i <= 300; i++ {
+						id := fmt.Sprintf("topic-%d", i)
+						opts[id] = fmt.Sprintf("Topic %d", i)
+					}
+					return opts
 				}).
 				Help("Filter by typing; pick as many as apply.")
 			f.Image("Cover").Dir("posts").MaxSize(2 << 20)

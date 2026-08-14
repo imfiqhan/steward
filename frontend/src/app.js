@@ -953,6 +953,115 @@ window.htmx = htmx;
   document.addEventListener("DOMContentLoaded", initIconPickers);
   document.addEventListener("htmx:afterSettle", initIconPickers);
 
+  /* ---- Multi-select: suggestions from the server ---------------------------- */
+  /*
+   * The field renders one page of options and fetches the rest as the reader
+   * types, because a list of several thousand costs more to ship and parse than
+   * the whole rest of the page.
+   *
+   * The component is told the filtering is not its own (data-filter="manual"),
+   * so it shows whatever the listbox holds; this replaces those children and
+   * asks it to rescan. Selected entries are left in place: the component reads
+   * a chip's label from the stored selection, but an option still in the list
+   * is what lets it be unticked.
+   */
+
+  var OPTION_DEBOUNCE_MS = 200;
+
+  function optionEl(opt, selected) {
+    var el = document.createElement("div");
+    el.setAttribute("role", "option");
+    el.dataset.value = opt.value;
+    el.dataset.label = opt.label;
+    if (selected) el.setAttribute("aria-selected", "true");
+    el.textContent = opt.label;
+    return el;
+  }
+
+  function selectedValues(root) {
+    var hidden = root.querySelector('input[type="hidden"]');
+    if (!hidden || !hidden.value) return [];
+    try {
+      var parsed = JSON.parse(hidden.value);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map(function (e) {
+        return e && typeof e === "object" ? String(e.value) : String(e);
+      });
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function fillOptions(root, listbox, opts, more) {
+    var held = selectedValues(root);
+    var frag = document.createDocumentFragment();
+    var seen = {};
+    opts.forEach(function (o) {
+      seen[String(o.value)] = true;
+      frag.appendChild(optionEl(o, held.indexOf(String(o.value)) >= 0));
+    });
+    // Keep what is already chosen reachable even when it does not match the
+    // query, so a chip can always be unticked from the list it came from.
+    root.querySelectorAll('[role="option"][aria-selected="true"]').forEach(function (el) {
+      if (!seen[el.dataset.value]) {
+        frag.appendChild(optionEl({ value: el.dataset.value, label: el.dataset.label }, true));
+      }
+    });
+    listbox.replaceChildren(frag);
+    listbox.dataset.empty = more
+      ? "Too many matches — keep typing."
+      : (opts.length === 0 ? "No matches." : "");
+    if (typeof root.refresh === "function") root.refresh();
+  }
+
+  function initOptionSearch(root) {
+    if (root.dataset.stewardOptionsBound === "1") return;
+    var url = root.dataset.stewardOptions;
+    var input = root.querySelector('input[role="combobox"]');
+    var listbox = root.querySelector('[role="listbox"]');
+    if (!url || !input || !listbox) return;
+    root.dataset.stewardOptionsBound = "1";
+
+    var timer = null;
+    var inFlight = null;
+    var lastQuery = null;
+
+    function load(query) {
+      if (query === lastQuery) return;
+      lastQuery = query;
+      // A reply that arrives after a later one would show stale suggestions.
+      if (inFlight) inFlight.abort();
+      var ctrl = new AbortController();
+      inFlight = ctrl;
+      fetch(url + "&q=" + encodeURIComponent(query), {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+        signal: ctrl.signal,
+      })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (body) {
+          if (!body || ctrl.signal.aborted) return;
+          fillOptions(root, listbox, body.options || [], !!body.more);
+        })
+        .catch(function () { /* the list keeps what it has */ });
+    }
+
+    input.addEventListener("input", function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () { load(input.value.trim()); }, OPTION_DEBOUNCE_MS);
+    });
+    // The first open should show the server's page rather than the one baked
+    // into the HTML, which may be stale by the time the form is opened.
+    input.addEventListener("focus", function () { load(input.value.trim()); }, { once: true });
+  }
+
+  function initOptionSearches() {
+    document.querySelectorAll("[data-steward-options]").forEach(initOptionSearch);
+  }
+
+  document.addEventListener("DOMContentLoaded", initOptionSearches);
+  document.addEventListener("htmx:afterSettle", initOptionSearches);
+
   /* ---- Grid: horizontal scroll state --------------------------------------- */
   /*
    * Flags a table container that is scrolled away from its trailing edge, which

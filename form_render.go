@@ -47,7 +47,9 @@ type formFieldVM struct {
 	// SelectedJSON is a MultiSelect's selection as a JSON array, which is what
 	// the combobox stores in its hidden input and submits.
 	SelectedJSON string
-	Errors       []string
+	// OptionsURL is where a manually-filtered combobox fetches its suggestions.
+	OptionsURL string
+	Errors     []string
 }
 
 // iconChoiceVM is one option in an Icon field's picker. It carries the name
@@ -165,19 +167,22 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			}
 			sortOptions(fv.Options)
 		case FieldMultiSelect:
-			opts := fd.options
-			if fd.optionsFn != nil {
-				opts = fd.optionsFn(c)
-			}
 			var selected []string
 			if fd.valuesFn != nil && row != nil {
 				selected = fd.valuesFn(c, row)
 			}
+			opts := fd.choices(c)
 			for val, label := range opts {
 				fv.Options = append(fv.Options, optionVM{Value: val, Label: label, Selected: slices.Contains(selected, val)})
 			}
 			sortOptions(fv.Options)
 			fv.SelectedJSON = selectedJSON(fv.Options)
+			// Only what the field needs before the reader types: the current
+			// selection, and enough suggestions to make the first open useful.
+			// The rest is a fetch away, which is what keeps a page holding
+			// thousands of options from carrying all of them.
+			fv.Options = firstPage(fv.Options)
+			fv.OptionsURL = c.URL(m.slug, "_options") + "?field=" + url.QueryEscape(fd.path)
 		case FieldIcon:
 			rend := c.Admin.renderer
 			for _, name := range rend.iconNames() {
@@ -301,20 +306,64 @@ func sortOptions(opts []optionVM) {
 	})
 }
 
-// selectedJSON renders a MultiSelect's selection the way its combobox stores it:
-// a JSON array in one hidden input, rather than one input per value.
-func selectedJSON(opts []optionVM) string {
-	vals := make([]string, 0, len(opts))
+// firstPage keeps the selection and enough of the rest to fill one page, so a
+// field over thousands of options renders a page rather than a catalogue.
+func firstPage(opts []optionVM) []optionVM {
+	out := make([]optionVM, 0, optionSearchLimit)
 	for _, o := range opts {
 		if o.Selected {
-			vals = append(vals, o.Value)
+			out = append(out, o)
 		}
 	}
-	out, err := json.Marshal(vals)
+	for _, o := range opts {
+		if len(out) >= optionSearchLimit {
+			break
+		}
+		if !o.Selected {
+			out = append(out, o)
+		}
+	}
+	return out
+}
+
+// selectedJSON renders a MultiSelect's selection the way its combobox stores it.
+//
+// Objects rather than bare values, because the suggestion list is fetched and
+// replaced as the reader types: a chip whose option is no longer in the DOM has
+// nowhere else to read its label from, and would show its id instead.
+func selectedJSON(opts []optionVM) string {
+	sel := make([]map[string]string, 0)
+	for _, o := range opts {
+		if o.Selected {
+			sel = append(sel, map[string]string{"value": o.Value, "label": o.Label})
+		}
+	}
+	out, err := json.Marshal(sel)
 	if err != nil {
 		return "[]"
 	}
 	return string(out)
+}
+
+// decodeSelection reads a combobox's submitted array, in either shape it can
+// take: bare values, or the {value,label} objects a manually-filtered field
+// stores so its chips keep their text.
+func decodeSelection(raw string) ([]string, bool) {
+	var entries []struct {
+		Value string `json:"value"`
+	}
+	if err := json.Unmarshal([]byte(raw), &entries); err == nil {
+		vals := make([]string, 0, len(entries))
+		for _, e := range entries {
+			vals = append(vals, e.Value)
+		}
+		return vals, true
+	}
+	var vals []string
+	if err := json.Unmarshal([]byte(raw), &vals); err == nil {
+		return vals, true
+	}
+	return nil, false
 }
 
 // expandMultiSelects turns each MultiSelect's submitted JSON array back into
@@ -339,8 +388,8 @@ func (t *typedResource[T]) expandMultiSelects(c *Context) {
 		if len(raw) != 1 || !strings.HasPrefix(strings.TrimSpace(raw[0]), "[") {
 			continue
 		}
-		var vals []string
-		if err := json.Unmarshal([]byte(raw[0]), &vals); err != nil {
+		vals, ok := decodeSelection(raw[0])
+		if !ok {
 			continue
 		}
 		c.R.Form[fd.path] = vals
@@ -617,13 +666,51 @@ func (t *typedResource[T]) optionsJSON(c *Context) error {
 			}
 			return c.JSON(http.StatusOK, map[string]any{"options": opts})
 		}
-		opts := fd.options
-		if fd.optionsFn != nil {
-			opts = fd.optionsFn(c)
+		if fd.kind == FieldMultiSelect {
+			list, more := searchOptions(fd.choices(c), c.R.URL.Query().Get("q"))
+			out := make([]map[string]string, 0, len(list))
+			for _, o := range list {
+				out = append(out, map[string]string{"value": o.Value, "label": o.Label})
+			}
+			return c.JSON(http.StatusOK, map[string]any{"options": out, "more": more})
 		}
-		return c.JSON(http.StatusOK, map[string]any{"options": opts})
+		return c.JSON(http.StatusOK, map[string]any{"options": fd.choices(c)})
 	}
 	return c.JSON(http.StatusNotFound, Error("unknown field"))
+}
+
+// optionSearchLimit bounds one page of a combobox's suggestions. The list is
+// there to be typed at, not scrolled through.
+const optionSearchLimit = 50
+
+// choices resolves a field's options, whichever way they were declared.
+func (fd *Field[T]) choices(c *Context) Options {
+	if fd.optionsFn != nil {
+		return fd.optionsFn(c)
+	}
+	return fd.options
+}
+
+// searchOptions filters, orders and truncates a field's options, reporting
+// whether anything was left out so the reader can be told to keep typing.
+//
+// The match runs in Go rather than SQL: options arrive as a map from whatever
+// OptionsFunc chose to do, and the framework cannot push a predicate into a
+// query it never saw.
+func searchOptions(opts Options, query string) (list []optionVM, more bool) {
+	q := strings.ToLower(strings.TrimSpace(query))
+	list = make([]optionVM, 0, len(opts))
+	for val, label := range opts {
+		if q != "" && !strings.Contains(strings.ToLower(label), q) {
+			continue
+		}
+		list = append(list, optionVM{Value: val, Label: label})
+	}
+	sortOptions(list)
+	if len(list) > optionSearchLimit {
+		return list[:optionSearchLimit], true
+	}
+	return list, false
 }
 
 // uploadFile handles POST {slug}/_upload?field=X (multipart "file").
