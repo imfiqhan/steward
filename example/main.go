@@ -117,6 +117,15 @@ func registerResources(app *steward.Admin) {
 			})
 			f.Datetime("PublishedAt", "Published at").Help("Set automatically when publishing.")
 			f.BelongsTo("AuthorID", "Author", "Name", "Author").Rules("required")
+			// Virtual: nothing on the model backs it. It is here so the example
+			// exercises the multi-select combobox, which the browser harness
+			// then drives.
+			f.MultiSelect("Topics", "Topics").
+				Options(steward.Options{
+					"go": "Go", "css": "CSS", "sql": "SQL",
+					"html": "HTML", "http": "HTTP",
+				}).
+				Help("Filter by typing; pick as many as apply.")
 			f.Image("Cover").Dir("posts").MaxSize(2 << 20)
 			f.Saving(func(c *steward.Context, p *models.Post) error {
 				if p.Status == "published" && p.PublishedAt == nil {

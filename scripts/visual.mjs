@@ -192,6 +192,47 @@ await page.keyboard.press("Enter");
 await page.waitForTimeout(700);
 check(/\/authors\/\d/.test(page.url()), `Enter activates the highlighted item (${page.url()})`);
 
+// --- multi-select combobox ----------------------------------------------------
+// The widget's whole point is that it filters and holds several values, and its
+// hidden input is what the server receives. None of that is visible in markup.
+await page.goto(BASE + "/posts/1/edit");
+const hasCombo = await page.locator(".combobox [role=listbox][aria-multiselectable=true]").count();
+if (hasCombo) {
+  const box = page.locator(".combobox").first();
+  const input = box.locator("input[role=combobox]");
+  const hidden = box.locator("input[type=hidden]");
+
+  const before = await hidden.inputValue();
+  check(before.trim().startsWith("["), `the hidden input holds a JSON array (${before})`);
+
+  await input.click();
+  await page.waitForTimeout(200);
+  const opened = await box.locator("[data-popover]").getAttribute("aria-hidden");
+  check(opened === "false", "clicking the input opens the list");
+
+  const total = await box.locator("[role=option]").count();
+  const label = await box.locator("[role=option]").first().getAttribute("data-label");
+  await input.fill(label.slice(0, 3));
+  await page.waitForTimeout(250);
+  const visible = await box.locator("[role=option]:visible").count();
+  check(visible > 0 && visible <= total, `typing filters the list (${visible}/${total})`);
+
+  await box.locator("[role=option]:visible").first().click();
+  await page.waitForTimeout(200);
+  const after = await hidden.inputValue();
+  let parsed = [];
+  try { parsed = JSON.parse(after); } catch { /* reported below */ }
+  check(Array.isArray(parsed), `selecting writes JSON to the hidden input (${after})`);
+  check(JSON.stringify(parsed) !== before, "the selection actually changed the submitted value");
+
+  // Chips are how multiple mode shows what is held; without aria-multiselectable
+  // the component would silently behave as a single select.
+  const chips = await box.locator("[data-chip], .combobox [role=option][aria-selected=true]").count();
+  check(chips > 0 || parsed.length > 0, "the selection is represented in the control");
+} else {
+  check(false, "the posts form renders a multi-select combobox");
+}
+
 await page.screenshot({
   path: "/tmp/steward-visual.png",
   fullPage: false,

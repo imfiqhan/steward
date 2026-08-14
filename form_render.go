@@ -1,6 +1,7 @@
 package steward
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -9,6 +10,7 @@ import (
 	"path"
 	"reflect"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -42,7 +44,10 @@ type formFieldVM struct {
 	CurrentIcon template.HTML
 	UploadURL   string
 	PreviewURL  string
-	Errors      []string
+	// SelectedJSON is a MultiSelect's selection as a JSON array, which is what
+	// the combobox stores in its hidden input and submits.
+	SelectedJSON string
+	Errors       []string
 }
 
 // iconChoiceVM is one option in an Icon field's picker. It carries the name
@@ -158,6 +163,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			for val, label := range opts {
 				fv.Options = append(fv.Options, optionVM{Value: val, Label: label, Selected: val == fv.Value})
 			}
+			sortOptions(fv.Options)
 		case FieldMultiSelect:
 			opts := fd.options
 			if fd.optionsFn != nil {
@@ -170,6 +176,8 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			for val, label := range opts {
 				fv.Options = append(fv.Options, optionVM{Value: val, Label: label, Selected: slices.Contains(selected, val)})
 			}
+			sortOptions(fv.Options)
+			fv.SelectedJSON = selectedJSON(fv.Options)
 		case FieldIcon:
 			rend := c.Admin.renderer
 			for _, name := range rend.iconNames() {
@@ -280,6 +288,68 @@ func (t *typedResource[T]) update(c *Context) error {
 
 // save is the shared create/update pipeline: hooks → validate → decode →
 // persist → envelope.
+// sortOptions orders a field's choices by what the reader sees. Options are
+// declared as a map, whose iteration order Go randomises, so without this a
+// select's contents move between requests.
+func sortOptions(opts []optionVM) {
+	sort.SliceStable(opts, func(i, j int) bool {
+		a, b := opts[i], opts[j]
+		if strings.EqualFold(a.Label, b.Label) {
+			return a.Value < b.Value
+		}
+		return strings.ToLower(a.Label) < strings.ToLower(b.Label)
+	})
+}
+
+// selectedJSON renders a MultiSelect's selection the way its combobox stores it:
+// a JSON array in one hidden input, rather than one input per value.
+func selectedJSON(opts []optionVM) string {
+	vals := make([]string, 0, len(opts))
+	for _, o := range opts {
+		if o.Selected {
+			vals = append(vals, o.Value)
+		}
+	}
+	out, err := json.Marshal(vals)
+	if err != nil {
+		return "[]"
+	}
+	return string(out)
+}
+
+// expandMultiSelects turns each MultiSelect's submitted JSON array back into
+// repeated form values.
+//
+// The combobox submits one hidden input holding `["1","2"]`. Every handler and
+// hook reads c.R.Form[name] as a plain list, and that is the contract worth
+// keeping — so the shape the widget happens to use is undone here, once, rather
+// than in every application that reads one.
+//
+// A value that is not a JSON array is left alone, so a plain <select multiple>,
+// or a client posting the field the ordinary way, still works.
+func (t *typedResource[T]) expandMultiSelects(c *Context) {
+	if c.R.Form == nil {
+		return
+	}
+	for _, fd := range t.form.fields {
+		if fd.kind != FieldMultiSelect {
+			continue
+		}
+		raw := c.R.Form[fd.path]
+		if len(raw) != 1 || !strings.HasPrefix(strings.TrimSpace(raw[0]), "[") {
+			continue
+		}
+		var vals []string
+		if err := json.Unmarshal([]byte(raw[0]), &vals); err != nil {
+			continue
+		}
+		c.R.Form[fd.path] = vals
+		if c.R.PostForm != nil {
+			c.R.PostForm[fd.path] = vals
+		}
+	}
+}
+
 func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	f := t.form
 	if f.submittedFn != nil {
@@ -290,6 +360,8 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	if err := c.R.ParseMultipartForm(32 << 20); err != nil && !errors.Is(err, http.ErrNotMultipart) {
 		return err
 	}
+	// Before anything reads the form, so a hook sees the ordinary shape.
+	t.expandMultiSelects(c)
 
 	// Load the target model.
 	var m *T

@@ -56,10 +56,27 @@
     </select>
 
   {{else if eq .Kind "multiselect"}}
-    <select id="field-{{.Name}}" name="{{.Name}}" class="select w-full min-h-24" multiple {{if .Disabled}}disabled{{end}}>
-      {{range .Options}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}
-    </select>
-    <p class="text-sm text-muted-foreground">Hold ⌘/Ctrl to select multiple.</p>
+    {{/* The visible input filters; the hidden one carries the selection as a
+         JSON array, which the server expands back into repeated form values so
+         a handler still reads a plain list. */}}
+    <div id="field-{{.Name}}-combobox" class="combobox w-full" data-auto-highlight="true">
+      <input type="text" role="combobox" id="field-{{.Name}}"
+             placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}Type to search…{{end}}"
+             autocomplete="off" autocorrect="off" spellcheck="false"
+             aria-autocomplete="list" aria-expanded="false"
+             aria-controls="field-{{.Name}}-listbox"
+             {{if .Errors}}aria-invalid="true"{{end}} {{if .Disabled}}disabled{{end}}/>
+      <div id="field-{{.Name}}-popover" data-popover aria-hidden="true">
+        <div role="listbox" id="field-{{.Name}}-listbox" class="scrollbar-sm"
+             aria-orientation="vertical" aria-multiselectable="true"
+             data-empty="No matches.">
+          {{range .Options}}
+          <div role="option" data-value="{{.Value}}" data-label="{{.Label}}">{{.Label}}</div>
+          {{end}}
+        </div>
+      </div>
+      <input type="hidden" name="{{.Name}}" value="{{.SelectedJSON}}"/>
+    </div>
 
   {{else if eq .Kind "radio"}}
     <div role="radiogroup" aria-label="{{.Label}}" data-slot="radio-group" class="flex flex-wrap gap-4">
