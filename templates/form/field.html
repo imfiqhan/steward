@@ -84,11 +84,11 @@
                {{if .Errors}}aria-invalid="true"{{end}} {{if .Disabled}}disabled{{end}}/>
         <span role="group" data-align="inline-end">
           {{if not .Required}}
-          {{/* Sized explicitly: this is not a .btn, so the rule that shrinks a
-               button's icon does not reach it and the glyph keeps its intrinsic
-               24px. */}}
+          {{/* Sized explicitly: this is not a .btn, so the rule that sizes a
+               button's glyph does not reach it and it would keep its intrinsic
+               24px. size-3 is what icon-xs gives the buttons beside it. */}}
           <button type="button" data-clear aria-label="Clear {{.Label}}">
-            {{icon "x" "size-4"}}
+            {{icon "x" "size-3"}}
           </button>
           {{end}}
           <button type="button" class="btn" data-variant="ghost" data-size="icon-xs"
@@ -155,7 +155,7 @@
       {{/* Empty state: the whole box is the target, for a click or a drop. */}}
       <button type="button" class="steward-upload-drop" data-steward-upload-pick
               {{if .Value}}hidden{{end}} {{if .Disabled}}disabled{{end}}>
-        {{icon "upload" "size-5"}}
+        {{icon "upload" "size-4"}}
         <span class="steward-upload-prompt">
           <span class="steward-upload-action">Choose a file</span>
           <span class="steward-upload-hint">or drag it here</span>
@@ -174,16 +174,18 @@
              src="{{.PreviewURL}}" alt="" {{if not .PreviewURL}}hidden{{end}}/>
         {{end}}
         <span class="steward-upload-icon" data-steward-upload-icon
-              {{if eq .Kind "image"}}hidden{{end}}>{{icon "file" "size-5"}}</span>
+              {{if eq .Kind "image"}}hidden{{end}}>{{icon "file" "size-4"}}</span>
         <span class="steward-upload-meta">
           <a class="steward-upload-name" data-steward-upload-link
              href="{{.PreviewURL}}" target="_blank" rel="noopener">{{.FileName}}</a>
           <span class="steward-upload-note" data-steward-upload-note hidden></span>
         </span>
         {{if not .Disabled}}
-        <button type="button" class="btn" data-variant="ghost" data-size="icon-sm"
+        {{/* icon-xs, like every other icon button on a form: it sizes its own
+             glyph, so passing one would override that and stand out. */}}
+        <button type="button" class="btn" data-variant="ghost" data-size="icon-xs"
                 data-steward-upload-remove aria-label="Remove {{.Label}}">
-          {{icon "x" "size-4"}}
+          {{icon "x"}}
         </button>
         {{end}}
       </div>

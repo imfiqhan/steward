@@ -406,10 +406,11 @@ func TestSingleSelectRendersCombobox(t *testing.T) {
 	if !strings.Contains(page, `data-clear`) {
 		t.Error("an optional select has no way to clear its value")
 	}
-	// The clear button is not a .btn, so the rule that shrinks a button's icon
-	// does not reach it: without a size the glyph renders at its intrinsic 24px,
-	// twice the height of the control beside it.
-	if !strings.Contains(page, `<svg class="size-4 lucide lucide-x"`) {
-		t.Error("the clear icon carries no size, so it renders at 24px")
+	// The clear button is not a .btn, so the rule that sizes a button's glyph
+	// does not reach it: without a size it renders at its intrinsic 24px. size-3
+	// is what icon-xs gives the buttons beside it, and matching them is the
+	// point — an icon button on a form is 24px holding 12px.
+	if !strings.Contains(page, `<svg class="size-3 lucide lucide-x"`) {
+		t.Error("the clear icon is not the size of the icon buttons beside it")
 	}
 }
