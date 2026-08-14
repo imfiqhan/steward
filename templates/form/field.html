@@ -63,6 +63,18 @@
     <div id="field-{{.Name}}-combobox" class="combobox w-full" data-auto-highlight="true"
          {{if .Search}}data-filter="manual" data-steward-options="{{.OptionsURL}}"{{end}}
          {{if .Multiple}}data-format="object"{{end}}>
+      {{if .Multiple}}
+      {{/* Bare, and a direct child of the root: a multi-select's input is moved
+           into a chip surface by the component, and it gives up silently when
+           the input turns out to be nested in anything. Chips carry their own
+           remove buttons, so the clear button below would be redundant. */}}
+      <input type="text" role="combobox" id="field-{{.Name}}"
+             placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}Type to search…{{end}}"
+             autocomplete="off" autocorrect="off" spellcheck="false"
+             aria-autocomplete="list" aria-expanded="false"
+             aria-controls="field-{{.Name}}-listbox"
+             {{if .Errors}}aria-invalid="true"{{end}} {{if .Disabled}}disabled{{end}}/>
+      {{else}}
       <div class="input-group">
         <input type="text" role="combobox" id="field-{{.Name}}"
                placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}Type to search…{{end}}"
@@ -83,6 +95,7 @@
           </button>
         </span>
       </div>
+      {{end}}
       <div id="field-{{.Name}}-popover" data-popover aria-hidden="true">
         <div role="listbox" id="field-{{.Name}}-listbox" class="scrollbar-sm"
              aria-orientation="vertical" {{if .Multiple}}aria-multiselectable="true"{{end}}

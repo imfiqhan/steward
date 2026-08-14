@@ -256,10 +256,19 @@ if (hasCombo) {
   check(Array.isArray(parsed), `selecting writes JSON to the hidden input (${after})`);
   check(JSON.stringify(parsed) !== before, "the selection actually changed the submitted value");
 
-  // Chips are how multiple mode shows what is held; without aria-multiselectable
-  // the component would silently behave as a single select.
-  const chips = await box.locator("[data-chip], .combobox [role=option][aria-selected=true]").count();
-  check(chips > 0 || parsed.length > 0, "the selection is represented in the control");
+  // Chips are how a multiple combobox shows what is held. The component builds
+  // them by moving the input into its own wrapper, and gives up silently when
+  // the input is nested in anything — so a selection that exists in the hidden
+  // input but has no chip means the control is rendering a selection nobody can
+  // see. Asserted on the chips alone: an earlier version of this check also
+  // accepted the hidden input, and passed while every chip was missing.
+  const chips = await box.locator(".combobox-chip").count();
+  check(chips === parsed.length,
+    `every selected value has a chip (${chips} chips, ${parsed.length} selected)`);
+  const inputIsDirectChild = await box.evaluate((root) =>
+    root.querySelector('input[role="combobox"]').closest(".combobox-chips, .combobox") === root ||
+    root.querySelector('input[role="combobox"]').parentElement.classList.contains("combobox-chips"));
+  check(inputIsDirectChild, "the input sits where the chip surface can take it");
 } else {
   check(false, "the posts form renders a multi-select combobox");
 }
