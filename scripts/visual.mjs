@@ -224,6 +224,20 @@ if (hasCombo) {
   check(stillMatches.toLowerCase().includes(label.slice(0, 3).toLowerCase()),
     `what came back matches the query (${stillMatches})`);
 
+  // The query has to survive the fetch. refresh() re-applies the stored
+  // selection, and for a multiple combobox that empties the input — right after
+  // picking a chip, wrong while the reader is still typing. It wiped what they
+  // had typed about 200ms after they stopped.
+  await input.fill("");
+  await page.waitForTimeout(400);
+  for (const ch of label.slice(0, 3)) {
+    await input.press(ch);
+    await page.waitForTimeout(120);
+  }
+  await page.waitForTimeout(600);
+  check((await input.inputValue()) === label.slice(0, 3),
+    `the typed query survives the fetch (${JSON.stringify(await input.inputValue())})`);
+
   // A query with no matches must not leave the previous list on screen.
   await input.fill("zzzzqqq");
   await page.waitForTimeout(600);

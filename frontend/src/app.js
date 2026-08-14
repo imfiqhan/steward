@@ -966,7 +966,10 @@ window.htmx = htmx;
    * is what lets it be unticked.
    */
 
-  var OPTION_DEBOUNCE_MS = 200;
+  // Short enough that an ordinary typing pace gets the list updating as it
+  // goes, long enough that a fast burst is still one request. The endpoint
+  // answers in about 50ms, so waiting longer buys nothing.
+  var OPTION_DEBOUNCE_MS = 120;
 
   function optionEl(opt, selected) {
     var el = document.createElement("div");
@@ -1011,7 +1014,19 @@ window.htmx = htmx;
     listbox.dataset.empty = more
       ? "Too many matches — keep typing."
       : (opts.length === 0 ? "No matches." : "");
+
+    // refresh() re-applies the stored selection, and for a multiple combobox
+    // that empties the query box — which is right after picking a chip and
+    // wrong here, where the reader is still typing. Only the single-select path
+    // puts the text back, so this does.
+    var input = root.querySelector('input[role="combobox"]');
+    var typed = input ? input.value : null;
+    var at = input ? input.selectionStart : null;
     if (typeof root.refresh === "function") root.refresh();
+    if (input && typed !== null && input.value !== typed) {
+      input.value = typed;
+      if (at !== null && input.setSelectionRange) input.setSelectionRange(at, at);
+    }
   }
 
   function initOptionSearch(root) {
