@@ -170,8 +170,10 @@
       {{/* Filled state: what is held, named, with a way out of it. */}}
       <div class="steward-upload-current" data-steward-upload-current {{if not .Value}}hidden{{end}}>
         {{if eq .Kind "image"}}
-        <img class="steward-upload-thumb" data-steward-upload-thumb
-             src="{{.PreviewURL}}" alt="" {{if not .PreviewURL}}hidden{{end}}/>
+        {{/* No src attribute when there is nothing to show: an empty one
+             resolves to the page's own URL. */}}
+        <img class="steward-upload-thumb" data-steward-upload-thumb alt=""
+             {{with .PreviewURL}}src="{{.}}"{{else}}hidden{{end}}/>
         {{end}}
         <span class="steward-upload-icon" data-steward-upload-icon
               {{if eq .Kind "image"}}hidden{{end}}>{{icon "file" "size-4"}}</span>

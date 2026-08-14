@@ -145,10 +145,12 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 		Creating:  creating,
 		CancelURL: c.URL(m.slug),
 	}
+	var rowID string
 	if creating {
 		vm.Action, vm.Method = c.URL(m.slug), "POST"
 	} else {
-		vm.Action, vm.Method = c.URL(m.slug, t.rowKey(row)), "PUT"
+		rowID = t.rowKey(row)
+		vm.Action, vm.Method = c.URL(m.slug, rowID), "PUT"
 	}
 	for _, fd := range t.form.fields {
 		if fd.divider {
@@ -231,7 +233,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			fv.Search = true
 			fv.OptionsURL = optionsURL(c, m.slug, fd.path)
 		case FieldFile, FieldImage:
-			fv.UploadURL = c.URL(m.slug, "_upload") + "?field=" + url.QueryEscape(fd.path)
+			fv.UploadURL = uploadURL(c, m.slug, fd.path, rowID)
 			if fv.Value != "" {
 				fv.PreviewURL = c.Admin.cfg.Storage.URL(fv.Value)
 				fv.FileName = displayFileName(fv.Value)
@@ -239,7 +241,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			fv.MaxSizeLabel = sizeLabel(fd.maxSize)
 			fv.AcceptLabel = acceptLabel(fd.accept)
 		case FieldFiles, FieldImages:
-			fv.UploadURL = c.URL(m.slug, "_upload") + "?field=" + url.QueryEscape(fd.path)
+			fv.UploadURL = uploadURL(c, m.slug, fd.path, rowID)
 			fv.MaxSizeLabel = sizeLabel(fd.maxSize)
 			fv.AcceptLabel = acceptLabel(fd.accept)
 			fv.MaxFiles = fd.maxFiles
@@ -263,6 +265,17 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 		vm.Nested = append(vm.Nested, nvm)
 	}
 	return vm
+}
+
+// uploadURL is where a field posts a file. On an edit it carries the record, so
+// the endpoint can ask whether this caller may update that row rather than
+// settling for whether they may look at the resource.
+func uploadURL(c *Context, slug, field, id string) string {
+	u := c.URL(slug, "_upload") + "?field=" + url.QueryEscape(field)
+	if id != "" {
+		u += "&id=" + url.QueryEscape(id)
+	}
+	return u
 }
 
 // optionsURL is where a field's combobox fetches its suggestions.
@@ -586,6 +599,17 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 		return c.Envelope(ValidationErrors(errs))
 	}
 
+	// What the upload fields hold before this save, so anything they stop
+	// referencing afterwards can be cleared out of storage.
+	held := map[string][]string{}
+	if !creating {
+		for _, w := range writes {
+			if isUploadKind(w.fd.kind) {
+				held[w.fd.path] = decodePaths(w.fd.valueString(m))
+			}
+		}
+	}
+
 	for _, w := range writes {
 		if err := setField(m, w.fd.info, w.val); err != nil {
 			return fmt.Errorf("setting %s: %w", w.fd.path, err)
@@ -607,6 +631,7 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	if err != nil {
 		return err
 	}
+	t.dropReplacedUploads(c, m, held)
 	for i, n := range f.nested {
 		if err := n.persist(c, m, nestedPayloads[i]); err != nil {
 			return fmt.Errorf("saving %s rows: %w", n.fieldName(), err)
@@ -795,7 +820,16 @@ func searchOptions(opts Options, query string) (list []optionVM, more bool) {
 // Gated by ViewAny only: the form may be a create or an edit, and the
 // written model is policy-checked again at save time.
 func (t *typedResource[T]) uploadFile(c *Context) error {
-	if !t.canViewAny(c) {
+	// Writing a file is a write. Gating this on being able to see the resource
+	// let anyone with read access put bytes in storage, and the file lands
+	// before the form is ever submitted, so the save-time check comes too late
+	// to be the one that matters.
+	if id := c.R.URL.Query().Get("id"); id != "" {
+		row, err := t.repo.Find(c.Ctx(), id)
+		if err != nil || !t.canUpdate(c, row) {
+			return t.denyPolicy(c)
+		}
+	} else if !t.canCreate(c) {
 		return t.denyPolicy(c)
 	}
 	name := c.R.URL.Query().Get("field")
@@ -1067,4 +1101,40 @@ func decodePaths(raw string) []string {
 		}
 	}
 	return []string{raw}
+}
+
+// dropReplacedUploads removes files a record has stopped referencing.
+//
+// It runs after the row is saved, and its failures are logged rather than
+// returned: the record is written, and a file left behind is not worth turning a
+// successful save into an error the person who saved it can do nothing about.
+//
+// This covers what replacing and removing leave behind, which is where orphans
+// actually come from. It does not cover a file uploaded into a form that was
+// then abandoned — nothing knows that happened — nor deleting a record's files
+// with the record, because a soft-deleted row can come back and would find its
+// files gone.
+func (t *typedResource[T]) dropReplacedUploads(c *Context, m *T, held map[string][]string) {
+	if len(held) == 0 {
+		return
+	}
+	for _, fd := range t.form.fields {
+		before := held[fd.path]
+		if len(before) == 0 {
+			continue
+		}
+		after := map[string]bool{}
+		for _, p := range decodePaths(fd.valueString(m)) {
+			after[p] = true
+		}
+		for _, p := range before {
+			if p == "" || after[p] {
+				continue
+			}
+			if err := c.Admin.cfg.Storage.Delete(c.Ctx(), p); err != nil {
+				c.Admin.log.Warn("steward: removing a replaced upload",
+					"field", fd.path, "path", p, "err", err)
+			}
+		}
+	}
 }
