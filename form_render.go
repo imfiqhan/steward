@@ -315,6 +315,13 @@ func previewURL(c *Context, slug, field, id string) string {
 	return u
 }
 
+// filterOptionsURL is where a grid filter's combobox fetches its suggestions.
+// The parameter is named separately from a form field's because a filter is
+// addressed by its query parameter, not by a model path.
+func filterOptionsURL(c *Context, slug, param string) string {
+	return c.URL(slug, "_options") + "?filter=" + url.QueryEscape(param)
+}
+
 // optionsURL is where a field's combobox fetches its suggestions.
 func optionsURL(c *Context, slug, field string) string {
 	return c.URL(slug, "_options") + "?field=" + url.QueryEscape(field)
@@ -793,6 +800,20 @@ func (t *typedResource[T]) schemaJSON(c *Context) error {
 func (t *typedResource[T]) optionsJSON(c *Context) error {
 	if !t.canViewAny(c) {
 		return t.denyPolicy(c)
+	}
+	if param := c.R.URL.Query().Get("filter"); param != "" {
+		for _, fi := range t.grid.filters {
+			if filterParam(fi.path) != param {
+				continue
+			}
+			list, more := searchOptions(fi.choices(c), c.R.URL.Query().Get("q"))
+			out := make([]map[string]string, 0, len(list))
+			for _, o := range list {
+				out = append(out, map[string]string{"value": o.Value, "label": o.Label})
+			}
+			return c.JSON(http.StatusOK, map[string]any{"options": out, "more": more})
+		}
+		return c.JSON(http.StatusNotFound, Error("unknown filter"))
 	}
 	name := c.R.URL.Query().Get("field")
 	for _, fd := range t.form.fields {

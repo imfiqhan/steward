@@ -387,8 +387,17 @@ type FilterItem[T any] struct {
 	op          Op
 	input       filterInput
 	options     Options
+	optionsFn   func(*Context) Options
 	placeholder string
 	info        *fieldInfo
+}
+
+// choices resolves a filter's options, whichever way they were declared.
+func (fi *FilterItem[T]) choices(c *Context) Options {
+	if fi.optionsFn != nil {
+		return fi.optionsFn(c)
+	}
+	return fi.options
 }
 
 // GridActionStyle selects how a row's actions are presented.
@@ -467,6 +476,15 @@ func (f *Filters[T]) Date(path string, label ...string) *FilterItem[T] {
 func (fi *FilterItem[T]) Select(o Options) *FilterItem[T] {
 	fi.input = inputSelect
 	fi.options = o
+	return fi
+}
+
+// SelectFunc renders the filter as a dropdown whose options are resolved per
+// request. Select takes its map once, when the resource is registered, so a
+// list read from the database there is both loaded at boot and never refreshed.
+func (fi *FilterItem[T]) SelectFunc(fn func(*Context) Options) *FilterItem[T] {
+	fi.input = inputSelect
+	fi.optionsFn = fn
 	return fi
 }
 

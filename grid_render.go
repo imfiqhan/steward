@@ -249,6 +249,13 @@ type filterVM struct {
 	Value2      string
 	Placeholder string
 	Options     []optionVM
+	// Search says the list is too long to ship whole, so the control carries
+	// its first page and fetches the rest from OptionsURL as the reader types.
+	Search     bool
+	OptionsURL string
+	// SelectedLabel is what a combobox shows for the value it holds: the label
+	// may not be on the page at all once the list is paged.
+	SelectedLabel string
 }
 
 type optionVM struct {
@@ -426,8 +433,23 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		if fv.Value != "" || fv.Value2 != "" {
 			vm.ActiveFilters++
 		}
-		for val, label := range fi.options {
-			fv.Options = append(fv.Options, optionVM{Value: val, Label: label, Selected: val == fv.Value})
+		if fv.Input == "select" {
+			opts := fi.choices(c)
+			for val, label := range opts {
+				fv.Options = append(fv.Options, optionVM{Value: val, Label: label, Selected: val == fv.Value})
+				if val == fv.Value {
+					fv.SelectedLabel = label
+				}
+			}
+			sortOptions(fv.Options)
+			// A list that fits one page ships with the grid and is filtered in
+			// the browser. A longer one would otherwise put every option in the
+			// HTML of every page of the grid.
+			fv.Search = len(fv.Options) > optionSearchLimit
+			if fv.Search {
+				fv.Options = firstPage(fv.Options)
+				fv.OptionsURL = filterOptionsURL(c, m.slug, param)
+			}
 		}
 		vm.Filters = append(vm.Filters, fv)
 	}
