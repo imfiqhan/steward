@@ -33,9 +33,9 @@ const defaultSignedURLTTL = 15 * time.Minute
 var ErrNotSigned = errors.New("storage: cannot sign this name")
 
 // signedURL appends an expiry and a signature to a path.
-func signedURL(base string, key []byte, name string, ttl time.Duration) string {
+func signedURL(base string, key []byte, disk, name string, ttl time.Duration) string {
 	exp := strconv.FormatInt(time.Now().Add(ttl).Unix(), 10)
-	sig := uploadSignature(key, name, exp)
+	sig := uploadSignature(key, disk, name, exp)
 	sep := "?"
 	if strings.Contains(base, "?") {
 		sep = "&"
@@ -43,19 +43,21 @@ func signedURL(base string, key []byte, name string, ttl time.Duration) string {
 	return base + sep + "exp=" + exp + "&sig=" + sig
 }
 
-// uploadSignature covers the stored name and the expiry together. Signing them
-// separately would let one signed name's expiry be pasted onto another.
-func uploadSignature(key []byte, name, exp string) string {
+// uploadSignature covers the disk, the stored name and the expiry together.
+// Signing them separately would let one signature's expiry be pasted onto
+// another name, or a link to one disk be pointed at another.
+func uploadSignature(key []byte, disk, name, exp string) string {
 	mac := hmac.New(sha256.New, key)
-	mac.Write([]byte(name))
-	mac.Write([]byte{0})
-	mac.Write([]byte(exp))
+	for _, part := range []string{disk, name, exp} {
+		mac.Write([]byte(part))
+		mac.Write([]byte{0})
+	}
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
 // validUploadSignature reports whether a request carries a signature good for
 // this name and still in date.
-func validUploadSignature(key []byte, name string, q url.Values) bool {
+func validUploadSignature(key []byte, disk, name string, q url.Values) bool {
 	exp, sig := q.Get("exp"), q.Get("sig")
 	if exp == "" || sig == "" || len(key) == 0 {
 		return false
@@ -64,7 +66,7 @@ func validUploadSignature(key []byte, name string, q url.Values) bool {
 	if err != nil || time.Now().Unix() > secs {
 		return false
 	}
-	want := uploadSignature(key, name, exp)
+	want := uploadSignature(key, disk, name, exp)
 	// Constant time: a byte-by-byte comparison leaks how much of a guess was
 	// right, which is enough to find the rest a byte at a time.
 	return hmac.Equal([]byte(sig), []byte(want))
@@ -81,7 +83,7 @@ func (s *LocalStorage) SignedURL(_ context.Context, name string, ttl time.Durati
 	if len(s.SigningKey) == 0 {
 		return "", ErrNotSigned
 	}
-	return signedURL(s.URL(cleaned), s.SigningKey, cleaned, ttl), nil
+	return signedURL(s.URL(cleaned), s.SigningKey, s.name, cleaned, ttl), nil
 }
 
 // signedURLTTL is the configured lifetime, or the default.
@@ -98,13 +100,14 @@ func (a *Admin) signedURLTTL() time.Duration {
 // The route used to be open: the file server was mounted outside the panel's
 // authentication, so anyone who knew a path could read any upload without
 // logging in.
-func (a *Admin) uploadGuard(prefix string, next http.Handler) http.Handler {
+func (a *Admin) uploadGuard(disk string, next http.Handler) http.Handler {
+	prefix := a.uploadRoutePrefix(disk)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		name := strings.TrimPrefix(r.URL.Path, prefix)
 		if unescaped, err := url.PathUnescape(name); err == nil {
 			name = unescaped
 		}
-		if a.uploadRequestAllowed(r, name) {
+		if a.uploadRequestAllowed(r, disk, name) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -112,13 +115,13 @@ func (a *Admin) uploadGuard(prefix string, next http.Handler) http.Handler {
 	})
 }
 
-// uploadRequestAllowed is the check itself: a valid signature, or a session that
-// may see the panel at all.
-func (a *Admin) uploadRequestAllowed(r *http.Request, name string) bool {
-	if validUploadSignature(a.cfg.SecretKey, name, r.URL.Query()) {
+// uploadRequestAllowed is the check itself: a public disk, a valid signature, or
+// a session that may see the panel at all.
+func (a *Admin) uploadRequestAllowed(r *http.Request, disk, name string) bool {
+	if d, ok := a.Disk(disk); ok && d.Public {
 		return true
 	}
-	if a.cfg.PublicUploads {
+	if validUploadSignature(a.cfg.SecretKey, disk, name, r.URL.Query()) {
 		return true
 	}
 	return userOf(r) != nil

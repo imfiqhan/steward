@@ -40,11 +40,24 @@ type Config struct {
 	// (default 15 minutes).
 	SignedURLTTL time.Duration
 
-	// PublicUploads serves stored files to anyone who asks, as the panel did
-	// before uploads were gated. Set it only where every upload is genuinely
-	// public — a news site's images, say — and never where a File field can
-	// hold a document.
+	// PublicUploads makes the default disk public. Prefer naming a disk in
+	// Disks and setting Disk.Public, which lets one panel keep both kinds.
 	PublicUploads bool
+
+	// Disks are the named places files can be stored, each public or private.
+	// A File or Image field picks one with Field.Disk; without Disks a panel
+	// has exactly one, named by DefaultDisk, backed by Storage.
+	//
+	//	Disks: map[string]steward.Disk{
+	//	    "public":  {Public: true},                 // local, under UploadDir/public
+	//	    "private": {},                             // local, gated and signed
+	//	    "media":   {Storage: s3, Public: false},   // presigned S3
+	//	}
+	Disks map[string]Disk
+
+	// DefaultDisk is where an upload goes when its field names no disk
+	// (default "local").
+	DefaultDisk string
 
 	// TablePrefix names the framework tables (default "admin_"). It is
 	// process-global; two Admins with different prefixes in one process are
@@ -153,6 +166,10 @@ type Admin struct {
 	bySlug   map[string]resourceEntry
 	byType   map[reflect.Type]resourceEntry
 
+	// disks are the configured storage disks, always holding at least the
+	// default one.
+	disks map[string]Disk
+
 	mux          *http.ServeMux
 	handler      http.Handler
 	assetVersion string
@@ -208,11 +225,9 @@ func New(cfg Config) (*Admin, error) {
 		cfg.Logger = slog.Default()
 	}
 	tablePrefix.Store(cfg.TablePrefix)
-	if cfg.Storage == nil {
-		cfg.Storage = &LocalStorage{
-			Dir: cfg.UploadDir, BaseURL: cfg.Prefix + "/_uploads",
-			SigningKey: cfg.SecretKey,
-		}
+	disks, err := buildDisks(&cfg)
+	if err != nil {
+		return nil, err
 	}
 
 	codec, err := session.NewCodec(cfg.SecretKey)
@@ -227,6 +242,7 @@ func New(cfg Config) (*Admin, error) {
 		codec:  codec,
 		bySlug: map[string]resourceEntry{},
 		byType: map[reflect.Type]resourceEntry{},
+		disks:  disks,
 	}
 	a.tokenLimiter = ratelimit.New(a.tokenRateWindow())
 	a.twoFALimiter = ratelimit.New(twoFactorRateWindow)

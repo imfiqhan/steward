@@ -148,13 +148,11 @@ func (a *Admin) StorageURL(name string) string {
 	// A backend that can sign hands out a link good for a while, so the bucket
 	// behind it never has to be public. Signing is a computation rather than a
 	// round trip, which is why this can stay context-free.
-	if signer, ok := a.cfg.Storage.(SignedURLStorage); ok {
-		if u, err := signer.SignedURL(context.Background(), name, a.signedURLTTL()); err == nil {
-			return u
-		}
-	}
-	return a.cfg.Storage.URL(name)
+	return a.DiskURL(a.cfg.DefaultDisk, name)
 }
+
+// StorageURLOn is StorageURL against a named disk.
+func (a *Admin) StorageURLOn(disk, name string) string { return a.DiskURL(disk, name) }
 
 // resolvedRef carries a stored value alongside its fetchable URL, so a presenter
 // can put one in an href and still show the other. The render substitutes it for
@@ -191,6 +189,10 @@ func absoluteRef(s string) bool {
 type LocalStorage struct {
 	Dir     string
 	BaseURL string
+	// name is the disk this backend serves, filled in by the Admin. It is part
+	// of what a signature covers, so a link to one disk cannot be pointed at
+	// another holding a file of the same name.
+	name string
 	// SigningKey signs time-limited URLs. The Admin sets it from Config.SecretKey
 	// when it wires up the backend; left empty, SignedURL reports ErrNotSigned
 	// and links fall back to the authenticated route.

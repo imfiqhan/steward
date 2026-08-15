@@ -89,9 +89,15 @@ func (a *Admin) buildRoutes() *http.ServeMux {
 	//
 	// Behind uploadGuard: this used to sit outside the panel's authentication,
 	// so anyone who knew a path could read any stored file without signing in.
-	if ls, ok := a.cfg.Storage.(*LocalStorage); ok {
-		fileServer := http.StripPrefix(p+"/_uploads/", http.FileServer(http.Dir(ls.Dir)))
-		mux.Handle("GET "+p+"/_uploads/", a.uploadGuard(p+"/_uploads/", uploadHeaders(fileServer)))
+	for _, name := range a.DiskNames() {
+		d, _ := a.Disk(name)
+		ls, ok := d.Storage.(*LocalStorage)
+		if !ok {
+			continue // an object store hands out its own URLs
+		}
+		route := a.uploadRoutePrefix(name)
+		fileServer := http.StripPrefix(route, http.FileServer(http.Dir(ls.Dir)))
+		mux.Handle("GET "+route, a.uploadGuard(name, uploadHeaders(fileServer)))
 	}
 
 	for _, res := range a.registry {

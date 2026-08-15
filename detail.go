@@ -51,7 +51,14 @@ type DetailField[T any] struct {
 
 	// copyable puts a copy button beside the value.
 	copyable bool
+
+	// disk names which storage disk a stored path belongs to.
+	disk string
 }
+
+// Disk names which storage disk this field's stored paths live on, for the
+// helpers that resolve one into a URL. Unset, the default disk is used.
+func (df *DetailField[T]) Disk(name string) *DetailField[T] { df.disk = name; return df }
 
 // Block puts the value under its label across the row's full width, rather than
 // beside it. HTML and Markdown do this already.
@@ -304,7 +311,7 @@ func (t *typedResource[T]) show(c *Context) error {
 		}
 		if df.storageRef && val != nil {
 			s := fmt.Sprint(val)
-			val = resolvedRef{raw: s, url: c.Admin.StorageURL(s)}
+			val = resolvedRef{raw: s, url: c.Admin.DiskURL(df.disk, s)}
 		}
 		html := defaultCell(val)
 		if df.present != nil {

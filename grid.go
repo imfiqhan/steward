@@ -188,6 +188,9 @@ type Column[T any] struct {
 	// helpers that put it straight into a src or an href.
 	storageRef bool
 
+	// disk names which storage disk a stored path belongs to.
+	disk string
+
 	info *fieldInfo // resolved at compile
 }
 
@@ -340,6 +343,10 @@ const copyGlyph = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24
 	`stroke-linecap="round" stroke-linejoin="round" class="size-3">` +
 	`<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>` +
 	`<path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`
+
+// Disk names which storage disk this column's stored paths live on, for the
+// helpers that resolve one into a URL. Unset, the default disk is used.
+func (c *Column[T]) Disk(name string) *Column[T] { c.disk = name; return c }
 
 // Copyable adds a copy-to-clipboard affordance.
 func (c *Column[T]) Copyable() *Column[T] {

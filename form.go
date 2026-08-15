@@ -364,6 +364,7 @@ type Field[T any] struct {
 	maxSize  int64
 	symbol   string
 	span     int
+	disk     string
 	maxFiles int
 	minVal   any
 	maxVal   any
@@ -462,6 +463,10 @@ func (fd *Field[T]) OnlyOnUpdate() *Field[T] { fd.onlyUpdate = true; return fd }
 
 // Dir sets the upload subdirectory for File/Image fields.
 func (fd *Field[T]) Dir(dir string) *Field[T] { fd.dir = strings.Trim(dir, "/"); return fd }
+
+// Disk names where a File or Image field stores what it is given, and where its
+// value is read back from. Unset, the field uses Config.DefaultDisk.
+func (fd *Field[T]) Disk(name string) *Field[T] { fd.disk = name; return fd }
 
 // MaxSize caps upload size in bytes.
 func (fd *Field[T]) MaxSize(n int64) *Field[T] { fd.maxSize = n; return fd }
