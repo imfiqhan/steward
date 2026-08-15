@@ -1004,7 +1004,11 @@ window.htmx = htmx;
     // onto the surface — otherwise the editor has no accessible name.
     var label = ta.id && document.querySelector('label[for="' + ta.id + '"]');
     if (label) surface.setAttribute("aria-label", label.textContent.trim().replace(/\*$/, ""));
-    surface.innerHTML = ta.value;
+    // Left to itself a contenteditable puts the first line in no block at all
+    // and separates the rest with <div>, so paragraph spacing never applies and
+    // the paragraph button never lights. Seed a block and ask for <p>.
+    try { document.execCommand("defaultParagraphSeparator", false, "p"); } catch (err) { /* older engine */ }
+    surface.innerHTML = ta.value.trim() === "" ? "<p><br></p>" : ta.value;
 
     RICHTEXT_TOOLS.forEach(function (t) {
       if (t.sep) {
@@ -1047,7 +1051,12 @@ window.htmx = htmx;
       bar.appendChild(b);
     });
 
-    function sync() { ta.value = surface.innerHTML; }
+    // The seeded block must not read as content, or a Required field would be
+    // satisfied by an empty editor.
+    function sync() {
+      var empty = surface.textContent.trim() === "" && !surface.querySelector("img");
+      ta.value = empty ? "" : surface.innerHTML;
+    }
 
     // Reads the caret's formatting back onto the toolbar, so the buttons say
     // what the text at the caret already is.
