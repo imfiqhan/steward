@@ -9,6 +9,8 @@ import (
 	"unicode"
 
 	"github.com/jinzhu/inflection"
+
+	"github.com/imfiqhan/steward/internal/rules"
 )
 
 // resourceMeta is the type-erased identity every resource carries.
@@ -193,6 +195,20 @@ func (t *typedResource[T]) compile(a *Admin) error {
 			}
 			continue
 		}
+		for _, colour := range col.badges {
+			if !badgeColors[colour] {
+				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+					"resource %q: column %q: unknown badge colour %q (known colours: %s)",
+					t.res.m.slug, col.path, colour, strings.Join(badgeColorNames(), ", ")))
+			}
+		}
+		if col.disk != "" {
+			if _, ok := a.Disk(col.disk); !ok {
+				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+					"resource %q: column %q: unknown disk %q (configured: %s)",
+					t.res.m.slug, col.path, col.disk, strings.Join(a.DiskNames(), ", ")))
+			}
+		}
 		col.info = verify("grid column", col.path)
 		if col.info != nil {
 			if col.label == "" {
@@ -317,6 +333,23 @@ func (t *typedResource[T]) compile(a *Admin) error {
 	for _, fd := range fm.fields {
 		if fd.divider {
 			continue
+		}
+		// A rule the engine does not know is skipped without a word, so
+		// "requried" removes a required check and nothing says so.
+		for _, spec := range []string{fd.rules, fd.createRules, fd.updateRules} {
+			for _, name := range rules.Unknown(spec) {
+				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+					"resource %q: field %q: unknown validation rule %q (known rules: %s)",
+					t.res.m.slug, fd.path, name, strings.Join(rules.Names(), ", ")))
+			}
+		}
+		// Likewise an unknown disk: uploads would quietly go to the default one.
+		if fd.disk != "" {
+			if _, ok := a.Disk(fd.disk); !ok {
+				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+					"resource %q: field %q: unknown disk %q (configured: %s)",
+					t.res.m.slug, fd.path, fd.disk, strings.Join(a.DiskNames(), ", ")))
+			}
 		}
 		if fd.virtual {
 			if fd.label == "" {

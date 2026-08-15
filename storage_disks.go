@@ -46,7 +46,20 @@ func validDiskName(name string) bool {
 func buildDisks(cfg *Config) (map[string]Disk, error) {
 	out := make(map[string]Disk, len(cfg.Disks)+1)
 	if cfg.DefaultDisk == "" {
+		if len(cfg.Disks) > 0 {
+			// Defaulting to "local" here would invent a disk nobody asked for
+			// and quietly send every unmarked upload to it.
+			return nil, fmt.Errorf(
+				"steward: DefaultDisk must name one of Disks (%s)", strings.Join(diskNames(cfg.Disks), ", "))
+		}
 		cfg.DefaultDisk = DefaultDiskName
+	}
+	if len(cfg.Disks) > 0 {
+		if _, ok := cfg.Disks[cfg.DefaultDisk]; !ok {
+			return nil, fmt.Errorf(
+				"steward: DefaultDisk %q is not among Disks (%s)",
+				cfg.DefaultDisk, strings.Join(diskNames(cfg.Disks), ", "))
+		}
 	}
 	if !validDiskName(cfg.DefaultDisk) {
 		return nil, fmt.Errorf("steward: disk name %q must be lowercase letters, digits, - or _", cfg.DefaultDisk)
@@ -78,6 +91,16 @@ func buildDisks(cfg *Config) (map[string]Disk, error) {
 	// directly sees what it always did.
 	cfg.Storage = out[cfg.DefaultDisk].Storage
 	return out, nil
+}
+
+// diskNames lists a configured map's names, sorted, for an error message.
+func diskNames(disks map[string]Disk) []string {
+	out := make([]string, 0, len(disks))
+	for name := range disks {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // localDisk is the backend a disk gets when it names no Storage of its own.

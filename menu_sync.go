@@ -116,7 +116,7 @@ func (a *Admin) registerMenuResource() {
 		g.Column("Order").Sortable()
 		g.Column("ParentID", "Parent")
 		g.Column("Show").Bool()
-		g.Column("Source").Badge(map[any]string{"code": "azure", "db": "secondary"})
+		g.Column("Source").Badge(map[any]BadgeColor{"code": BadgeAzure, "db": BadgeSecondary})
 		g.DefaultSort("Order", false)
 		g.DisableExport()
 		g.DisablePagination()

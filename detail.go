@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net/http"
 	"reflect"
+	"strings"
 
 	"gorm.io/gorm"
 
@@ -54,6 +55,9 @@ type DetailField[T any] struct {
 
 	// disk names which storage disk a stored path belongs to.
 	disk string
+
+	// badges is what Badge was given, kept so Verify can check the colours.
+	badges map[any]BadgeColor
 }
 
 // Disk names which storage disk this field's stored paths live on, for the
@@ -76,7 +80,8 @@ func (df *DetailField[T]) As(fn func(v any, m *T) template.HTML) *DetailField[T]
 }
 
 // Badge renders a colored badge (see Column.Badge).
-func (df *DetailField[T]) Badge(colors map[any]string) *DetailField[T] {
+func (df *DetailField[T]) Badge(colors map[any]BadgeColor) *DetailField[T] {
+	df.badges = colors
 	df.present = func(v any, _ *T) template.HTML { return badgeHTML(colors, v) }
 	return df
 }
@@ -401,6 +406,20 @@ func (t *typedResource[T]) compileDetail(a *Admin) {
 	}
 	t.detail = d
 	for _, df := range d.fields {
+		for _, colour := range df.badges {
+			if !badgeColors[colour] {
+				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+					"resource %q: detail field %q: unknown badge colour %q (known colours: %s)",
+					t.res.m.slug, df.path, colour, strings.Join(badgeColorNames(), ", ")))
+			}
+		}
+		if df.disk != "" {
+			if _, ok := a.Disk(df.disk); !ok {
+				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+					"resource %q: detail field %q: unknown disk %q (configured: %s)",
+					t.res.m.slug, df.path, df.disk, strings.Join(a.DiskNames(), ", ")))
+			}
+		}
 		info, err := t.ft.lookup(df.path)
 		if err != nil {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf("resource %q: detail field: %w", t.res.m.slug, err))

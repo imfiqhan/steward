@@ -3,6 +3,7 @@ package steward
 import (
 	"fmt"
 	"html/template"
+	"sort"
 )
 
 // Grid configures a resource's list view. Obtained inside
@@ -191,6 +192,9 @@ type Column[T any] struct {
 	// disk names which storage disk a stored path belongs to.
 	disk string
 
+	// badges is what Badge was given, kept so Verify can check the colours.
+	badges map[any]BadgeColor
+
 	info *fieldInfo // resolved at compile
 }
 
@@ -252,13 +256,51 @@ func (c *Column[T]) Limit(n int) *Column[T] {
 // palette utilities (kept in sync with the @source inline safelist in
 // frontend/src/app.css), everything else falls back to the secondary
 // variant.
-func badgeHTML(colors map[any]string, v any) template.HTML {
+// BadgeColor names one of the badge palettes. It is a string type rather than
+// an integer enum on purpose: a value the framework does not know still
+// compiles, so a panel with its own palette is not shut out — but the ones that
+// exist are discoverable and a typo in them is caught by Verify.
+type BadgeColor string
+
+const (
+	BadgeGreen       BadgeColor = "green"
+	BadgeBlue        BadgeColor = "blue"
+	BadgeAzure       BadgeColor = "azure"
+	BadgePurple      BadgeColor = "purple"
+	BadgeOrange      BadgeColor = "orange"
+	BadgeYellow      BadgeColor = "yellow"
+	BadgeRed         BadgeColor = "red"
+	BadgeDestructive BadgeColor = "destructive"
+	BadgeOutline     BadgeColor = "outline"
+	BadgeSecondary   BadgeColor = "secondary"
+)
+
+// badgeColors lists what badgeHTML renders. A colour outside it falls back to
+// secondary, silently at render time — which is why Verify reports it instead.
+var badgeColors = map[BadgeColor]bool{
+	BadgeGreen: true, BadgeBlue: true, BadgeAzure: true, BadgePurple: true,
+	BadgeOrange: true, BadgeYellow: true, BadgeRed: true,
+	BadgeDestructive: true, BadgeOutline: true, BadgeSecondary: true,
+}
+
+// badgeColorNames lists the known colours, sorted, for an error that says what
+// was allowed.
+func badgeColorNames() []string {
+	out := make([]string, 0, len(badgeColors))
+	for c := range badgeColors {
+		out = append(out, string(c))
+	}
+	sort.Strings(out)
+	return out
+}
+
+func badgeHTML(colors map[any]BadgeColor, v any) template.HTML {
 	color, ok := colors[v]
 	if !ok {
 		color = colors[fmt.Sprint(v)]
 	}
 	label := template.HTMLEscapeString(fmt.Sprint(v))
-	palette := map[string]string{
+	palette := map[BadgeColor]string{
 		"green":  "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300",
 		"blue":   "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
 		"azure":  "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
@@ -292,7 +334,8 @@ func statusHTML(ok bool, yes, no string) template.HTML {
 // Badge renders the value as a colored badge; keys are raw values (or
 // their fmt representation), values are color names ("green", "blue",
 // "azure", "purple", "orange", "yellow", "red", "secondary", "outline").
-func (c *Column[T]) Badge(colors map[any]string) *Column[T] {
+func (c *Column[T]) Badge(colors map[any]BadgeColor) *Column[T] {
+	c.badges = colors
 	c.present = func(v any, _ *T) template.HTML { return badgeHTML(colors, v) }
 	return c
 }

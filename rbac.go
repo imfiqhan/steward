@@ -152,7 +152,7 @@ func (a *Admin) registerRolesResource() {
 	res.Grid(func(g *Grid[Role]) {
 		g.Column("ID").Sortable().Width(60)
 		g.Column("Name")
-		g.Column("Slug").Badge(map[any]string{RoleAdministrator: "purple"})
+		g.Column("Slug").Badge(map[any]BadgeColor{RoleAdministrator: BadgePurple})
 		g.Column("CreatedAt", "Created")
 		g.QuickSearch("Name", "Slug")
 	})
@@ -237,8 +237,8 @@ func (a *Admin) registerLogResource() {
 	res.Grid(func(g *Grid[OperationLog]) {
 		g.Column("ID").Sortable().Width(60)
 		g.Column("UserID", "User")
-		g.Column("Method").Badge(map[any]string{
-			"POST": "green", "PUT": "azure", "PATCH": "azure", "DELETE": "red",
+		g.Column("Method").Badge(map[any]BadgeColor{
+			"POST": BadgeGreen, "PUT": BadgeAzure, "PATCH": BadgeAzure, "DELETE": BadgeRed,
 		})
 		g.Column("Path").Limit(60)
 		g.Column("IP")

@@ -77,7 +77,7 @@ func registerResources(app *steward.Admin) {
 		Grid(func(g *steward.Grid[models.Post]) {
 			g.Column("ID").Sortable().Width(60)
 			g.Column("Title").Sortable().Editable()
-			g.Column("Status").Badge(map[any]string{"draft": "secondary", "published": "green"})
+			g.Column("Status").Badge(map[any]steward.BadgeColor{"draft": steward.BadgeSecondary, "published": steward.BadgeGreen})
 			g.Column("Featured").Switch().Width(80)
 			g.Column("Author.Name", "Author")
 			g.Column("PublishedAt", "Published").Sortable()
@@ -154,7 +154,7 @@ func registerResources(app *steward.Admin) {
 	posts.Detail(func(d *steward.Detail[models.Post]) {
 		d.Field("ID")
 		d.Field("Title")
-		d.Field("Status").Badge(map[any]string{"draft": "secondary", "published": "green"})
+		d.Field("Status").Badge(map[any]steward.BadgeColor{"draft": steward.BadgeSecondary, "published": steward.BadgeGreen})
 		d.Field("Author.Name", "Author")
 		d.Field("Body").Markdown()
 		d.Field("PublishedAt", "Published")

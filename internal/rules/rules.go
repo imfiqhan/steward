@@ -13,6 +13,7 @@ import (
 	"net/mail"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -149,4 +150,41 @@ func uniqueRule(f Field, arg, value string) string {
 		return f.Label + " has already been taken."
 	}
 	return ""
+}
+
+// known lists every rule applyRule answers to. It is written out rather than
+// derived, because the switch it mirrors has no default case: an unknown rule
+// there is silently skipped, so "requried" removes a required check without
+// saying anything.
+var known = map[string]bool{
+	"required": true, "email": true, "url": true, "numeric": true,
+	"integer": true, "alpha_dash": true, "min": true, "max": true,
+	"gte": true, "lte": true, "in": true, "unique": true,
+}
+
+// Unknown returns the rule names in a spec that Validate would ignore.
+func Unknown(spec string) []string {
+	var out []string
+	for _, rule := range strings.Split(spec, "|") {
+		rule = strings.TrimSpace(rule)
+		if rule == "" {
+			continue
+		}
+		name, _, _ := strings.Cut(rule, ":")
+		if name = strings.TrimSpace(name); name != "" && !known[name] {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+// Names lists the known rules, sorted, for an error message that says what was
+// allowed rather than only what was not.
+func Names() []string {
+	out := make([]string, 0, len(known))
+	for name := range known {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
 }
