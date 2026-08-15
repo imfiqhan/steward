@@ -142,7 +142,11 @@
     </div>
 
   {{else if eq .Kind "display"}}
-    <input id="field-{{.Name}}" type="text" class="input" value="{{.Value}}" disabled/>
+    {{/* readonly, not disabled: the field carries no name and never submits
+         either way, but a disabled input cannot be focused or selected, and a
+         value shown read-only is usually one someone wants to copy. */}}
+    <input id="field-{{.Name}}" type="text" class="input" value="{{.Value}}"
+           title="{{.Value}}" readonly/>
 
   {{else if eq .Kind "hidden"}}
     <input type="hidden" name="{{.Name}}" value="{{.Value}}"/>
@@ -251,9 +255,37 @@
       </div>
     </div>
 
+  {{else if eq .Kind "color"}}
+    {{/* The text input is the field. A native colour control cannot hold "no
+         colour" — it reports #000000 when handed an empty value, so leaving it
+         alone and saving wrote black over an unset column. The swatch sits in
+         the group's start slot, the way the currency symbol does, so it lines
+         up with the input rather than being sized to match it. */}}
+    <div class="steward-color input-group" data-steward-color>
+      <span data-align="start">
+        <input type="color" class="steward-color-swatch" data-steward-color-swatch
+               value="{{if .Value}}{{.Value}}{{else}}#000000{{end}}"
+               aria-label="Pick {{.Label}}" tabindex="-1"
+               {{if or .Disabled .ReadOnly}}disabled{{end}}/>
+      </span>
+      <input id="field-{{.Name}}" type="text" name="{{.Name}}" value="{{.Value}}"
+             class="font-mono" placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}#rrggbb{{end}}"
+             autocomplete="off" autocapitalize="none" spellcheck="false"
+             data-steward-color-text
+             {{if .Errors}}aria-invalid="true"{{end}}
+             {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}/>
+      {{if and (not .Required) (not .Disabled) (not .ReadOnly)}}
+      <span role="group" data-align="inline-end">
+        <button type="button" data-steward-color-clear aria-label="Clear {{.Label}}">
+          {{icon "x" "size-3"}}
+        </button>
+      </span>
+      {{end}}
+    </div>
+
   {{else if eq .Kind "currency"}}
     <div class="input-group">
-      <span data-align="start" aria-hidden="true">$</span>
+      <span data-align="start" aria-hidden="true">{{.Symbol}}</span>
       <input id="field-{{.Name}}" type="number" step="0.01" name="{{.Name}}" value="{{.Value}}"
              placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}/>
     </div>

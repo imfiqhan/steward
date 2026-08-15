@@ -32,6 +32,10 @@ type Config struct {
 	// Brand names the panel in the sidebar and titles (default "Steward").
 	Brand string
 
+	// CurrencySymbol prefixes every Currency field (default "$"). A single
+	// field overrides it with Field.Symbol.
+	CurrencySymbol string
+
 	// TablePrefix names the framework tables (default "admin_"). It is
 	// process-global; two Admins with different prefixes in one process are
 	// not supported.
@@ -177,6 +181,9 @@ func New(cfg Config) (*Admin, error) {
 	cfg.Prefix = "/" + strings.Trim(cfg.Prefix, "/")
 	if cfg.Brand == "" {
 		cfg.Brand = "Steward"
+	}
+	if cfg.CurrencySymbol == "" {
+		cfg.CurrencySymbol = "$"
 	}
 	if cfg.TablePrefix == "" {
 		cfg.TablePrefix = "admin_"

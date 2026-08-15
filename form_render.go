@@ -51,6 +51,8 @@ type formFieldVM struct {
 	// the detail view would show. PreviewURL is an upload's stored bytes, which
 	// is a different thing.
 	RenderURL string
+	// Symbol prefixes a Currency field.
+	Symbol string
 	// FileName is what an upload is called for the reader; MaxSizeLabel and
 	// AcceptLabel state the field's limits, which the server knows and the
 	// reader otherwise discovers by having an upload refused.
@@ -237,6 +239,11 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			fv.SpriteURL = c.Admin.url("_assets", rend.assetVersion, spritePath)
 			if fv.Value != "" {
 				fv.CurrentIcon = rend.icon(fv.Value)
+			}
+		case FieldCurrency:
+			fv.Symbol = fd.symbol
+			if fv.Symbol == "" {
+				fv.Symbol = c.Admin.cfg.CurrencySymbol
 			}
 		case FieldMarkdown:
 			fv.RenderURL = previewURL(c, m.slug, fd.path, rowID)

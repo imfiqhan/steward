@@ -3,6 +3,7 @@ package steward
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -323,6 +324,7 @@ type Field[T any] struct {
 	// uploads
 	dir      string
 	maxSize  int64
+	symbol   string
 	maxFiles int
 	minVal   any
 	maxVal   any
@@ -425,6 +427,13 @@ func (fd *Field[T]) Dir(dir string) *Field[T] { fd.dir = strings.Trim(dir, "/");
 // MaxSize caps upload size in bytes.
 func (fd *Field[T]) MaxSize(n int64) *Field[T] { fd.maxSize = n; return fd }
 
+// hexColor is the form a Color field stores: "#rrggbb", lowercase.
+var hexColor = regexp.MustCompile(`^#[0-9a-f]{6}$`)
+
+// Symbol sets what a Currency field is prefixed with, overriding
+// Config.CurrencySymbol for this field alone.
+func (fd *Field[T]) Symbol(s string) *Field[T] { fd.symbol = s; return fd }
+
 // Min sets the lowest value a field accepts: a time.Time or a layout-shaped
 // string for the temporal kinds, a number for the numeric ones.
 //
@@ -481,6 +490,17 @@ func (fd *Field[T]) decode(raw string) (any, error) {
 	switch fd.kind {
 	case FieldSwitch:
 		return raw == "on" || raw == "1" || raw == "true", nil
+	case FieldColor:
+		// The submitted field is a text input, so the format is checked here
+		// rather than left to the swatch beside it.
+		if raw == "" {
+			return "", nil
+		}
+		v := strings.ToLower(strings.TrimSpace(raw))
+		if !hexColor.MatchString(v) {
+			return nil, fmt.Errorf("must be a colour like #3366ff")
+		}
+		return v, nil
 	case FieldNumber:
 		if raw == "" {
 			return zeroFor(info), nil

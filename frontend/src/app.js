@@ -1255,6 +1255,54 @@ window.htmx = htmx;
   document.addEventListener("DOMContentLoaded", initMarkdown);
   document.addEventListener("htmx:afterSettle", initMarkdown);
 
+  /* ---- Colour field ----------------------------------------------------------- */
+  /*
+   * The text input is the field; the swatch is a way of filling it in. A native
+   * colour control has no empty state — hand it "" and it reports #000000 — so
+   * it is never what submits, and an untouched field stays empty.
+   */
+
+  var HEX = /^#[0-9a-fA-F]{6}$/;
+
+  function buildColor(wrap) {
+    if (wrap.dataset.stewardColorReady === "1") return;
+    var swatch = wrap.querySelector("[data-steward-color-swatch]");
+    var text = wrap.querySelector("[data-steward-color-text]");
+    if (!swatch || !text) return;
+    wrap.dataset.stewardColorReady = "1";
+    var clear = wrap.querySelector("[data-steward-color-clear]");
+
+    function syncSwatch() {
+      var v = text.value.trim();
+      wrap.dataset.empty = v === "" ? "1" : "";
+      if (HEX.test(v)) swatch.value = v.toLowerCase();
+    }
+    syncSwatch();
+
+    swatch.addEventListener("input", function () {
+      text.value = swatch.value.toLowerCase();
+      wrap.dataset.empty = "";
+      text.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    text.addEventListener("input", syncSwatch);
+    if (clear) {
+      clear.addEventListener("click", function () {
+        text.value = "";
+        syncSwatch();
+        text.focus();
+        text.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+  }
+
+  function initColor() {
+    var nodes = document.querySelectorAll("[data-steward-color]");
+    for (var i = 0; i < nodes.length; i++) buildColor(nodes[i]);
+  }
+
+  document.addEventListener("DOMContentLoaded", initColor);
+  document.addEventListener("htmx:afterSettle", initColor);
+
   /* ---- Icon picker ------------------------------------------------------------ */
   /*
    * Enhancement over the field's <select>, which stays the thing that submits —
