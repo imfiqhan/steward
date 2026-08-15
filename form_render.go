@@ -53,6 +53,8 @@ type formFieldVM struct {
 	RenderURL string
 	// Symbol prefixes a Currency field.
 	Symbol string
+	// Span is the field's width in twelfths of a row.
+	Span int
 	// FileName is what an upload is called for the reader; MaxSizeLabel and
 	// AcceptLabel state the field's limits, which the server knows and the
 	// reader otherwise discovers by having an upload refused.
@@ -99,9 +101,28 @@ type formVM struct {
 	Action    string
 	Method    string // POST | PUT
 	Creating  bool
-	Fields    []formFieldVM
+	Groups    []formGroupVM
 	Nested    []nestedVM
 	CancelURL string
+	// Width is the class capping the form on a large screen.
+	Width string
+}
+
+// formGroupVM is a run of fields sharing a fieldset. An untitled group is the
+// fields declared outside any fieldset and renders without a legend.
+type formGroupVM struct {
+	Title  string
+	Fields []formFieldVM
+}
+
+// appendField puts a field in the group its fieldset names, starting a new one
+// when the fieldset changes. Fields keep their declared order either way.
+func (vm *formVM) appendField(fv formFieldVM, fieldset string) {
+	if n := len(vm.Groups); n > 0 && vm.Groups[n-1].Title == fieldset {
+		vm.Groups[n-1].Fields = append(vm.Groups[n-1].Fields, fv)
+		return
+	}
+	vm.Groups = append(vm.Groups, formGroupVM{Title: fieldset, Fields: []formFieldVM{fv}})
 }
 
 // valueString renders a model field for an input's value attribute.
@@ -156,6 +177,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 		Title:     m.title,
 		Creating:  creating,
 		CancelURL: c.URL(m.slug),
+		Width:     t.form.width.class(),
 	}
 	var rowID string
 	if creating {
@@ -166,7 +188,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 	}
 	for _, fd := range t.form.fields {
 		if fd.divider {
-			vm.Fields = append(vm.Fields, formFieldVM{Divider: true})
+			vm.appendField(formFieldVM{Divider: true}, fd.fieldset)
 			continue
 		}
 		if (fd.info == nil && !fd.virtual) || !fd.visible(c, creating) {
@@ -183,6 +205,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			Help:        fd.help,
 			Accept:      fd.accept,
 			Fieldset:    fd.fieldset,
+			Span:        fd.span,
 			MinAttr:     fd.boundString(fd.minVal),
 			MaxAttr:     fd.boundString(fd.maxVal),
 			Errors:      errs[fd.path],
@@ -280,7 +303,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 				})
 			}
 		}
-		vm.Fields = append(vm.Fields, fv)
+		vm.appendField(fv, fd.fieldset)
 	}
 	for _, n := range t.form.nested {
 		nvm, err := n.buildVM(c, row)
@@ -511,9 +534,13 @@ func decodeSelection(raw string) ([]string, bool) {
 //
 // A value that is not a JSON array is left alone, so a plain <select multiple>,
 // or a client posting the field the ordinary way, still works.
-func (t *typedResource[T]) expandMultiSelects(c *Context) {
+// expandMultiSelects rewrites each multi-select's JSON payload into the repeated
+// form values a hook expects. It returns the labels of any field whose payload
+// could not be read, which is a refusal rather than something to work around.
+func (t *typedResource[T]) expandMultiSelects(c *Context) []string {
+	var bad []string
 	if c.R.Form == nil {
-		return
+		return nil
 	}
 	for _, fd := range t.form.fields {
 		if fd.kind != FieldMultiSelect {
@@ -525,6 +552,13 @@ func (t *typedResource[T]) expandMultiSelects(c *Context) {
 		}
 		vals, ok := decodeSelection(raw[0])
 		if !ok {
+			// It is shaped like the widget's payload but is not one. Leaving it
+			// in place hands a hook a blob of JSON where it expects a value, and
+			// a hook that creates missing options by name will store it: two
+			// tags in a live table are named with a mangled selection because
+			// this went through. The field is virtual, so nothing downstream
+			// validates it — refusing here is the only place left.
+			bad = append(bad, fd.label)
 			continue
 		}
 		c.R.Form[fd.path] = vals
@@ -532,6 +566,7 @@ func (t *typedResource[T]) expandMultiSelects(c *Context) {
 			c.R.PostForm[fd.path] = vals
 		}
 	}
+	return bad
 }
 
 func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
@@ -545,7 +580,13 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 		return err
 	}
 	// Before anything reads the form, so a hook sees the ordinary shape.
-	t.expandMultiSelects(c)
+	if bad := t.expandMultiSelects(c); len(bad) > 0 {
+		errs := map[string][]string{}
+		for _, label := range bad {
+			errs[label] = []string{label + " was submitted in a form this field cannot read."}
+		}
+		return c.Envelope(ValidationErrors(errs))
+	}
 
 	// Load the target model.
 	var m *T

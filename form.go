@@ -63,6 +63,7 @@ type Form[T any] struct {
 	res    *Resource[T]
 	fields []*Field[T]
 	nested []nestedForm[T]
+	width  FormWidth
 
 	submittedFn func(c *Context) error
 	savingFn    func(c *Context, m *T) error
@@ -254,6 +255,43 @@ func (f *Form[T]) MultiSelect(name string, label ...string) *Field[T] {
 	return fd
 }
 
+// formColumns is the number of columns a form row is divided into. Twelve
+// divides by 2, 3, 4 and 6, which covers the rows people actually build.
+const formColumns = 12
+
+// FormWidth caps how wide a form grows on a large screen.
+type FormWidth string
+
+const (
+	// FormNarrow suits a form of a few short fields, where full width would
+	// leave the labels stranded a long way from their controls.
+	FormNarrow FormWidth = "narrow"
+	// FormNormal is the default.
+	FormNormal FormWidth = "normal"
+	// FormWide suits a form with several fields to a row.
+	FormWide FormWidth = "wide"
+	// FormFull uses whatever the page gives it.
+	FormFull FormWidth = "full"
+)
+
+// class is the width the form renders at.
+func (w FormWidth) class() string {
+	switch w {
+	case FormNarrow:
+		return "max-w-xl"
+	case FormWide:
+		return "max-w-5xl"
+	case FormFull:
+		return "max-w-none"
+	default:
+		return "max-w-3xl"
+	}
+}
+
+// Width caps how wide the form grows. The default suits a single column of
+// fields; a form using Span to put several on a row usually wants more.
+func (f *Form[T]) Width(w FormWidth) *Form[T] { f.width = w; return f }
+
 // Divider inserts a horizontal rule between fields.
 func (f *Form[T]) Divider() {
 	f.fields = append(f.fields, &Field[T]{form: f, kind: FieldDisplay, divider: true, ignored: true})
@@ -325,6 +363,7 @@ type Field[T any] struct {
 	dir      string
 	maxSize  int64
 	symbol   string
+	span     int
 	maxFiles int
 	minVal   any
 	maxVal   any
@@ -429,6 +468,21 @@ func (fd *Field[T]) MaxSize(n int64) *Field[T] { fd.maxSize = n; return fd }
 
 // hexColor is the form a Color field stores: "#rrggbb", lowercase.
 var hexColor = regexp.MustCompile(`^#[0-9a-f]{6}$`)
+
+// Span sets how much of the form's width the field takes, in twelfths. A field
+// spans the whole row unless told otherwise, so two Span(6) fields sit side by
+// side and three Span(4) fields make a row of three. Values outside 1..12 are
+// ignored.
+//
+// The span applies from the "sm" breakpoint up. Below it every field is full
+// width, because two controls side by side on a phone are two controls too
+// narrow to use.
+func (fd *Field[T]) Span(n int) *Field[T] {
+	if n >= 1 && n <= formColumns {
+		fd.span = n
+	}
+	return fd
+}
 
 // Symbol sets what a Currency field is prefixed with, overriding
 // Config.CurrencySymbol for this field alone.

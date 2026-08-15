@@ -19,3 +19,6 @@ package-lock.json
 .claude/
 
 # note: assets/dist/ stays committed — go:embed ships it in the binary
+
+# Scratch browser probes: written per investigation, never part of the repo.
+scripts/tmp*.mjs

@@ -202,6 +202,49 @@ tr.steward-dragging { opacity: 0.5; }
 .prose-sm hr { margin: 1em 0; border: 0; border-top: 1px solid var(--border); }
 .prose-sm > :last-child { margin-bottom: 0; }
 
+/* ---- Form layout --------------------------------------------------------- */
+
+.steward-form-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+/* Below the sm breakpoint every field takes the row: two controls side by side
+   on a phone are two controls too narrow to use. The per-span rules below match
+   this selector's specificity, so they have to be written the same way — a bare
+   .steward-span-8 loses to a class-plus-attribute selector and never applies. */
+.steward-form-grid > [class*="steward-span-"] { grid-column: span 12; }
+
+@media (min-width: 640px) {
+  .steward-form-grid > .steward-span-1 { grid-column: span 1; }
+  .steward-form-grid > .steward-span-2 { grid-column: span 2; }
+  .steward-form-grid > .steward-span-3 { grid-column: span 3; }
+  .steward-form-grid > .steward-span-4 { grid-column: span 4; }
+  .steward-form-grid > .steward-span-5 { grid-column: span 5; }
+  .steward-form-grid > .steward-span-6 { grid-column: span 6; }
+  .steward-form-grid > .steward-span-7 { grid-column: span 7; }
+  .steward-form-grid > .steward-span-8 { grid-column: span 8; }
+  .steward-form-grid > .steward-span-9 { grid-column: span 9; }
+  .steward-form-grid > .steward-span-10 { grid-column: span 10; }
+  .steward-form-grid > .steward-span-11 { grid-column: span 11; }
+  .steward-form-grid > .steward-span-12 { grid-column: span 12; }
+}
+
+.steward-fieldset {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.steward-fieldset > legend {
+  padding: 0 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
 /* ---- Detail page --------------------------------------------------------- */
 
 .steward-detail-row {

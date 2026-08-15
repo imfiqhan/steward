@@ -1,5 +1,9 @@
-{{if .Divider}}<div class="field-separator"><hr role="separator"/></div>{{else}}
-<div class="grid gap-2" data-steward-field="{{.Name}}">
+{{if .Divider}}<div class="field-separator steward-span-12"><hr role="separator"/></div>{{else}}
+{{/* steward-span-N is the field's width in twelfths of the row. The class is
+     fixed rather than a Tailwind utility because the value comes from Go, and
+     Tailwind only emits classes it can find in the sources it scans. */}}
+<div class="grid gap-2 steward-span-{{if .Span}}{{.Span}}{{else}}12{{end}}"
+     data-steward-field="{{.Name}}">
   {{if ne .Kind "hidden"}}
   <label class="label" for="field-{{.Name}}">
     {{.Label}}{{if .Required}}<span class="text-destructive" aria-hidden="true">*</span>{{end}}

@@ -414,3 +414,39 @@ func TestSingleSelectRendersCombobox(t *testing.T) {
 		t.Error("the clear icon is not the size of the icon buttons beside it")
 	}
 }
+
+// TestMalformedSelectionIsRefused covers a payload shaped like the multi-select
+// widget's but not readable as one. It used to be left in place and handed to
+// the hooks as if it were a chosen value: a Saved hook that creates missing
+// options by name then stored the blob, which is how two tags in a live table
+// came to be named with a mangled selection.
+func TestMalformedSelectionIsRefused(t *testing.T) {
+	seen := &seenTags{}
+	srv := newComboServer(t, seen)
+
+	for _, payload := range []string{
+		`[{&#34;label&#34;:&#34;x&#34;,&#34;value&#34;:&#34;1&#34;}]`,
+		`[{"label":"x","value":}]`,
+		`[not json at all`,
+	} {
+		seen.set(nil)
+		code, body := putRow2(t, srv, "/admin/combo_rows/1/edit", "/admin/combo_rows/1",
+			map[string]string{"Title": "x", "Tags": payload})
+		if code != http.StatusUnprocessableEntity {
+			t.Errorf("payload %q = %d, want 422: %s", payload, code, body)
+		}
+		if got := seen.get(); len(got) > 0 {
+			t.Errorf("payload %q reached the hook as %q", payload, got)
+		}
+	}
+
+	// A well-formed one still goes through.
+	seen.set(nil)
+	if code, body := putRow2(t, srv, "/admin/combo_rows/1/edit", "/admin/combo_rows/1",
+		map[string]string{"Title": "x", "Tags": `[{"value":"1","label":"one"},{"value":"2","label":"two"}]`}); code >= 400 {
+		t.Fatalf("a valid selection was refused: %d %s", code, body)
+	}
+	if got := seen.get(); len(got) != 2 || got[0] != "1" || got[1] != "2" {
+		t.Errorf("the hook saw %q, want [1 2]", got)
+	}
+}
