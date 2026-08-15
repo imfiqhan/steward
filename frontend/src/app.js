@@ -1166,6 +1166,95 @@ window.htmx = htmx;
   document.addEventListener("DOMContentLoaded", initRichtext);
   document.addEventListener("htmx:afterSettle", initRichtext);
 
+  /* ---- Markdown editor -------------------------------------------------------- */
+  /*
+   * A Write/Preview pair over the Markdown field's textarea. The preview is
+   * rendered by the server, not in the browser: the detail view renders with
+   * goldmark and the same allowlist, and a second parser here would eventually
+   * disagree with it. The textarea remains the field, so with JavaScript off
+   * this is the plain control it was.
+   */
+
+  function buildMarkdown(wrap) {
+    if (wrap.dataset.stewardMarkdownReady === "1") return;
+    var ta = wrap.querySelector("textarea");
+    if (!ta || !wrap.dataset.render) return;
+    wrap.dataset.stewardMarkdownReady = "1";
+
+    var tabs = document.createElement("div");
+    tabs.className = "steward-markdown-tabs";
+    tabs.setAttribute("role", "tablist");
+
+    var view = document.createElement("div");
+    view.className = "steward-markdown-preview prose-sm max-w-none";
+    view.hidden = true;
+
+    var write = tabButton("Write", true);
+    var preview = tabButton("Preview", false);
+    tabs.appendChild(write);
+    tabs.appendChild(preview);
+
+    function tabButton(label, on) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "steward-markdown-tab";
+      b.textContent = label;
+      b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", on ? "true" : "false");
+      return b;
+    }
+
+    function show(previewing) {
+      write.setAttribute("aria-selected", previewing ? "false" : "true");
+      preview.setAttribute("aria-selected", previewing ? "true" : "false");
+      ta.hidden = previewing;
+      view.hidden = !previewing;
+    }
+
+    write.addEventListener("click", function () { show(false); ta.focus(); });
+    preview.addEventListener("click", function () {
+      show(true);
+      if (ta.value.trim() === "") {
+        view.innerHTML = '<p class="text-muted-foreground">Nothing to preview.</p>';
+        return;
+      }
+      view.setAttribute("aria-busy", "true");
+      var body = new URLSearchParams();
+      body.set("value", ta.value);
+      fetch(wrap.dataset.render, {
+        method: "POST",
+        body: body,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-CSRF-Token": csrfToken()
+        },
+        credentials: "same-origin"
+      })
+        .then(function (r) {
+          if (!r.ok) throw new Error("Preview failed.");
+          return r.text();
+        })
+        // The response is the server's sanitized HTML, the same string the
+        // detail view renders.
+        .then(function (html) { view.innerHTML = html; })
+        .catch(function () {
+          view.innerHTML = '<p class="text-destructive">Could not render a preview.</p>';
+        })
+        .finally(function () { view.removeAttribute("aria-busy"); });
+    });
+
+    wrap.insertBefore(tabs, ta);
+    wrap.appendChild(view);
+  }
+
+  function initMarkdown() {
+    var nodes = document.querySelectorAll("[data-steward-markdown]");
+    for (var i = 0; i < nodes.length; i++) buildMarkdown(nodes[i]);
+  }
+
+  document.addEventListener("DOMContentLoaded", initMarkdown);
+  document.addEventListener("htmx:afterSettle", initMarkdown);
+
   /* ---- Icon picker ------------------------------------------------------------ */
   /*
    * Enhancement over the field's <select>, which stays the thing that submits —

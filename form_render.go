@@ -47,6 +47,10 @@ type formFieldVM struct {
 	CurrentIcon template.HTML
 	UploadURL   string
 	PreviewURL  string
+	// RenderURL is where a Markdown field posts its text to get back the HTML
+	// the detail view would show. PreviewURL is an upload's stored bytes, which
+	// is a different thing.
+	RenderURL string
 	// FileName is what an upload is called for the reader; MaxSizeLabel and
 	// AcceptLabel state the field's limits, which the server knows and the
 	// reader otherwise discovers by having an upload refused.
@@ -234,6 +238,8 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			if fv.Value != "" {
 				fv.CurrentIcon = rend.icon(fv.Value)
 			}
+		case FieldMarkdown:
+			fv.RenderURL = previewURL(c, m.slug, fd.path, rowID)
 		case FieldRichtext:
 			// The editor draws its own toolbar, so it needs the sprite the rest
 			// of the panel draws from, and somewhere to put a pasted image.
@@ -285,6 +291,17 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 // settling for whether they may look at the resource.
 func uploadURL(c *Context, slug, field, id string) string {
 	u := c.URL(slug, "_upload") + "?field=" + url.QueryEscape(field)
+	if id != "" {
+		u += "&id=" + url.QueryEscape(id)
+	}
+	return u
+}
+
+// previewURL is where a markdown field posts its text to be rendered. It
+// carries the record for the same reason an upload does: the endpoint asks
+// whether this caller may write that row.
+func previewURL(c *Context, slug, field, id string) string {
+	u := c.URL(slug, "_preview") + "?field=" + url.QueryEscape(field)
 	if id != "" {
 		u += "&id=" + url.QueryEscape(id)
 	}
@@ -843,6 +860,45 @@ func searchOptions(opts Options, query string) (list []optionVM, more bool) {
 	}
 	return list, false
 }
+
+// previewMarkdown handles POST {slug}/_preview?field=X, returning the field's
+// submitted markdown as the HTML the detail view would show. Gated like the
+// upload endpoint: it renders whatever it is handed, so it is not something to
+// leave open to a caller who cannot write the resource.
+func (t *typedResource[T]) previewMarkdown(c *Context) error {
+	if id := c.R.URL.Query().Get("id"); id != "" {
+		row, err := t.repo.Find(c.Ctx(), id)
+		if err != nil || !t.canUpdate(c, row) {
+			return t.denyPolicy(c)
+		}
+	} else if !t.canCreate(c) {
+		return t.denyPolicy(c)
+	}
+	name := c.R.URL.Query().Get("field")
+	var target *Field[T]
+	for _, fd := range t.form.fields {
+		if fd.path == name && fd.kind == FieldMarkdown {
+			target = fd
+			break
+		}
+	}
+	if target == nil {
+		return c.JSON(http.StatusNotFound, Error("unknown markdown field"))
+	}
+	c.R.Body = http.MaxBytesReader(c.W, c.R.Body, maxPreviewBytes)
+	if err := c.R.ParseForm(); err != nil {
+		return c.Envelope(Error("Preview request was too large or malformed.").
+			Code(http.StatusRequestEntityTooLarge))
+	}
+	c.W.Header().Set("Content-Type", "text/html; charset=utf-8")
+	c.W.WriteHeader(http.StatusOK)
+	_, err := c.W.Write([]byte(renderMarkdown(c.R.FormValue("value"))))
+	return err
+}
+
+// maxPreviewBytes bounds a preview request. A markdown body is text, and the
+// endpoint renders whatever it is given.
+const maxPreviewBytes = 1 << 20
 
 // uploadFile handles POST {slug}/_upload?field=X (multipart "file").
 // Gated by ViewAny only: the form may be a create or an edit, and the

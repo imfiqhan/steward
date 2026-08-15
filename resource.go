@@ -460,6 +460,7 @@ func (t *typedResource[T]) registerRoutes(a *Admin, mux *http.ServeMux) {
 	mux.HandleFunc("GET "+base+"/_schema", a.h(t.schemaJSON))
 	mux.HandleFunc("GET "+base+"/_options", a.h(t.optionsJSON))
 	mux.HandleFunc("POST "+base+"/_upload", a.h(t.uploadFile))
+	mux.HandleFunc("POST "+base+"/_preview", a.h(t.previewMarkdown))
 	mux.HandleFunc("POST "+base+"/_action/{name}", a.h(t.dispatchAction))
 	for _, p := range t.res.pages {
 		mux.HandleFunc(p.method+" "+base+"/"+p.rel, a.h(p.h))

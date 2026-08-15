@@ -154,9 +154,22 @@ func (df *DetailField[T]) Filesize() *DetailField[T] {
 	return df
 }
 
-// Markdown renders the raw text preserving whitespace (no HTML rendering —
-// bring your own renderer through As for rich output).
+// Markdown renders the value as markdown (GitHub flavour), sanitized through
+// the same allowlist a Richtext value passes.
 func (df *DetailField[T]) Markdown() *DetailField[T] {
+	df.present = func(v any, _ *T) template.HTML {
+		s := fmt.Sprint(v)
+		if s == "" {
+			return `<span class="text-muted-foreground">—</span>`
+		}
+		return template.HTML(`<div class="prose-sm max-w-none">` + string(renderMarkdown(s)) + `</div>`) //nolint:gosec // renderMarkdown sanitizes
+	}
+	return df
+}
+
+// Preformatted renders the value as text, keeping its line breaks and runs of
+// spaces. This is what Markdown did before it rendered anything.
+func (df *DetailField[T]) Preformatted() *DetailField[T] {
 	df.present = func(v any, _ *T) template.HTML {
 		s := fmt.Sprint(v)
 		if s == "" {

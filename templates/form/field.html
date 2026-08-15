@@ -11,9 +11,14 @@
       placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>
 
   {{else if eq .Kind "markdown"}}
-    <textarea id="field-{{.Name}}" name="{{.Name}}" class="textarea font-mono" rows="10"
-      placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>
-    <p class="text-sm text-muted-foreground">Markdown supported.</p>
+    {{/* The textarea is the field. app.js adds the two tabs beside it and asks
+         the server to render the preview, so what is shown is what the detail
+         view will show — the same parser, the same allowlist. Without
+         JavaScript the textarea is the whole control. */}}
+    <div class="steward-markdown" data-steward-markdown data-render="{{.RenderURL}}">
+      <textarea id="field-{{.Name}}" name="{{.Name}}" class="textarea font-mono" rows="10"
+        placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>
+    </div>
 
   {{else if eq .Kind "icon"}}
     {{/* The select is the field: it submits, and it is a perfectly usable
