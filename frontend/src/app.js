@@ -1248,6 +1248,67 @@ window.htmx = htmx;
   document.addEventListener("DOMContentLoaded", initMarkdown);
   document.addEventListener("htmx:afterSettle", initMarkdown);
 
+  /* ---- Command palette -------------------------------------------------------- */
+  /*
+   * Basecoat's command component owns the filtering, the arrow keys and the
+   * Enter. This opens the dialog, follows the chosen entry through htmx so the
+   * page swaps rather than reloads, and labels the shortcut with the key the
+   * reader's own platform uses.
+   */
+
+  function commandDialog() { return document.getElementById("steward-command"); }
+
+  function openCommand() {
+    var dlg = commandDialog();
+    if (!dlg || dlg.open) return;
+    dlg.showModal();
+    var input = dlg.querySelector("header input");
+    if (input) {
+      input.value = "";
+      // The component filters on input, so an empty one has to be announced to
+      // clear a filter left behind by the previous opening.
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    }
+  }
+
+  document.addEventListener("keydown", function (e) {
+    if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+      e.preventDefault();
+      var dlg = commandDialog();
+      dlg && dlg.open ? dlg.close() : openCommand();
+    }
+  });
+
+  document.addEventListener("click", function (e) {
+    if (e.target.closest && e.target.closest("[data-steward-command]")) {
+      e.preventDefault();
+      openCommand();
+      return;
+    }
+    var item = e.target.closest && e.target.closest("[data-steward-goto]");
+    if (!item) return;
+    var url = item.getAttribute("data-steward-goto");
+    var dlg = commandDialog();
+    if (dlg && dlg.open) dlg.close();
+    if (window.htmx) {
+      window.htmx.ajax("GET", url, {
+        target: "#page-content", swap: "innerHTML scroll:#page-content:top"
+      }).then(function () { window.history.pushState({}, "", url); });
+    } else {
+      window.location.href = url;
+    }
+  });
+
+  // ⌘ on a Mac, Ctrl everywhere else. The markup says Ctrl so that a page
+  // rendered without scripting still says something true.
+  document.addEventListener("DOMContentLoaded", function () {
+    if (!/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) return;
+    document.querySelectorAll("[data-steward-cmdkey]").forEach(function (el) {
+      el.textContent = "⌘";
+    });
+  });
+
   /* ---- Copy to clipboard ------------------------------------------------------ */
   /*
    * Delegated, so it covers grid cells rendered by htmx as well as the detail

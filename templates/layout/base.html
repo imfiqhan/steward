@@ -25,6 +25,35 @@
     </footer>
   </main>
   <div id="toaster" class="toaster"></div>
+  {{/* Command palette. The entries are the sidebar's, from the same MenuSections
+       the nav renders, so a link the reader cannot see here is one they cannot
+       reach there either — the menu is already built per request against their
+       permissions. Basecoat's command component owns the filtering and the
+       keyboard; app.js only opens it and follows the chosen entry. */}}
+  <dialog id="steward-command" class="command-dialog" aria-label="Command palette">
+    <div class="command">
+      <header>
+        <input type="text" placeholder="Search pages…" autocomplete="off"
+               autocorrect="off" spellcheck="false" aria-label="Search pages"/>
+      </header>
+      <div role="menu" data-empty="No matches.">
+        {{range .Page.MenuSections}}
+        <div role="group" {{if .Title}}aria-label="{{.Title}}"{{end}}>
+          {{with .Title}}<h3>{{.}}</h3>{{end}}
+          {{range .Items}}
+          {{if .URI}}
+          <div role="menuitem" data-steward-goto="{{.URI}}"
+               data-keywords="{{$.Page.Brand}}">
+            {{if .Icon}}{{icon .Icon}}{{end}}
+            <span>{{.Title}}</span>
+          </div>
+          {{end}}
+          {{end}}
+        </div>
+        {{end}}
+      </div>
+    </div>
+  </dialog>
   {{/* shared confirmation modal, driven by confirmDialog() in app.js; no
        close button or backdrop dismiss — the user must pick an action */}}
   <dialog id="steward-confirm" class="alert-dialog"

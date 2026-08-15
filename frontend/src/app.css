@@ -286,6 +286,33 @@ tr.steward-dragging { opacity: 0.5; }
 .steward-detail-row dd > :first-child { min-width: 0; }
 .steward-detail-row-block dd { display: block; }
 
+/* ---- Command palette ----------------------------------------------------- */
+
+.steward-command-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2rem;
+  padding: 0 0.5rem 0 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.steward-command-trigger:hover { background: var(--muted); color: var(--foreground); }
+.steward-command-trigger:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.steward-command-trigger .kbd { margin-inline-start: 1.5rem; }
+
+/* Below sm the label and the shortcut both go: a phone has no Ctrl to press,
+   and the icon alone is the whole affordance. */
+@media (max-width: 639px) {
+  .steward-command-trigger { padding: 0; width: 2rem; justify-content: center; border: 0; }
+  .steward-command-trigger-label,
+  .steward-command-trigger .kbd { display: none; }
+}
+
 /* ---- Copy to clipboard --------------------------------------------------- */
 
 .steward-copy-cell {

@@ -3,6 +3,14 @@
           onclick="document.getElementById('sidebar')?.toggle()">
     {{icon "panel-left"}}
   </button>
+  {{/* A shortcut nobody is told about is a shortcut nobody uses, so the palette
+       gets a visible trigger showing the keys that open it. */}}
+  <button type="button" class="steward-command-trigger" data-steward-command
+          aria-label="Search pages" aria-keyshortcuts="Meta+K Control+K">
+    {{icon "search" "size-4"}}
+    <span class="steward-command-trigger-label">Search…</span>
+    <kbd class="kbd"><span data-steward-cmdkey>Ctrl</span> K</kbd>
+  </button>
   <div class="ms-auto flex items-center gap-1">
     <button type="button" class="btn" data-variant="ghost" data-size="icon-sm"
             data-steward-theme-toggle aria-label="Toggle color scheme">
