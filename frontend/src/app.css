@@ -656,3 +656,13 @@ input[type="month"] {
   cursor: pointer;
 }
 .steward-cal-today:hover { background: var(--muted); color: var(--foreground); }
+
+/* Blink and WebKit paint their own picker button inside a date input. Where the
+   calendar below has been added there would be two of them, side by side, doing
+   almost the same thing — so the native one goes.
+
+   Scoped to the flag the script sets, not to the field: with scripting off
+   nothing is added and the native button is the only way in, so it stays. */
+[data-steward-datepicker][data-steward-cal-ready="1"] input::-webkit-calendar-picker-indicator {
+  display: none;
+}
