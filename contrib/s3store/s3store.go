@@ -18,6 +18,7 @@ import (
 	"io"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -36,6 +37,10 @@ type Config struct {
 	// BaseURL is the public prefix used by URL(); files must be readable
 	// there (public bucket policy or a CDN in front). When empty, URL()
 	// falls back to the endpoint/bucket path.
+	//
+	// It is only consulted when signing is turned off: by default the panel
+	// asks for a presigned URL, which works against a private bucket and needs
+	// no public prefix at all.
 	BaseURL string
 }
 
@@ -97,4 +102,17 @@ func (s *Storage) URL(name string) string {
 		segs[i] = url.PathEscape(seg)
 	}
 	return s.baseURL + "/" + strings.Join(segs, "/")
+}
+
+// SignedURL implements steward.SignedURLStorage: a presigned GET good for ttl,
+// so the bucket behind it never needs a public read policy.
+//
+// steward.Admin.StorageURL prefers this over URL when a backend offers it, which
+// is what makes a private bucket work without changing anything in a resource.
+func (s *Storage) SignedURL(ctx context.Context, name string, ttl time.Duration) (string, error) {
+	u, err := s.client.PresignedGetObject(ctx, s.bucket, strings.TrimLeft(name, "/"), ttl, nil)
+	if err != nil {
+		return "", err
+	}
+	return u.String(), nil
 }

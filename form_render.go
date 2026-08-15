@@ -284,7 +284,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 		case FieldFile, FieldImage:
 			fv.UploadURL = uploadURL(c, m.slug, fd.path, rowID)
 			if fv.Value != "" {
-				fv.PreviewURL = c.Admin.cfg.Storage.URL(fv.Value)
+				fv.PreviewURL = c.Admin.StorageURL(fv.Value)
 				fv.FileName = displayFileName(fv.Value)
 			}
 			fv.MaxSizeLabel = sizeLabel(fd.maxSize)
@@ -299,7 +299,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			}
 			for _, p := range decodePaths(fv.Value) {
 				fv.Files = append(fv.Files, uploadedVM{
-					Path: p, URL: c.Admin.cfg.Storage.URL(p), Name: displayFileName(p),
+					Path: p, URL: c.Admin.StorageURL(p), Name: displayFileName(p),
 				})
 			}
 		}
@@ -1042,11 +1042,13 @@ func (t *typedResource[T]) uploadFile(c *Context) error {
 		stored += "-" + base
 	}
 	stored += ext
-	url, err := c.Admin.cfg.Storage.Put(c.Ctx(), stored, file, header.Size, header.Header.Get("Content-Type"))
-	if err != nil {
+	if _, err := c.Admin.cfg.Storage.Put(c.Ctx(), stored, file, header.Size, header.Header.Get("Content-Type")); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, map[string]any{"status": true, "path": stored, "url": url})
+	// Put's own URL is the plain one. What the browser is handed has to be the
+	// signed one, or the thumbnail it inserts is refused by the route serving it.
+	return c.JSON(http.StatusOK, map[string]any{
+		"status": true, "path": stored, "url": c.Admin.StorageURL(stored)})
 }
 
 // defaultMaxUpload bounds a field that names no limit of its own.

@@ -145,6 +145,14 @@ func (a *Admin) StorageURL(name string) string {
 	if name == "" || absoluteRef(name) {
 		return name
 	}
+	// A backend that can sign hands out a link good for a while, so the bucket
+	// behind it never has to be public. Signing is a computation rather than a
+	// round trip, which is why this can stay context-free.
+	if signer, ok := a.cfg.Storage.(SignedURLStorage); ok {
+		if u, err := signer.SignedURL(context.Background(), name, a.signedURLTTL()); err == nil {
+			return u
+		}
+	}
 	return a.cfg.Storage.URL(name)
 }
 
@@ -183,6 +191,10 @@ func absoluteRef(s string) bool {
 type LocalStorage struct {
 	Dir     string
 	BaseURL string
+	// SigningKey signs time-limited URLs. The Admin sets it from Config.SecretKey
+	// when it wires up the backend; left empty, SignedURL reports ErrNotSigned
+	// and links fall back to the authenticated route.
+	SigningKey []byte
 }
 
 // ErrUnsafePath rejects names that escape the storage root.

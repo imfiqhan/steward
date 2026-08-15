@@ -36,6 +36,16 @@ type Config struct {
 	// field overrides it with Field.Symbol.
 	CurrencySymbol string
 
+	// SignedURLTTL is how long a link to a stored file stays good
+	// (default 15 minutes).
+	SignedURLTTL time.Duration
+
+	// PublicUploads serves stored files to anyone who asks, as the panel did
+	// before uploads were gated. Set it only where every upload is genuinely
+	// public — a news site's images, say — and never where a File field can
+	// hold a document.
+	PublicUploads bool
+
 	// TablePrefix names the framework tables (default "admin_"). It is
 	// process-global; two Admins with different prefixes in one process are
 	// not supported.
@@ -199,7 +209,10 @@ func New(cfg Config) (*Admin, error) {
 	}
 	tablePrefix.Store(cfg.TablePrefix)
 	if cfg.Storage == nil {
-		cfg.Storage = &LocalStorage{Dir: cfg.UploadDir, BaseURL: cfg.Prefix + "/_uploads"}
+		cfg.Storage = &LocalStorage{
+			Dir: cfg.UploadDir, BaseURL: cfg.Prefix + "/_uploads",
+			SigningKey: cfg.SecretKey,
+		}
 	}
 
 	codec, err := session.NewCodec(cfg.SecretKey)

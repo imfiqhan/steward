@@ -86,9 +86,12 @@ func (a *Admin) buildRoutes() *http.ServeMux {
 
 	// Local uploads are served straight from disk; other Storage backends
 	// give absolute URLs and never hit this route.
+	//
+	// Behind uploadGuard: this used to sit outside the panel's authentication,
+	// so anyone who knew a path could read any stored file without signing in.
 	if ls, ok := a.cfg.Storage.(*LocalStorage); ok {
 		fileServer := http.StripPrefix(p+"/_uploads/", http.FileServer(http.Dir(ls.Dir)))
-		mux.Handle("GET "+p+"/_uploads/", uploadHeaders(fileServer))
+		mux.Handle("GET "+p+"/_uploads/", a.uploadGuard(p+"/_uploads/", uploadHeaders(fileServer)))
 	}
 
 	for _, res := range a.registry {
