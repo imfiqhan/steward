@@ -1492,6 +1492,259 @@ window.htmx = htmx;
   window.addEventListener("resize", closeOpenRowMenus);
   window.addEventListener("scroll", closeOpenRowMenus, true);
 
+  /* ---- Date picker, on pointer devices only ---------------------------------- */
+  /*
+   * The native input stays the field. On a touch device nothing here runs at
+   * all: the reader gets the picker their platform already gives them, which is
+   * better than anything worth writing here. On a pointer device a calendar is
+   * added beside it, because Safari's desktop control for datetime-local is a
+   * row of steppers with no calendar at all.
+   *
+   * Everything is written through the input's own value in ISO, so what is
+   * submitted is exactly what it was before.
+   */
+
+  var COARSE = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+
+  // isoDate and isoTime are the halves of what a date or datetime input holds.
+  function isoDate(d) {
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+
+  function readInput(input) {
+    var raw = input.value;
+    var datePart = raw.slice(0, 10);
+    var timePart = raw.length > 10 ? raw.slice(11) : "";
+    var d = null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+      var p = datePart.split("-");
+      d = new Date(+p[0], +p[1] - 1, +p[2]);
+    }
+    return { date: d, time: timePart };
+  }
+
+  function writeInput(input, date, time) {
+    var v = isoDate(date);
+    if (input.type === "datetime-local") {
+      v += "T" + (time || "00:00:00");
+    }
+    input.value = v;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function monthLabel(d) {
+    var lang = document.documentElement.lang || undefined;
+    try {
+      return new Intl.DateTimeFormat(lang, { month: "long", year: "numeric" }).format(d);
+    } catch (err) {
+      return d.getFullYear() + "-" + pad(d.getMonth() + 1);
+    }
+  }
+
+  function weekdayNames() {
+    var lang = document.documentElement.lang || undefined;
+    var out = [];
+    // 2024-01-01 was a Monday; the grid starts on Monday.
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(2024, 0, 1 + i);
+      try {
+        out.push(new Intl.DateTimeFormat(lang, { weekday: "narrow" }).format(d));
+      } catch (err) {
+        out.push(["M", "T", "W", "T", "F", "S", "S"][i]);
+      }
+    }
+    return out;
+  }
+
+  function buildCalendar(root, input) {
+    var cal = document.createElement("div");
+    cal.className = "steward-cal";
+    cal.setAttribute("role", "dialog");
+    cal.setAttribute("aria-label", "Choose a date");
+
+    var state = readInput(input);
+    var view = new Date(state.date || new Date());
+    view.setDate(1);
+
+    function render() {
+      cal.replaceChildren();
+
+      var head = document.createElement("div");
+      head.className = "steward-cal-head";
+      var prev = navButton("‹", "Previous month", function () { step(-1); });
+      var title = document.createElement("span");
+      title.className = "steward-cal-title";
+      title.textContent = monthLabel(view);
+      var next = navButton("›", "Next month", function () { step(1); });
+      head.append(prev, title, next);
+      cal.appendChild(head);
+
+      var grid = document.createElement("div");
+      grid.className = "steward-cal-grid";
+      weekdayNames().forEach(function (n) {
+        var el = document.createElement("span");
+        el.className = "steward-cal-dow";
+        el.setAttribute("aria-hidden", "true");
+        el.textContent = n;
+        grid.appendChild(el);
+      });
+
+      // Monday-first: how far back the first cell reaches.
+      var first = new Date(view.getFullYear(), view.getMonth(), 1);
+      var lead = (first.getDay() + 6) % 7;
+      var start = new Date(first);
+      start.setDate(1 - lead);
+      var selected = readInput(input).date;
+      var today = new Date();
+
+      for (var i = 0; i < 42; i++) {
+        var day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "steward-cal-day";
+        btn.textContent = String(day.getDate());
+        btn.dataset.iso = isoDate(day);
+        if (day.getMonth() !== view.getMonth()) btn.dataset.outside = "1";
+        if (isoDate(day) === isoDate(today)) btn.dataset.today = "1";
+        if (selected && isoDate(day) === isoDate(selected)) {
+          btn.setAttribute("aria-selected", "true");
+        }
+        grid.appendChild(btn);
+      }
+      cal.appendChild(grid);
+
+      var foot = document.createElement("div");
+      foot.className = "steward-cal-foot";
+      if (input.type === "datetime-local") {
+        var time = document.createElement("input");
+        time.type = "time";
+        time.step = "1";
+        time.className = "steward-cal-time";
+        time.value = readInput(input).time || "00:00:00";
+        time.addEventListener("change", function () {
+          var cur = readInput(input).date || new Date();
+          writeInput(input, cur, time.value);
+        });
+        foot.appendChild(time);
+      }
+      var todayBtn = document.createElement("button");
+      todayBtn.type = "button";
+      todayBtn.className = "steward-cal-today";
+      todayBtn.textContent = "Today";
+      todayBtn.addEventListener("click", function () {
+        var t = new Date();
+        writeInput(input, t, input.type === "datetime-local"
+          ? pad(t.getHours()) + ":" + pad(t.getMinutes()) + ":" + pad(t.getSeconds())
+          : "");
+        close(root);
+      });
+      foot.appendChild(todayBtn);
+      cal.appendChild(foot);
+    }
+
+    function navButton(glyph, label, fn) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "steward-cal-nav";
+      b.textContent = glyph;
+      b.setAttribute("aria-label", label);
+      b.addEventListener("click", fn);
+      return b;
+    }
+
+    function step(months) {
+      view.setMonth(view.getMonth() + months);
+      render();
+    }
+
+    cal.addEventListener("click", function (e) {
+      var day = e.target.closest(".steward-cal-day");
+      if (!day) return;
+      var p = day.dataset.iso.split("-");
+      writeInput(input, new Date(+p[0], +p[1] - 1, +p[2]), readInput(input).time);
+      close(root);
+      input.focus();
+    });
+
+    cal.addEventListener("keydown", function (e) {
+      var day = e.target.closest(".steward-cal-day");
+      if (!day) return;
+      var moves = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+      if (moves[e.key] === undefined) return;
+      e.preventDefault();
+      var p = day.dataset.iso.split("-");
+      var d = new Date(+p[0], +p[1] - 1, +p[2] + moves[e.key]);
+      if (d.getMonth() !== view.getMonth()) {
+        view = new Date(d.getFullYear(), d.getMonth(), 1);
+        render();
+      }
+      var target = cal.querySelector('.steward-cal-day[data-iso="' + isoDate(d) + '"]');
+      if (target) target.focus();
+    });
+
+    render();
+    return cal;
+  }
+
+  function close(root) {
+    var cal = root.querySelector(".steward-cal");
+    if (cal) cal.remove();
+    var trigger = root.querySelector(".steward-datepicker-trigger");
+    if (trigger) trigger.setAttribute("aria-expanded", "false");
+  }
+
+  function initDatePickers() {
+    if (COARSE) return;
+    document.querySelectorAll("[data-steward-datepicker]").forEach(function (root) {
+      if (root.dataset.stewardCalReady === "1") return;
+      var input = root.querySelector("input");
+      if (!input || input.disabled || input.readOnly) return;
+      root.dataset.stewardCalReady = "1";
+
+      var trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.className = "steward-datepicker-trigger";
+      trigger.setAttribute("aria-label", "Open the calendar");
+      trigger.setAttribute("aria-expanded", "false");
+      trigger.innerHTML = '<svg class="size-4" xmlns="http://www.w3.org/2000/svg" width="24" ' +
+        'height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+        'stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/>' +
+        '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>';
+      trigger.addEventListener("click", function () {
+        if (root.querySelector(".steward-cal")) { close(root); return; }
+        document.querySelectorAll("[data-steward-datepicker]").forEach(close);
+        var cal = buildCalendar(root, input);
+        root.appendChild(cal);
+        // Open upwards where there is no room below, which is most of the time
+        // for the last field on a form.
+        var r = cal.getBoundingClientRect();
+        if (r.bottom > window.innerHeight - 8 && root.getBoundingClientRect().top > r.height + 8) {
+          cal.style.top = "auto";
+          cal.style.bottom = "calc(100% + 0.25rem)";
+        }
+        trigger.setAttribute("aria-expanded", "true");
+        var sel = root.querySelector('.steward-cal-day[aria-selected="true"]') ||
+          root.querySelector('.steward-cal-day[data-today="1"]');
+        if (sel) sel.focus();
+      });
+      root.appendChild(trigger);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", initDatePickers);
+  document.addEventListener("htmx:afterSettle", initDatePickers);
+  document.addEventListener("click", function (e) {
+    if (e.target.closest("[data-steward-datepicker]")) return;
+    document.querySelectorAll("[data-steward-datepicker]").forEach(close);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    document.querySelectorAll("[data-steward-datepicker]").forEach(close);
+  });
+
   /* ---- Theme toggle ----------------------------------------------------------- */
 
   document.addEventListener("click", function (e) {

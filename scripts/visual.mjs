@@ -397,6 +397,43 @@ if (await up.count()) {
   }
 }
 
+// --- date picker ---------------------------------------------------------------
+// The native input stays the field; a calendar is added only where there is a
+// pointer. Which half runs is a media query, so it can only be seen in a
+// browser.
+{
+  const dp = page.locator("[data-steward-datepicker]").first();
+  if (await dp.count()) {
+    check(await dp.locator(".steward-datepicker-trigger").count() === 1,
+      "a calendar trigger is added on a pointer device");
+    await dp.locator(".steward-datepicker-trigger").click();
+    await page.waitForTimeout(300);
+    const cal = await dp.evaluate((r) => {
+      const c = r.querySelector(".steward-cal");
+      if (!c) return null;
+      const box = c.getBoundingClientRect();
+      return {
+        days: c.querySelectorAll(".steward-cal-day").length,
+        inView: box.bottom <= window.innerHeight + 1 && box.top >= -1,
+        selected: c.querySelector('[aria-selected="true"]')?.dataset.iso || null,
+      };
+    });
+    check(cal !== null, "the calendar opens");
+    if (cal) {
+      check(cal.days === 42, `the grid is six weeks (${cal.days})`);
+      check(cal.inView, "the calendar stays on screen");
+      const before = await dp.locator("input[name]").inputValue();
+      await dp.locator(".steward-cal-day:not([data-outside])").first().click();
+      await page.waitForTimeout(200);
+      const after = await dp.locator("input[name]").inputValue();
+      check(after !== before || !before, `picking a day writes the input (${after})`);
+      check(await dp.locator(".steward-cal").count() === 0, "picking closes the calendar");
+    }
+  } else {
+    check(false, "the form renders a date picker");
+  }
+}
+
 await page.screenshot({
   path: "/tmp/steward-visual.png",
   fullPage: false,

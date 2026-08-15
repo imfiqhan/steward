@@ -252,13 +252,27 @@
              placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}/>
     </div>
 
+  {{else if or (eq .Kind "date") (eq .Kind "datetime")}}
+    {{/* The native input stays the field: it submits, it validates, and on a
+         touch device it keeps the picker the reader already knows. On a
+         pointer device app.js adds a calendar beside it — Safari's desktop
+         control for datetime-local is a row of steppers with no calendar at
+         all. */}}
+    <div class="steward-datepicker" data-steward-datepicker>
+      <input id="field-{{.Name}}" type="{{if eq .Kind "date"}}date{{else}}datetime-local{{end}}"
+             {{if eq .Kind "datetime"}}step="1"{{end}}
+             name="{{.Name}}" value="{{.Value}}" class="input"
+             {{if .Errors}}aria-invalid="true"{{end}}
+             {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}/>
+    </div>
+
   {{else}}
     <input id="field-{{.Name}}"
       type="{{if eq .Kind "number"}}number{{else if eq .Kind "decimal"}}number{{else if eq .Kind "email"}}email{{else if eq .Kind "password"}}password{{else if eq .Kind "url"}}url{{else if eq .Kind "color"}}color{{else if eq .Kind "date"}}date{{else if eq .Kind "datetime"}}datetime-local{{else if eq .Kind "time"}}time{{else}}text{{end}}"
       {{if eq .Kind "decimal"}}step="any"{{end}}
       {{/* Without a step the control works to the minute and drops the seconds
            it was given, so a save rewrites them to zero. */}}
-      {{if or (eq .Kind "datetime") (eq .Kind "time")}}step="1"{{end}}
+      {{if eq .Kind "time"}}step="1"{{end}}
       name="{{.Name}}" value="{{.Value}}"
       class="input {{if eq .Kind "color"}}w-16 p-1{{end}}"
       placeholder="{{.Placeholder}}"
