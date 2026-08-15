@@ -27,8 +27,9 @@ import (
 
 type uploadRow struct {
 	ID  uint `gorm:"primaryKey"`
-	Doc string
-	Pic string
+	Doc  string
+	Pic  string
+	Body string
 }
 
 func newUploadServer(t *testing.T) (*httptest.Server, string) {
@@ -56,6 +57,7 @@ func newUploadServer(t *testing.T) (*httptest.Server, string) {
 	res.Form(func(f *steward.Form[uploadRow]) {
 		f.File("Doc").Accept("application/pdf")
 		f.Image("Pic")
+		f.Richtext("Body").MaxSize(1 << 10)
 	})
 	if err := app.Build(); err != nil {
 		t.Fatal(err)
@@ -433,4 +435,35 @@ func submitForm(t *testing.T, srv *httptest.Server, values map[string]string) {
 		b, _ := io.ReadAll(resp.Body)
 		t.Fatalf("PUT = %d: %s", resp.StatusCode, b)
 	}
+}
+
+// TestRichtextUploadIsHeldToImageRules covers the endpoint a Richtext field's
+// image button posts to. It is not an upload field, so the kind checks have to
+// name it explicitly — miss that and it inherits the File branch, which accepts
+// anything that is not executable.
+func TestRichtextUploadIsHeldToImageRules(t *testing.T) {
+	srv, dir := newUploadServer(t)
+
+	code, body := postUpload(t, srv, "Body", "foto.png", "\x89PNG\r\n\x1a\n")
+	if code != http.StatusOK {
+		t.Fatalf("an image was refused: %d %s", code, body)
+	}
+	if !strings.Contains(body, `"url"`) {
+		t.Errorf("the reply carries no URL for the editor to insert: %s", body)
+	}
+
+	// Anything that is not an image, whether or not a browser would run it.
+	for _, name := range []string{"page.html", "sheet.pdf", "vector.svg", "script.js"} {
+		code, body := postUpload(t, srv, "Body", name, "x")
+		if code != http.StatusUnsupportedMediaType {
+			t.Errorf("%s = %d (%s), want 415", name, code, body)
+		}
+	}
+
+	// The field's own limit, rather than the 8 MB default.
+	code, body = postUpload(t, srv, "Body", "big.png", strings.Repeat("x", 2<<10))
+	if code != http.StatusRequestEntityTooLarge {
+		t.Errorf("an oversized image = %d (%s), want 413", code, body)
+	}
+	_ = dir
 }

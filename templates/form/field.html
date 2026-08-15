@@ -43,7 +43,8 @@
          contenteditable surface beside it and mirrors the markup back. Without
          JavaScript the raw HTML remains editable, so the field degrades rather
          than breaking. */}}
-    <div class="steward-richtext" data-steward-richtext
+    <div class="steward-richtext" data-steward-richtext data-sprite="{{.SpriteURL}}"
+         data-upload="{{.UploadURL}}"
          {{if .Disabled}}data-disabled="1"{{end}} {{if .ReadOnly}}data-readonly="1"{{end}}>
       <textarea id="field-{{.Name}}" name="{{.Name}}" class="textarea font-mono" rows="12"
         placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>

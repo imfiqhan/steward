@@ -234,6 +234,11 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			if fv.Value != "" {
 				fv.CurrentIcon = rend.icon(fv.Value)
 			}
+		case FieldRichtext:
+			// The editor draws its own toolbar, so it needs the sprite the rest
+			// of the panel draws from, and somewhere to put a pasted image.
+			fv.SpriteURL = c.Admin.url("_assets", c.Admin.renderer.assetVersion, spritePath)
+			fv.UploadURL = uploadURL(c, m.slug, fd.path, rowID)
 		case FieldBelongsTo:
 			// Always fetched: the target is a table, and how big it is now says
 			// nothing about how big it will be.
@@ -858,7 +863,9 @@ func (t *typedResource[T]) uploadFile(c *Context) error {
 	name := c.R.URL.Query().Get("field")
 	var target *Field[T]
 	for _, fd := range t.form.fields {
-		if fd.path == name && isUploadKind(fd.kind) {
+		// A Richtext field is not an upload field, but its editor puts images
+		// in the body, and they go to the same place under the same limits.
+		if fd.path == name && (isUploadKind(fd.kind) || fd.kind == FieldRichtext) {
 			target = fd
 			break
 		}
@@ -884,7 +891,8 @@ func (t *typedResource[T]) uploadFile(c *Context) error {
 	}
 
 	ext := strings.ToLower(path.Ext(header.Filename))
-	if (target.kind == FieldImage || target.kind == FieldImages) && !allowedImageExt[ext] {
+	if (target.kind == FieldImage || target.kind == FieldImages ||
+		target.kind == FieldRichtext) && !allowedImageExt[ext] {
 		return c.Envelope(Error("Only image files are allowed here.").Code(http.StatusUnsupportedMediaType))
 	}
 	if (target.kind == FieldFile || target.kind == FieldFiles) && activeExt[ext] {

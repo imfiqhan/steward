@@ -936,23 +936,44 @@ window.htmx = htmx;
    * security boundary — execCommand's output only has to be tidy, not trusted.
    */
 
+  // icon names are Lucide symbols in the vendored sprite, the same source the
+  // rest of the panel draws from. state marks the tools that can report whether
+  // they are on, which is what the pressed styling reads.
   var RICHTEXT_TOOLS = [
-    { cmd: "bold", label: "B", title: "Bold (⌘B)", cls: "font-semibold" },
-    { cmd: "italic", label: "I", title: "Italic (⌘I)", cls: "italic" },
-    { cmd: "underline", label: "U", title: "Underline (⌘U)", cls: "underline" },
+    { cmd: "bold", icon: "bold", title: "Bold (⌘B)", state: true },
+    { cmd: "italic", icon: "italic", title: "Italic (⌘I)", state: true },
+    { cmd: "underline", icon: "underline", title: "Underline (⌘U)", state: true },
+    { cmd: "strikeThrough", icon: "strikethrough", title: "Strikethrough", state: true },
     { sep: true },
-    { cmd: "formatBlock", arg: "h2", label: "H2", title: "Heading 2" },
-    { cmd: "formatBlock", arg: "h3", label: "H3", title: "Heading 3" },
-    { cmd: "formatBlock", arg: "p", label: "¶", title: "Paragraph" },
+    { cmd: "formatBlock", arg: "h2", icon: "heading-2", title: "Heading 2" },
+    { cmd: "formatBlock", arg: "h3", icon: "heading-3", title: "Heading 3" },
+    { cmd: "formatBlock", arg: "p", icon: "pilcrow", title: "Paragraph" },
     { sep: true },
-    { cmd: "insertUnorderedList", label: "•", title: "Bulleted list" },
-    { cmd: "insertOrderedList", label: "1.", title: "Numbered list" },
-    { cmd: "formatBlock", arg: "blockquote", label: "❝", title: "Quote" },
+    { cmd: "insertUnorderedList", icon: "list", title: "Bulleted list", state: true },
+    { cmd: "insertOrderedList", icon: "list-ordered", title: "Numbered list", state: true },
+    { cmd: "formatBlock", arg: "blockquote", icon: "text-quote", title: "Quote" },
     { sep: true },
-    { cmd: "createLink", label: "🔗", title: "Insert link" },
-    { cmd: "unlink", label: "⛓", title: "Remove link" },
-    { cmd: "removeFormat", label: "⌫", title: "Clear formatting" }
+    { cmd: "createLink", icon: "link", title: "Insert link" },
+    { cmd: "unlink", icon: "unlink", title: "Remove link" },
+    { cmd: "insertImage", icon: "image-plus", title: "Insert image" },
+    { cmd: "removeFormat", icon: "remove-formatting", title: "Clear formatting" }
   ];
+
+  // queryCommandState answers for inline commands only. A block command has to
+  // be compared against the block the caret sits in, which is what
+  // queryCommandValue reports.
+  function richtextActive(t) {
+    try {
+      if (t.cmd === "formatBlock") {
+        var block = String(document.queryCommandValue("formatBlock") || "").toLowerCase();
+        return block === t.arg;
+      }
+      if (t.state) return document.queryCommandState(t.cmd);
+    } catch (err) {
+      return false;
+    }
+    return false;
+  }
 
   function buildRichtext(wrap) {
     if (wrap.dataset.stewardRichtextReady === "1") return;
@@ -964,6 +985,10 @@ window.htmx = htmx;
       return;
     }
     wrap.dataset.stewardRichtextReady = "1";
+
+    var sprite = wrap.dataset.sprite || "";
+    var uploadURL = wrap.dataset.upload || "";
+    var buttons = [];
 
     var bar = document.createElement("div");
     bar.className = "steward-richtext-toolbar";
@@ -991,10 +1016,12 @@ window.htmx = htmx;
       }
       var b = document.createElement("button");
       b.type = "button";
-      b.className = "steward-richtext-btn " + (t.cls || "");
+      b.className = "steward-richtext-btn";
       b.title = t.title;
       b.setAttribute("aria-label", t.title);
-      b.textContent = t.label;
+      b.setAttribute("aria-pressed", "false");
+      b.innerHTML = iconGlyph(sprite, t.icon);
+      buttons.push({ tool: t, el: b });
       b.addEventListener("mousedown", function (e) {
         // Keep focus (and the selection) in the surface.
         e.preventDefault();
@@ -1006,20 +1033,103 @@ window.htmx = htmx;
           var url = window.prompt("Link URL", "https://");
           if (!url) return;
           document.execCommand("createLink", false, url);
+        } else if (t.cmd === "insertImage") {
+          pickImage();
+          return;
         } else if (t.cmd === "formatBlock") {
           document.execCommand("formatBlock", false, t.arg);
         } else {
           document.execCommand(t.cmd, false, null);
         }
         sync();
+        refreshState();
       });
       bar.appendChild(b);
     });
 
     function sync() { ta.value = surface.innerHTML; }
 
+    // Reads the caret's formatting back onto the toolbar, so the buttons say
+    // what the text at the caret already is.
+    function refreshState() {
+      for (var i = 0; i < buttons.length; i++) {
+        buttons[i].el.setAttribute("aria-pressed", richtextActive(buttons[i].tool) ? "true" : "false");
+      }
+    }
+
+    // Uploads through the field's own endpoint, which applies the same size and
+    // type limits an Image field gets, then drops an <img> at the caret. The
+    // selection is captured first: opening the file dialog takes focus, and a
+    // collapsed range cannot be recovered afterwards.
+    function pickImage() {
+      if (!uploadURL) return;
+      var range = null;
+      var sel = window.getSelection();
+      if (sel && sel.rangeCount && surface.contains(sel.anchorNode)) {
+        range = sel.getRangeAt(0).cloneRange();
+      }
+      var input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.className = "hidden";
+      input.addEventListener("change", function () {
+        var file = input.files && input.files[0];
+        input.remove();
+        if (!file) return;
+        var body = new FormData();
+        body.append("file", file);
+        wrap.setAttribute("data-busy", "1");
+        fetch(uploadURL, {
+          method: "POST",
+          body: body,
+          headers: { "X-CSRF-Token": csrfToken() },
+          credentials: "same-origin"
+        })
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+          .then(function (res) {
+            if (!res.ok || !res.body || !res.body.url) {
+              throw new Error((res.body && res.body.message) || "Upload failed.");
+            }
+            insertImage(res.body.url, file.name);
+          })
+          .catch(function (err) { window.alert(err.message || "Upload failed."); })
+          .finally(function () { wrap.removeAttribute("data-busy"); });
+      });
+      document.body.appendChild(input);
+      input.click();
+
+      function insertImage(url, alt) {
+        surface.focus();
+        var s = window.getSelection();
+        if (range && s) { s.removeAllRanges(); s.addRange(range); }
+        var img = document.createElement("img");
+        img.src = url;
+        img.alt = alt || "";
+        var r = s && s.rangeCount ? s.getRangeAt(0) : null;
+        if (r && surface.contains(r.commonAncestorContainer)) {
+          r.deleteContents();
+          r.insertNode(img);
+          r.setStartAfter(img);
+          r.collapse(true);
+          s.removeAllRanges();
+          s.addRange(r);
+        } else {
+          surface.appendChild(img);
+        }
+        sync();
+      }
+    }
+
     surface.addEventListener("input", sync);
     surface.addEventListener("blur", sync);
+    surface.addEventListener("keyup", refreshState);
+    surface.addEventListener("mouseup", refreshState);
+    surface.addEventListener("focus", refreshState);
+    // The caret can also move without a key or a click — undo, or a command run
+    // from the toolbar of another editor on the same page.
+    document.addEventListener("selectionchange", function () {
+      if (surface.contains(document.getSelection && document.getSelection().anchorNode)) refreshState();
+    });
     // Paste as plain text: pasted Word and web markup is mostly attributes the
     // server would strip anyway, and dropping it here keeps the surface honest
     // about what will be saved.
