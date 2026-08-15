@@ -44,7 +44,23 @@ type DetailField[T any] struct {
 	// storageRef resolves the value through Storage before presenting it, for
 	// helpers that put it straight into a src or an href.
 	storageRef bool
+
+	// block gives the value the row's full width, under its label rather than
+	// beside it. Long markup needs it; a date does not.
+	block bool
+
+	// copyable puts a copy button beside the value.
+	copyable bool
 }
+
+// Block puts the value under its label across the row's full width, rather than
+// beside it. HTML and Markdown do this already.
+func (df *DetailField[T]) Block() *DetailField[T] { df.block = true; return df }
+
+// Copyable adds a button that copies the value to the clipboard. It copies what
+// is stored, not what is displayed, so a formatted number or a shortened path
+// still yields the value someone would paste elsewhere.
+func (df *DetailField[T]) Copyable() *DetailField[T] { df.copyable = true; return df }
 
 // As renders the value with a custom function.
 func (df *DetailField[T]) As(fn func(v any, m *T) template.HTML) *DetailField[T] {
@@ -114,6 +130,7 @@ func (df *DetailField[T]) Link() *DetailField[T] {
 // through that path, so cleaning on render is what makes the guarantee hold for
 // the data actually in the table.
 func (df *DetailField[T]) HTML() *DetailField[T] {
+	df.block = true
 	df.present = func(v any, _ *T) template.HTML {
 		s := fmt.Sprint(orEmpty(v))
 		if s == "" {
@@ -126,6 +143,7 @@ func (df *DetailField[T]) HTML() *DetailField[T] {
 
 // JSON pretty-prints the value as a code block.
 func (df *DetailField[T]) JSON() *DetailField[T] {
+	df.block = true
 	df.present = func(v any, _ *T) template.HTML {
 		out, err := json.MarshalIndent(v, "", "  ")
 		if err != nil {
@@ -157,6 +175,7 @@ func (df *DetailField[T]) Filesize() *DetailField[T] {
 // Markdown renders the value as markdown (GitHub flavour), sanitized through
 // the same allowlist a Richtext value passes.
 func (df *DetailField[T]) Markdown() *DetailField[T] {
+	df.block = true
 	df.present = func(v any, _ *T) template.HTML {
 		s := fmt.Sprint(v)
 		if s == "" {
@@ -221,6 +240,10 @@ func RelationGrid[T, C any](d *Detail[T], title string, bind func(q *ListQuery, 
 type detailRowVM struct {
 	Label string
 	HTML  template.HTML
+	Block bool
+	// Copy is the raw value the copy button writes to the clipboard, empty when
+	// the field has no button.
+	Copy string
 }
 
 type detailRelVM struct {
@@ -287,7 +310,15 @@ func (t *typedResource[T]) show(c *Context) error {
 		if df.present != nil {
 			html = df.present(val, row)
 		}
-		vm.Rows = append(vm.Rows, detailRowVM{Label: df.label, HTML: html})
+		rowVM := detailRowVM{Label: df.label, HTML: html, Block: df.block}
+		if df.copyable && val != nil {
+			if r, ok := val.(resolvedRef); ok {
+				rowVM.Copy = r.raw
+			} else {
+				rowVM.Copy = fmt.Sprint(val)
+			}
+		}
+		vm.Rows = append(vm.Rows, rowVM)
 	}
 	for _, rel := range t.detail.relations {
 		entry, ok := c.Admin.byType[rel.typ]

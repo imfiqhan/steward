@@ -332,6 +332,15 @@ func (c *Column[T]) Image(width, height int) *Column[T] {
 	return c
 }
 
+// copyGlyph is Lucide's "copy", inlined because a cell is rendered in Go rather
+// than in a template and so has no {{icon}} to call. It must stay in step with
+// the sprite the rest of the panel draws from.
+const copyGlyph = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" ` +
+	`viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ` +
+	`stroke-linecap="round" stroke-linejoin="round" class="size-3">` +
+	`<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>` +
+	`<path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`
+
 // Copyable adds a copy-to-clipboard affordance.
 func (c *Column[T]) Copyable() *Column[T] {
 	prev := c.present
@@ -345,9 +354,17 @@ func (c *Column[T]) Copyable() *Column[T] {
 		} else {
 			inner = template.HTML(template.HTMLEscapeString(raw))
 		}
+		if raw == "" {
+			return inner
+		}
+		// A button rather than the cell itself: the cell carried no sign it
+		// could be copied, and wrapping a link or a badge in a click handler
+		// takes the click away from whatever is already inside it.
 		return template.HTML(fmt.Sprintf(
-			`<span class="steward-copy" data-steward-copy="%s">%s</span>`,
-			template.HTMLEscapeString(raw), inner))
+			`<span class="steward-copy-cell">%s<button type="button" class="steward-copy" `+
+				`data-steward-copy="%s" aria-label="Copy %s">%s</button></span>`,
+			inner, template.HTMLEscapeString(raw),
+			template.HTMLEscapeString(c.label), copyGlyph))
 	}
 	return c
 }

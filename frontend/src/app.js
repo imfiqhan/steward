@@ -253,13 +253,6 @@ window.htmx = htmx;
       });
       return;
     }
-    var copy = e.target.closest("[data-steward-copy]");
-    if (copy && navigator.clipboard) {
-      navigator.clipboard.writeText(copy.getAttribute("data-steward-copy")).then(function () {
-        toast("success", "Copied to clipboard.");
-      });
-      return;
-    }
     var action = e.target.closest("[data-steward-action]");
     if (action) {
       var ids = [];
@@ -1254,6 +1247,54 @@ window.htmx = htmx;
 
   document.addEventListener("DOMContentLoaded", initMarkdown);
   document.addEventListener("htmx:afterSettle", initMarkdown);
+
+  /* ---- Copy to clipboard ------------------------------------------------------ */
+  /*
+   * Delegated, so it covers grid cells rendered by htmx as well as the detail
+   * page. The value copied is the attribute's, which is what is stored — not
+   * the cell's text, which may be truncated, formatted, or a badge.
+   */
+
+  var COPY_HELD_MS = 1200;
+
+  function flashCopied(btn) {
+    btn.setAttribute("data-copied", "1");
+    setTimeout(function () { btn.removeAttribute("data-copied"); }, COPY_HELD_MS);
+  }
+
+  // Clipboard access needs a secure context; a panel served over plain http on
+  // anything but localhost has none, so fall back to a detached selection.
+  function writeClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (err) { ok = false; }
+      ta.remove();
+      ok ? resolve() : reject(new Error("copy refused"));
+    });
+  }
+
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest("[data-steward-copy]");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    writeClipboard(btn.getAttribute("data-steward-copy") || "")
+      .then(function () {
+        flashCopied(btn);
+        toast("success", "Copied to clipboard.");
+      })
+      .catch(function () { toast("error", "Could not copy to the clipboard."); });
+  });
 
   /* ---- Colour field ----------------------------------------------------------- */
   /*

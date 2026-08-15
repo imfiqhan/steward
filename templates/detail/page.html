@@ -23,12 +23,24 @@
     </div>
   </div>
   <div class="card">
-    <section>
-      <dl class="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+    <section class="px-0">
+      {{/* One row per field, label beside value, a rule between them. The two
+           column grid this replaced paired unrelated fields into rows, so one
+           long value left the other column empty for its whole height — an
+           article body put a thousand pixels of nothing beside itself. */}}
+      <dl class="steward-detail">
         {{range .Data.Rows}}
-        <div class="grid gap-1">
-          <dt class="text-sm text-muted-foreground">{{.Label}}</dt>
-          <dd>{{.HTML}}</dd>
+        <div class="steward-detail-row{{if .Block}} steward-detail-row-block{{end}}">
+          <dt>{{.Label}}</dt>
+          <dd>
+            {{.HTML}}
+            {{with .Copy}}
+            <button type="button" class="steward-copy" data-steward-copy="{{.}}"
+                    aria-label="Copy {{$.Data.Title}} value">
+              {{icon "copy" "size-3"}}
+            </button>
+            {{end}}
+          </dd>
         </div>
         {{end}}
       </dl>

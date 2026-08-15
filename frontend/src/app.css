@@ -202,6 +202,80 @@ tr.steward-dragging { opacity: 0.5; }
 .prose-sm hr { margin: 1em 0; border: 0; border-top: 1px solid var(--border); }
 .prose-sm > :last-child { margin-bottom: 0; }
 
+/* ---- Detail page --------------------------------------------------------- */
+
+.steward-detail-row {
+  display: grid;
+  gap: 0.25rem 1.5rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.steward-detail-row:last-child { border-bottom: 0; }
+
+/* Label beside value once there is room for both. */
+@media (min-width: 640px) {
+  .steward-detail-row {
+    grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+    align-items: start;
+  }
+  /* Long markup gets the width instead, under its label. */
+  .steward-detail-row-block { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* The label is smaller and heavier than the value rather than only greyer:
+   same size and same weight left the two hard to tell apart. */
+.steward-detail-row dt {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.5rem;
+  color: var(--muted-foreground);
+}
+.steward-detail-row dd {
+  display: flex;
+  align-items: start;
+  gap: 0.375rem;
+  min-width: 0;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+.steward-detail-row dd > :first-child { min-width: 0; }
+.steward-detail-row-block dd { display: block; }
+
+/* ---- Copy to clipboard --------------------------------------------------- */
+
+.steward-copy-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  max-width: 100%;
+}
+.steward-copy-cell > :first-child { min-width: 0; }
+
+.steward-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 100ms ease-in, color 100ms ease-in;
+}
+/* Shown on hover on a pointer device, always where there is no hover to give. */
+:is(.steward-detail-row, td, th):hover .steward-copy,
+.steward-copy:focus-visible { opacity: 1; }
+@media (hover: none) {
+  .steward-copy { opacity: 1; }
+}
+.steward-copy:hover { background: var(--muted); color: var(--foreground); }
+.steward-copy:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.steward-copy[data-copied] { color: var(--primary); opacity: 1; }
+
 /* ---- Colour field (Form.Color) ------------------------------------------- */
 
 /* The swatch rides in the input group's start slot, so it inherits the group's

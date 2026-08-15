@@ -2,86 +2,66 @@ import { webkit } from "playwright";
 const failures = [];
 const check = (ok, m) => { console.log((ok ? "  ok   " : "  FAIL ") + m); if (!ok) failures.push(m); };
 const b = await webkit.launch();
-const p = await b.newPage({ viewport: { width: 1500, height: 1000 } });
+const p = await b.newPage({ viewport: { width: 1400, height: 1100 } });
 await p.goto("http://localhost:8080/admin/auth/login");
 await p.fill("#login-username", "developer");
 await p.fill("#login-password", "qwerty123");
 await Promise.all([p.waitForNavigation(), p.click("button[type=submit]")]);
-await p.goto("http://localhost:8080/admin/berita");
-await p.waitForSelector("table");
+await p.goto("http://localhost:8080/admin/berita/105411");
+await p.waitForSelector(".steward-detail");
 
-// Open the filter panel.
-const toggle = p.locator('[aria-controls="grid-filters"], button:has-text("Filter")').first();
-if (await toggle.count()) await toggle.click();
-await p.waitForTimeout(400);
-
-const shape = await p.evaluate(() => {
-  const f = document.querySelector("#grid-filters");
+const m = await p.evaluate(() => {
+  const rows = [...document.querySelectorAll(".steward-detail-row")];
+  const dt = rows[0].querySelector("dt"), dd = rows[0].querySelector("dd");
+  const cs = n => getComputedStyle(n);
+  const withBorder = rows.filter(r => cs(r).borderBottomWidth !== "0px").length;
+  const blocks = rows.filter(r => r.classList.contains("steward-detail-row-block"));
+  // Widest empty gap: what the two-column grid used to leave beside a long value.
   return {
-    selects: f.querySelectorAll("select").length,
-    comboboxes: f.querySelectorAll(".combobox").length,
-    searching: f.querySelectorAll("[data-steward-options]").length,
-    shipped: [...f.querySelectorAll(".combobox")].map(c =>
-      ({ id: c.id, n: c.querySelectorAll('[role="option"]').length })),
+    rows: rows.length,
+    separators: withBorder,
+    lastHasBorder: cs(rows[rows.length - 1]).borderBottomWidth !== "0px",
+    labelSize: cs(dt).fontSize, valueSize: cs(dd).fontSize,
+    labelWeight: cs(dt).fontWeight, valueWeight: cs(dd).fontWeight,
+    labelColour: cs(dt).color, valueColour: cs(dd).color,
+    blocks: blocks.map(r => r.querySelector("dt").textContent.trim()),
+    blockCols: blocks.length ? cs(blocks[0]).gridTemplateColumns : "n/a",
+    normalCols: cs(rows[0]).gridTemplateColumns,
+    copyButtons: document.querySelectorAll(".steward-detail [data-steward-copy]").length,
   };
 });
-check(shape.selects === 0, `no native selects remain (${shape.selects})`);
-check(shape.comboboxes === 4, `four comboboxes (${shape.comboboxes})`);
-// 77 categories and 7,776 tags both exceed one page; Status and Headline do not.
-check(shape.searching === 2, `only the long lists fetch (${shape.searching})`);
-for (const s of shape.shipped) console.log(`         ${s.id}: ${s.n} opsi terkirim`);
+check(m.separators === m.rows - 1 && !m.lastHasBorder,
+  `every row but the last has a rule (${m.separators}/${m.rows})`);
+check(m.labelSize !== m.valueSize || m.labelWeight !== m.valueWeight,
+  `label and value differ in more than colour (${m.labelSize}/${m.labelWeight} vs ${m.valueSize}/${m.valueWeight})`);
+check(m.normalCols.split(" ").length === 2, `a short field is label-beside-value (${m.normalCols})`);
+check(m.blocks.includes("Konten"), `the article body is a block row (${m.blocks.join(", ")})`);
+check(m.blockCols.split(" ").length === 1, `and takes the full width (${m.blockCols})`);
+check(m.copyButtons === 1, `the copyable field has a button (${m.copyButtons})`);
 
-// A short list filters in the browser, with no request.
-const status = p.locator("#filter-f_Status");
-await status.click();
-await p.waitForTimeout(250);
-await status.fill("Dipublikasi");
-await p.waitForTimeout(300);
-const statusOpts = await p.evaluate(() =>
-  [...document.querySelectorAll('#filter-f_Status-listbox [role="option"]')]
-    .filter(o => o.offsetParent !== null).map(o => o.textContent.trim()));
-check(statusOpts.length > 0, `the short list narrows in the browser, no request (${statusOpts.join(", ")})`);
+// The button appears on hover and actually copies.
+await p.locator(".steward-detail-row").first().hover();
+await p.waitForTimeout(200);
+const vis = await p.evaluate(() => {
+  const btn = document.querySelector(".steward-detail [data-steward-copy]");
+  return { opacity: getComputedStyle(btn).opacity, value: btn.getAttribute("data-steward-copy") };
+});
+check(vis.opacity === "1", `it shows on hover (opacity ${vis.opacity})`);
+check(vis.value === "105411", `and carries the stored value (${vis.value})`);
 
-// The long list fetches as you type.
-let fetched = null;
-p.on("response", r => { if (r.url().includes("_options?filter=")) fetched = r.url(); });
-const tag = p.locator("#filter-f_Tags\\.ID");
-await tag.click();
-await p.waitForTimeout(400);
-await tag.fill("wisata");
-await p.waitForTimeout(1200);
-check(fetched !== null, `typing fetches from the server (${fetched ? fetched.split("/admin")[1] : "no request"})`);
-const tagOpts = await p.evaluate(() =>
-  [...document.querySelectorAll('#filter-f_Tags\\.ID-listbox [role="option"]')].map(o => o.textContent.trim()));
-check(tagOpts.length > 0 && tagOpts.length <= 50, `it returns a page of matches (${tagOpts.length})`);
-check(tagOpts.some(t => /wisata/i.test(t)), `and they match (${tagOpts.slice(0,3).join(", ")})`);
+await p.context().grantPermissions(["clipboard-read", "clipboard-write"]).catch(() => {});
+await p.locator(".steward-detail [data-steward-copy]").click();
+await p.waitForTimeout(500);
+const after = await p.evaluate(async () => {
+  const btn = document.querySelector(".steward-detail [data-steward-copy]");
+  let clip = null;
+  try { clip = await navigator.clipboard.readText(); } catch {}
+  return { flashed: btn.hasAttribute("data-copied"), clip,
+    toast: !!document.querySelector("[data-slot=toast], .toast") };
+});
+check(after.flashed || after.toast, `pressing it confirms (flash ${after.flashed}, toast ${after.toast})`);
+if (after.clip !== null) check(after.clip === "105411", `the clipboard holds the value (${after.clip})`);
 
-// Choosing one, then applying, actually filters the grid.
-const before = await p.evaluate(() => document.querySelectorAll("table tbody tr").length);
-await p.locator('#filter-f_Tags\\.ID-listbox [role="option"]').first().click();
-await p.waitForTimeout(300);
-const hidden = await p.evaluate(() =>
-  document.querySelector('#filter-f_Tags\\.ID-combobox input[type=hidden]').value);
-check(hidden !== "", `choosing sets the submitted value (${hidden})`);
-
-await p.locator('#grid-filters button[type=submit]').click();
-await p.waitForTimeout(1500);
-const applied = await p.evaluate(() => ({
-  url: location.search,
-  rows: document.querySelectorAll("table tbody tr").length,
-  shown: document.querySelector('#filter-f_Tags\\.ID')?.value,
-}));
-check(applied.url.includes("f_Tags.ID="), `the filter reaches the URL (${applied.url.slice(0, 60)})`);
-check(applied.rows > 0 && applied.rows <= before, `the grid is filtered (${before} -> ${applied.rows} baris)`);
-check(applied.shown && applied.shown !== "", `the applied filter shows its label (${applied.shown})`);
-
-// And clearing it lets go.
-await p.locator('#filter-f_Tags\\.ID-combobox [data-clear]').click();
-await p.waitForTimeout(300);
-const cleared = await p.evaluate(() =>
-  document.querySelector('#filter-f_Tags\\.ID-combobox input[type=hidden]').value);
-check(cleared === "", `clearing empties the submitted value (${JSON.stringify(cleared)})`);
-
-await p.locator("#grid-filters").screenshot({ path: "/tmp/filters.png" });
+await p.locator(".steward-detail").screenshot({ path: "/tmp/detail-after.png" });
 await b.close();
 console.log(failures.length ? `\n${failures.length} gagal` : "\nsemua lolos");
