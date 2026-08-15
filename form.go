@@ -324,6 +324,8 @@ type Field[T any] struct {
 	dir      string
 	maxSize  int64
 	maxFiles int
+	minVal   any
+	maxVal   any
 	accept   string
 
 	// belongsTo
@@ -422,6 +424,17 @@ func (fd *Field[T]) Dir(dir string) *Field[T] { fd.dir = strings.Trim(dir, "/");
 
 // MaxSize caps upload size in bytes.
 func (fd *Field[T]) MaxSize(n int64) *Field[T] { fd.maxSize = n; return fd }
+
+// Min sets the lowest value a field accepts: a time.Time or a layout-shaped
+// string for the temporal kinds, a number for the numeric ones.
+//
+// It reaches the control as the browser's own min attribute and is checked again
+// on save, because an attribute is a hint to whoever is using the page and no
+// obstacle to anyone who is not.
+func (fd *Field[T]) Min(v any) *Field[T] { fd.minVal = v; return fd }
+
+// Max sets the highest value a field accepts; see Min.
+func (fd *Field[T]) Max(v any) *Field[T] { fd.maxVal = v; return fd }
 
 // MaxFiles bounds how many a Files or Images field accepts (default 10).
 func (fd *Field[T]) MaxFiles(n int) *Field[T] { fd.maxFiles = n; return fd }
@@ -585,4 +598,80 @@ func parseTimeInput(raw, layout string, info *fieldInfo) (any, error) {
 	}
 	_ = info
 	return t, nil
+}
+
+// boundString renders a Min or Max for the browser, in the layout the field's
+// own control expects.
+func (fd *Field[T]) boundString(v any) string {
+	if v == nil {
+		return ""
+	}
+	if t, ok := v.(time.Time); ok {
+		switch fd.kind {
+		case FieldDate:
+			return t.Format("2006-01-02")
+		case FieldTime:
+			return t.Format("15:04:05")
+		default:
+			return t.Format("2006-01-02T15:04:05")
+		}
+	}
+	return fmt.Sprint(v)
+}
+
+// outOfRange reports why a decoded value falls outside Min or Max, or "".
+//
+// The comparison runs on the decoded value rather than the submitted text, so a
+// date is compared as a date and a number as a number.
+func (fd *Field[T]) outOfRange(val any) string {
+	if fd.minVal == nil && fd.maxVal == nil {
+		return ""
+	}
+	if t, ok := asTime(val); ok {
+		if lo, ok := asTime(fd.minVal); ok && t.Before(lo) {
+			return fd.label + " cannot be earlier than " + fd.boundString(fd.minVal) + "."
+		}
+		if hi, ok := asTime(fd.maxVal); ok && t.After(hi) {
+			return fd.label + " cannot be later than " + fd.boundString(fd.maxVal) + "."
+		}
+		return ""
+	}
+	n, ok := asNumber(val)
+	if !ok {
+		return ""
+	}
+	if lo, ok := asNumber(fd.minVal); ok && n < lo {
+		return fmt.Sprintf("%s must be at least %v.", fd.label, fd.minVal)
+	}
+	if hi, ok := asNumber(fd.maxVal); ok && n > hi {
+		return fmt.Sprintf("%s may not be greater than %v.", fd.label, fd.maxVal)
+	}
+	return ""
+}
+
+func asTime(v any) (time.Time, bool) {
+	switch x := v.(type) {
+	case time.Time:
+		return x, true
+	case *time.Time:
+		if x == nil {
+			return time.Time{}, false
+		}
+		return *x, true
+	}
+	return time.Time{}, false
+}
+
+func asNumber(v any) (float64, bool) {
+	switch x := v.(type) {
+	case int:
+		return float64(x), true
+	case int64:
+		return float64(x), true
+	case float64:
+		return x, true
+	case float32:
+		return float64(x), true
+	}
+	return 0, false
 }

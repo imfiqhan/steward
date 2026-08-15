@@ -1559,6 +1559,49 @@ window.htmx = htmx;
     return out;
   }
 
+  function decadeStart(year) { return year - ((year % 12) + 12) % 12; }
+
+  function shortMonth(m) {
+    var lang = document.documentElement.lang || undefined;
+    try {
+      return new Intl.DateTimeFormat(lang, { month: "short" }).format(new Date(2024, m, 1));
+    } catch (err) {
+      return String(m + 1);
+    }
+  }
+
+  // readBounds takes the range off the input's own min and max, so the calendar
+  // refuses exactly what the control and the server would.
+  function readBounds(input) {
+    function parse(v) {
+      if (!v) return null;
+      var d = v.slice(0, 10).split("-");
+      if (d.length !== 3) return null;
+      return new Date(+d[0], +d[1] - 1, +d[2]);
+    }
+    return { min: parse(input.getAttribute("min")), max: parse(input.getAttribute("max")) };
+  }
+
+  function dayOutOfBounds(day, b) {
+    if (b.min && day < b.min) return true;
+    if (b.max && day > b.max) return true;
+    return false;
+  }
+
+  function monthOutOfBounds(year, month, b) {
+    var last = new Date(year, month + 1, 0);
+    var first = new Date(year, month, 1);
+    if (b.min && last < b.min) return true;
+    if (b.max && first > b.max) return true;
+    return false;
+  }
+
+  function yearOutOfBounds(year, b) {
+    if (b.min && year < b.min.getFullYear()) return true;
+    if (b.max && year > b.max.getFullYear()) return true;
+    return false;
+  }
+
   function buildCalendar(root, input) {
     var cal = document.createElement("div");
     cal.className = "steward-cal";
@@ -1568,19 +1611,32 @@ window.htmx = htmx;
     var state = readInput(input);
     var view = new Date(state.date || new Date());
     view.setDate(1);
+    var mode = "day";
+    var bounds = readBounds(input);
 
     function render() {
       cal.replaceChildren();
 
       var head = document.createElement("div");
       head.className = "steward-cal-head";
-      var prev = navButton("‹", "Previous month", function () { step(-1); });
-      var title = document.createElement("span");
+      var prev = navButton("‹", "Previous", function () { step(-1); });
+      var title = document.createElement("button");
+      title.type = "button";
       title.className = "steward-cal-title";
-      title.textContent = monthLabel(view);
-      var next = navButton("›", "Next month", function () { step(1); });
+      title.textContent = headingFor();
+      // Stepping a month at a time is fine for next week and hopeless for three
+      // years ago, so the heading zooms out: days to months to years.
+      title.setAttribute("aria-label", "Change " + (mode === "day" ? "month" : mode));
+      title.addEventListener("click", function () {
+        mode = mode === "day" ? "month" : "year";
+        render();
+      });
+      var next = navButton("›", "Next", function () { step(1); });
       head.append(prev, title, next);
       cal.appendChild(head);
+
+      if (mode === "month") { cal.appendChild(monthGrid()); return; }
+      if (mode === "year") { cal.appendChild(yearGrid()); return; }
 
       var grid = document.createElement("div");
       grid.className = "steward-cal-grid";
@@ -1612,6 +1668,7 @@ window.htmx = htmx;
         if (selected && isoDate(day) === isoDate(selected)) {
           btn.setAttribute("aria-selected", "true");
         }
+        if (dayOutOfBounds(day, bounds)) btn.disabled = true;
         grid.appendChild(btn);
       }
       cal.appendChild(grid);
@@ -1645,6 +1702,61 @@ window.htmx = htmx;
       cal.appendChild(foot);
     }
 
+    function headingFor() {
+      if (mode === "day") return monthLabel(view);
+      if (mode === "month") return String(view.getFullYear());
+      var base = decadeStart(view.getFullYear());
+      return base + " – " + (base + 11);
+    }
+
+    function monthGrid() {
+      var grid = document.createElement("div");
+      grid.className = "steward-cal-grid steward-cal-months";
+      for (var m = 0; m < 12; m++) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "steward-cal-cell";
+        b.textContent = shortMonth(m);
+        b.dataset.month = String(m);
+        if (m === view.getMonth()) b.setAttribute("aria-selected", "true");
+        if (monthOutOfBounds(view.getFullYear(), m, bounds)) b.disabled = true;
+        grid.appendChild(b);
+      }
+      grid.addEventListener("click", function (e) {
+        var cell = e.target.closest("[data-month]");
+        if (!cell || cell.disabled) return;
+        view.setMonth(+cell.dataset.month);
+        mode = "day";
+        render();
+      });
+      return grid;
+    }
+
+    function yearGrid() {
+      var grid = document.createElement("div");
+      grid.className = "steward-cal-grid steward-cal-months";
+      var base = decadeStart(view.getFullYear());
+      for (var i = 0; i < 12; i++) {
+        var y = base + i;
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "steward-cal-cell";
+        b.textContent = String(y);
+        b.dataset.year = String(y);
+        if (y === view.getFullYear()) b.setAttribute("aria-selected", "true");
+        if (yearOutOfBounds(y, bounds)) b.disabled = true;
+        grid.appendChild(b);
+      }
+      grid.addEventListener("click", function (e) {
+        var cell = e.target.closest("[data-year]");
+        if (!cell || cell.disabled) return;
+        view.setFullYear(+cell.dataset.year);
+        mode = "month";
+        render();
+      });
+      return grid;
+    }
+
     function navButton(glyph, label, fn) {
       var b = document.createElement("button");
       b.type = "button";
@@ -1655,8 +1767,10 @@ window.htmx = htmx;
       return b;
     }
 
-    function step(months) {
-      view.setMonth(view.getMonth() + months);
+    function step(n) {
+      if (mode === "day") view.setMonth(view.getMonth() + n);
+      else if (mode === "month") view.setFullYear(view.getFullYear() + n);
+      else view.setFullYear(view.getFullYear() + n * 12);
       render();
       // The button that was just pressed no longer exists; its replacement
       // takes the focus so the month can be stepped again.
@@ -1667,7 +1781,7 @@ window.htmx = htmx;
 
     cal.addEventListener("click", function (e) {
       var day = e.target.closest(".steward-cal-day");
-      if (!day) return;
+      if (!day || day.disabled) return;
       var p = day.dataset.iso.split("-");
       writeInput(input, new Date(+p[0], +p[1] - 1, +p[2]), readInput(input).time);
       close(root);

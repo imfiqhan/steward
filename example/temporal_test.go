@@ -215,3 +215,93 @@ func TestUnchangedSaveWritesNothing(t *testing.T) {
 		t.Errorf("an untouched save changed the row: %+v -> %+v", before, after)
 	}
 }
+
+// TestDateBoundsAreEnforced covers Min and Max. They reach the control as its
+// own min and max, which is a hint to whoever is using the page and no obstacle
+// at all to anyone who is not — so the same range is checked on save.
+func TestDateBoundsAreEnforced(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/bounds.db"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&timeRow{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&timeRow{
+		Title: "x", At: time.Date(2026, 6, 1, 12, 0, 0, 0, time.Local),
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("bounds-test-secret-key"),
+		AuthExcept: []string{"/time_rows*"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[timeRow](app).Form(func(f *steward.Form[timeRow]) {
+		f.Text("Title")
+		f.Datetime("At").
+			Min(time.Date(2026, 1, 1, 0, 0, 0, 0, time.Local)).
+			Max(time.Date(2026, 12, 31, 23, 59, 59, 0, time.Local))
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	defer srv.Close()
+
+	page := getBody(t, srv.URL+"/admin/time_rows/1/edit")
+	for _, want := range []string{`min="2026-01-01T00:00:00"`, `max="2026-12-31T23:59:59"`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the control is missing %s", want)
+		}
+	}
+
+	// Posting past the range directly, as anything not using the page would.
+	for _, bad := range []string{"2025-12-31T23:00:00", "2027-01-01T00:00:00"} {
+		code, body := putRow(t, srv, map[string]string{"Title": "x", "At": bad})
+		if code != http.StatusUnprocessableEntity {
+			t.Errorf("%s was accepted: %d %s", bad, code, body)
+		}
+	}
+	// And a date inside it still saves.
+	if code, body := putRow(t, srv, map[string]string{"Title": "x", "At": "2026-06-02T08:00:00"}); code >= 400 {
+		t.Errorf("an in-range date was refused: %d %s", code, body)
+	}
+}
+
+// putRow submits the edit form and reports the status.
+func putRow(t *testing.T, srv *httptest.Server, values map[string]string) (int, string) {
+	t.Helper()
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar}
+	resp, err := client.Get(srv.URL + "/admin/time_rows/1/edit")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	m := comboCSRFRe.FindStringSubmatch(string(raw))
+	if m == nil {
+		t.Fatal("no CSRF token")
+	}
+	form := url.Values{"_token": {m[1]}}
+	for k, v := range values {
+		form.Set(k, v)
+	}
+	req, err := http.NewRequest(http.MethodPut, srv.URL+"/admin/time_rows/1",
+		strings.NewReader(form.Encode()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("X-CSRF-Token", m[1])
+	out, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = out.Body.Close() }()
+	b, _ := io.ReadAll(out.Body)
+	return out.StatusCode, string(b)
+}

@@ -53,6 +53,9 @@ type formFieldVM struct {
 	FileName     string
 	MaxSizeLabel string
 	AcceptLabel  string
+	// MinAttr and MaxAttr reach the control as its own min and max.
+	MinAttr string
+	MaxAttr string
 	// Files is a multi-file field's contents, in stored order; MaxFiles bounds
 	// how many more may be added.
 	Files    []uploadedVM
@@ -174,6 +177,8 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			Help:        fd.help,
 			Accept:      fd.accept,
 			Fieldset:    fd.fieldset,
+			MinAttr:     fd.boundString(fd.minVal),
+			MaxAttr:     fd.boundString(fd.maxVal),
 			Errors:      errs[fd.path],
 		}
 		if creating && row == nil {
@@ -580,6 +585,10 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 		}
 		if err != nil {
 			errs[fd.path] = append(errs[fd.path], fd.label+": "+err.Error())
+			continue
+		}
+		if msg := fd.outOfRange(val); msg != "" {
+			errs[fd.path] = append(errs[fd.path], msg)
 			continue
 		}
 		writes = append(writes, pending{fd, val})

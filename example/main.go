@@ -115,7 +115,10 @@ func registerResources(app *steward.Admin) {
 				cf.Text("Name").Rules("required|max:120")
 				cf.Textarea("Body").Rules("required|max:500")
 			})
-			f.Datetime("PublishedAt", "Published at").Help("Set automatically when publishing.")
+			f.Datetime("PublishedAt", "Published at").
+				Min(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)).
+				Max(time.Now().AddDate(1, 0, 0)).
+				Help("Set automatically when publishing.")
 			f.BelongsTo("AuthorID", "Author", "Name", "Author").Rules("required")
 			// Virtual: nothing on the model backs it. It is here so the example
 			// exercises the multi-select combobox, which the browser harness

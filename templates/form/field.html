@@ -262,6 +262,7 @@
       <input id="field-{{.Name}}" type="{{if eq .Kind "date"}}date{{else}}datetime-local{{end}}"
              {{if eq .Kind "datetime"}}step="1"{{end}}
              name="{{.Name}}" value="{{.Value}}" class="input"
+             {{with .MinAttr}}min="{{.}}"{{end}} {{with .MaxAttr}}max="{{.}}"{{end}}
              {{if .Errors}}aria-invalid="true"{{end}}
              {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}/>
     </div>
@@ -274,6 +275,7 @@
            it was given, so a save rewrites them to zero. */}}
       {{if eq .Kind "time"}}step="1"{{end}}
       name="{{.Name}}" value="{{.Value}}"
+      {{with .MinAttr}}min="{{.}}"{{end}} {{with .MaxAttr}}max="{{.}}"{{end}}
       class="input {{if eq .Kind "color"}}w-16 p-1{{end}}"
       placeholder="{{.Placeholder}}"
       {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}

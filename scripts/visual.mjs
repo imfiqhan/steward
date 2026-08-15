@@ -435,6 +435,27 @@ if (await up.count()) {
         check(second !== first, `the month moved (${first} -> ${second})`);
       }
 
+      // The heading zooms out: stepping a month at a time is hopeless for a
+      // date three years back.
+      await dp.locator(".steward-cal-title").click();
+      await page.waitForTimeout(200);
+      const months = await dp.locator(".steward-cal-cell").count();
+      check(months === 12, `the heading opens a month grid (${months})`);
+      await dp.locator(".steward-cal-title").click();
+      await page.waitForTimeout(200);
+      const years = await dp.locator(".steward-cal-cell").count();
+      const span = await dp.locator(".steward-cal-title").textContent();
+      check(years === 12, `and again for years (${years}, ${span})`);
+      // Min and Max reach the calendar, not just the control.
+      const barred = await dp.locator(".steward-cal-cell:disabled").count();
+      check(barred > 0, `years outside the range are not selectable (${barred})`);
+      await dp.locator(".steward-cal-cell:not(:disabled)").first().click();
+      await page.waitForTimeout(200);
+      await dp.locator(".steward-cal-cell:not(:disabled)").first().click();
+      await page.waitForTimeout(200);
+      check(await dp.locator(".steward-cal-day").count() === 42,
+        "picking a year then a month lands back on days");
+
       const before = await dp.locator("input[name]").inputValue();
       await dp.locator(".steward-cal-day:not([data-outside])").first().click();
       await page.waitForTimeout(200);
