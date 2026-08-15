@@ -60,6 +60,76 @@ func TestSanitizeHTMLBlocksInjection(t *testing.T) {
 	}
 }
 
+// TestSanitizeHTMLKeepsEditorialMarkup covers what an article body actually
+// carries. Dropping an unknown tag keeps its children, so a table that is not
+// allowlisted does not merely lose its borders — its cells run together into a
+// single line of text, and an image disappears outright.
+func TestSanitizeHTMLKeepsEditorialMarkup(t *testing.T) {
+	in := `<table class="t" width="600"><tbody>` +
+		`<tr><th scope="col">Bulan</th><th>Jumlah</th></tr>` +
+		`<tr><td colspan="2" style="text-align: center;">Jan</td></tr>` +
+		`</tbody></table>` +
+		`<figure><img src="/uploads/foto.jpg" alt="Foto" width="800" height="600">` +
+		`<figcaption>Keterangan</figcaption></figure>`
+	got := Sanitize(in)
+	for _, want := range []string{
+		"<table>", "<tbody>", "<tr>", `<th scope="col">`, `<td colspan="2"`,
+		`<img src="/uploads/foto.jpg" alt="Foto" width="800" height="600">`,
+		"<figure>", "<figcaption>",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in %q", want, got)
+		}
+	}
+	if strings.Contains(got, "class=") || strings.Contains(got, "width=\"600\"") {
+		t.Errorf("presentational attributes survived on the table: %q", got)
+	}
+}
+
+// TestSanitizeHTMLFiltersStyle keeps alignment and nothing else. A class would
+// be worse than a style here: the panel's utility classes are ambient, so
+// "fixed inset-0 z-50" on stored content is a full-viewport overlay.
+func TestSanitizeHTMLFiltersStyle(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{`<p style="text-align: justify;">x</p>`, `<p style="text-align: justify">x</p>`},
+		{`<p style="TEXT-ALIGN: CENTER">x</p>`, `<p style="text-align: center">x</p>`},
+		{`<p style="text-align:justify;font-family:Arial;font-size:12pt">x</p>`,
+			`<p style="text-align: justify">x</p>`},
+		{`<p style="font-family: Arial; mso-spacerun: yes">x</p>`, `<p>x</p>`},
+		{`<p style="text-align: expression(alert(1))">x</p>`, `<p>x</p>`},
+		{`<p style="background: url(javascript:alert(1))">x</p>`, `<p>x</p>`},
+		{`<p class="MsoNormal">x</p>`, `<p>x</p>`},
+		{`<div class="fixed inset-0 z-50">x</div>`, `<div>x</div>`},
+	}
+	for _, c := range cases {
+		if got := Sanitize(c.in); got != c.want {
+			t.Errorf("Sanitize(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+// TestSanitizeHTMLImageSources holds an image's src to the same schemes as a
+// link's, which is what keeps an SVG data URI from carrying script.
+func TestSanitizeHTMLImageSources(t *testing.T) {
+	kept := []string{"/uploads/a.jpg", "https://example.test/a.jpg", "../b.png"}
+	for _, src := range kept {
+		if got := Sanitize(`<img src="` + src + `">`); !strings.Contains(got, src) {
+			t.Errorf("src %q was dropped: %q", src, got)
+		}
+	}
+	dropped := []string{
+		"javascript:alert(1)",
+		"data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+",
+		"vbscript:msgbox(1)",
+	}
+	for _, src := range dropped {
+		got := Sanitize(`<img src="` + src + `">`)
+		if strings.Contains(got, "src=") {
+			t.Errorf("src %q survived: %q", src, got)
+		}
+	}
+}
+
 // TestSanitizeHTMLKeepsFormatting checks the editor's own output survives — a
 // sanitizer that strips everything would pass the security test and be useless.
 func TestSanitizeHTMLKeepsFormatting(t *testing.T) {

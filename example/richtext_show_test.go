@@ -280,14 +280,18 @@ func TestRichtextSanitizesOnSave(t *testing.T) {
 	if id == 0 {
 		t.Fatal("the created row is missing")
 	}
-	// Stored, not just displayed, safely.
-	for _, bad := range []string{"<script", "onerror", "javascript:", "<img"} {
+	// Stored, not just displayed, safely. An image is content, so it stays; what
+	// must not survive is the handler hanging off it.
+	for _, bad := range []string{"<script", "onerror", "javascript:", "href="} {
 		if strings.Contains(strings.ToLower(stored), bad) {
 			t.Errorf("stored body still contains %q: %s", bad, stored)
 		}
 	}
 	if !strings.Contains(stored, "<strong>world</strong>") {
 		t.Errorf("legitimate formatting was lost: %s", stored)
+	}
+	if !strings.Contains(stored, `<img src="x">`) {
+		t.Errorf("the image was dropped rather than disarmed: %s", stored)
 	}
 
 	// The detail view emits it as markup rather than escaped text.
@@ -297,5 +301,56 @@ func TestRichtextSanitizesOnSave(t *testing.T) {
 	}
 	if strings.Contains(html, "&lt;strong&gt;") {
 		t.Error("Detail.HTML double-escaped the markup")
+	}
+}
+
+// TestRichtextKeepsEditorialMarkupOnSave is the round trip a person performs by
+// opening a record and pressing save. Dropping an unknown tag keeps its
+// children, so an unlisted table does not lose its borders — its cells run
+// together into one line, and an image vanishes with nothing left behind.
+func TestRichtextKeepsEditorialMarkupOnSave(t *testing.T) {
+	srv := newShowTestServer(t)
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar}
+	base := srv.URL + "/admin"
+
+	body := `<p style="text-align: justify;" class="MsoNormal">` +
+		`<span lang="EN-US" style="font-family: Arial; font-size: 12pt;">Jatim Newsroom</span></p>` +
+		`<table border="1"><tbody><tr><td>Jan</td><td>100</td></tr></tbody></table>` +
+		`<figure><img src="/uploads/foto.jpg" alt="Foto" width="800"><figcaption>Ket</figcaption></figure>`
+
+	code, resp := post(t, client, base, base+"/articles", "editor", url.Values{
+		"Title": {"Round trip"}, "Body": {body},
+	})
+	if code != http.StatusOK {
+		t.Fatalf("create = %d (%s)", code, resp)
+	}
+
+	_, listing := getAs(t, client, base+"/articles", "editor", "application/json")
+	var out struct {
+		Items []Article `json:"items"`
+	}
+	if err := json.Unmarshal([]byte(listing), &out); err != nil {
+		t.Fatal(err)
+	}
+	var stored string
+	for _, a := range out.Items {
+		if a.Title == "Round trip" {
+			stored = a.Body
+		}
+	}
+	for _, want := range []string{
+		"<table>", "<td>Jan</td>", `<img src="/uploads/foto.jpg" alt="Foto" width="800">`,
+		"<figcaption>", `style="text-align: justify"`,
+	} {
+		if !strings.Contains(stored, want) {
+			t.Errorf("saving lost %q\nstored: %s", want, stored)
+		}
+	}
+	// House style owns type and colour; a pasted document does not bring its own.
+	for _, gone := range []string{"font-family", "font-size", "class=", "lang="} {
+		if strings.Contains(stored, gone) {
+			t.Errorf("%q survived: %s", gone, stored)
+		}
 	}
 }

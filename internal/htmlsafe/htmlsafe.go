@@ -36,10 +36,13 @@ var allowedTags = map[string]bool{
 	"ul": true, "ol": true, "li": true,
 	"blockquote": true, "pre": true, "code": true,
 	"a": true, "div": true, "span": true,
+	"img": true, "figure": true, "figcaption": true,
+	"table": true, "thead": true, "tbody": true, "tfoot": true,
+	"tr": true, "th": true, "td": true, "caption": true,
 }
 
 // voidTags never receive a closing tag.
-var voidTags = map[string]bool{"br": true, "hr": true}
+var voidTags = map[string]bool{"br": true, "hr": true, "img": true}
 
 // autoClose names tags that cannot contain themselves, so an unclosed one is
 // closed implicitly when the next starts — the shape editors actually emit
@@ -48,6 +51,9 @@ var voidTags = map[string]bool{"br": true, "hr": true}
 var autoClose = map[string]map[string]bool{
 	"li": {"ul": true, "ol": true},
 	"p":  {},
+	"td": {"tr": true},
+	"th": {"tr": true},
+	"tr": {"table": true, "thead": true, "tbody": true, "tfoot": true},
 }
 
 // droppedSubtrees have their entire contents discarded, not just their tags:
@@ -58,10 +64,26 @@ var droppedSubtrees = map[string]bool{
 }
 
 // allowedAttrs lists the attributes kept per tag. Everything else goes — in
-// particular every "on*" handler and every style attribute, which is where
-// most surviving injection vectors live.
+// particular every "on*" handler.
+//
+// "class" is deliberately absent. The panel is styled with utility classes, so
+// a class on stored content is ambient: "fixed inset-0 z-50" alone is a
+// full-viewport overlay.
 var allowedAttrs = map[string]map[string]bool{
-	"a": {"href": true, "title": true, "target": true, "rel": true},
+	"a":   {"href": true, "title": true, "target": true, "rel": true},
+	"img": {"src": true, "alt": true, "title": true, "width": true, "height": true, "loading": true},
+	"td":  {"colspan": true, "rowspan": true},
+	"th":  {"colspan": true, "rowspan": true, "scope": true},
+}
+
+// styleProps are the CSS properties a style attribute may keep, on any tag.
+// Alignment is the one declaration that carries editorial meaning; type and
+// colour belong to the stylesheet, not to a pasted document.
+var styleProps = map[string]map[string]bool{
+	"text-align": {
+		"left": true, "right": true, "center": true,
+		"justify": true, "start": true, "end": true,
+	},
 }
 
 // safeURLSchemes are the schemes an href may use. A relative URL has no scheme
@@ -202,12 +224,16 @@ func writeStartTag(out *strings.Builder, name string, attrs []html.Attribute) {
 	allowed := allowedAttrs[name]
 	for _, at := range attrs {
 		key := strings.ToLower(at.Key)
-		if at.Namespace != "" || !allowed[key] {
+		if at.Namespace != "" || (!allowed[key] && key != "style") {
 			continue
 		}
 		val := at.Val
 		switch key {
-		case "href":
+		case "style":
+			if val = safeStyle(val); val == "" {
+				continue
+			}
+		case "href", "src":
 			if !safeURL(val) {
 				continue
 			}
@@ -253,6 +279,26 @@ func hasAttr(attrs []html.Attribute, key string) bool {
 // mirror what a browser does with the raw attribute: strip the control
 // characters and whitespace browsers ignore, then look at what precedes the
 // first colon. net/url would reject some strings browsers still navigate.
+// safeStyle returns the declarations worth keeping, or "" when none are. Both
+// the property and its value are matched against a fixed table, so nothing
+// reaches the output that was not named here — url(), expression(), and every
+// vendor property fall out by omission rather than by being detected.
+func safeStyle(raw string) string {
+	var kept []string
+	for _, decl := range strings.Split(raw, ";") {
+		name, val, ok := strings.Cut(decl, ":")
+		if !ok {
+			continue
+		}
+		name = strings.ToLower(strings.TrimSpace(name))
+		val = strings.ToLower(strings.TrimSpace(val))
+		if values, ok := styleProps[name]; ok && values[val] {
+			kept = append(kept, name+": "+val)
+		}
+	}
+	return strings.Join(kept, "; ")
+}
+
 func safeURL(raw string) bool {
 	var cleaned strings.Builder
 	for _, r := range raw {
