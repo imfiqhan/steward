@@ -422,6 +422,19 @@ if (await up.count()) {
     if (cal) {
       check(cal.days === 42, `the grid is six weeks (${cal.days})`);
       check(cal.inView, "the calendar stays on screen");
+      // Stepping the month replaces the calendar's children, so the button
+      // just pressed is detached by the time the click reaches the document —
+      // which read as a click outside and closed what was being navigated.
+      const first = await dp.locator(".steward-cal-title").textContent();
+      await dp.locator(".steward-cal-nav").nth(1).click();
+      await page.waitForTimeout(200);
+      const stillOpen = await dp.locator(".steward-cal").count();
+      check(stillOpen === 1, "stepping the month does not close the calendar");
+      if (stillOpen) {
+        const second = await dp.locator(".steward-cal-title").textContent();
+        check(second !== first, `the month moved (${first} -> ${second})`);
+      }
+
       const before = await dp.locator("input[name]").inputValue();
       await dp.locator(".steward-cal-day:not([data-outside])").first().click();
       await page.waitForTimeout(200);

@@ -1658,6 +1658,11 @@ window.htmx = htmx;
     function step(months) {
       view.setMonth(view.getMonth() + months);
       render();
+      // The button that was just pressed no longer exists; its replacement
+      // takes the focus so the month can be stepped again.
+      var navs = cal.querySelectorAll(".steward-cal-nav");
+      var replacement = months < 0 ? navs[0] : navs[navs.length - 1];
+      if (replacement) replacement.focus();
     }
 
     cal.addEventListener("click", function (e) {
@@ -1736,7 +1741,11 @@ window.htmx = htmx;
 
   document.addEventListener("DOMContentLoaded", initDatePickers);
   document.addEventListener("htmx:afterSettle", initDatePickers);
-  document.addEventListener("click", function (e) {
+  // mousedown, not click: changing month replaces the calendar's children, so by
+  // the time a click on the month arrows reaches this handler the button it came
+  // from is detached and closest() can no longer find the picker it sits in —
+  // which read as a click outside, and closed the thing being navigated.
+  document.addEventListener("mousedown", function (e) {
     if (e.target.closest("[data-steward-datepicker]")) return;
     document.querySelectorAll("[data-steward-datepicker]").forEach(close);
   });
