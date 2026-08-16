@@ -142,8 +142,24 @@ func (t *typedResource[T]) parseState(c *Context) *gridState {
 			st.query.SearchConds = append(st.query.SearchConds, dslCond(path, term))
 		}
 		if len(bare) > 0 {
-			st.query.Search = strings.Join(bare, " ")
-			st.query.SearchPaths = g.quickSearch
+			phrase := strings.Join(bare, " ")
+			// An engine, when one is configured and this resource declared what
+			// to index. It ranks; the rows are still read through the repository
+			// so filters, sorts, and the row scope hold.
+			if ids, ok := t.searchIDs(c.Ctx(), phrase, searchWindow); ok {
+				if len(ids) == 0 {
+					// Nothing matched. Without this the ID condition is dropped
+					// and every row comes back, which reads as "search ignored".
+					st.query.Conds = append(st.query.Conds,
+						Cond{Path: t.ft.pk.Path, Op: OpIn, Val: []string{}})
+				} else {
+					st.query.Conds = append(st.query.Conds,
+						Cond{Path: t.ft.pk.Path, Op: OpIn, Val: ids})
+				}
+			} else {
+				st.query.Search = phrase
+				st.query.SearchPaths = g.quickSearch
+			}
 		}
 	}
 
@@ -764,6 +780,7 @@ func (t *typedResource[T]) destroy(c *Context) error {
 	if err := t.repo.Delete(c.Ctx(), ids); err != nil {
 		return err
 	}
+	t.unindexRows(c.Ctx(), ids)
 	if t.form.deletedFn != nil {
 		if err := t.form.deletedFn(c, ids); err != nil {
 			c.Admin.log.Error("steward: deleted hook", "err", err)

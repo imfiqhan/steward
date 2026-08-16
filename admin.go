@@ -90,6 +90,10 @@ type Config struct {
 
 	Cache   Cache   // default: in-process MemoryCache
 	Storage Storage // default: LocalStorage at UploadDir
+
+	// Searcher backs quick search and the command palette for resources that
+	// declared Searchable. Without one they fall back to SQL LIKE.
+	Searcher Searcher
 	Mailer  Mailer  // optional; enables password reset
 
 	// AuthExcept lists extra path patterns (relative to Prefix, * globs)

@@ -5,6 +5,7 @@ use (
 	./cmd/steward
 	./contrib/ginsteward
 	./contrib/redcache
+	./contrib/meilistore
 	./contrib/s3store
 	./example
 	./tools/assets

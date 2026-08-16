@@ -61,24 +61,38 @@ type Scheduler interface {
 	Jobs() []JobInfo
 }
 
-// SearchDoc and SearchHit reserve the full-text search seam; grid quick
-// search uses SQL LIKE until a Searcher ships.
+// SearchDoc is one indexed record. Type is the resource's slug, so one engine
+// can hold every resource in a panel and still answer for one of them.
 type SearchDoc struct {
 	ID     string
 	Type   string
 	Fields map[string]string
 }
 
+// SearchHit is one match, in the engine's own order.
 type SearchHit struct {
 	ID    string
 	Type  string
 	Score float64
 }
 
-// Searcher indexes and queries documents.
+// Searcher backs quick search and the command palette with a full-text engine
+// instead of SQL LIKE. Configure one with Config.Searcher and declare what goes
+// in it with Resource.Searchable.
+//
+// Index and Delete take batches because a backfill is the normal way an index
+// is first filled, and one round trip per row over a table of any size is not a
+// backfill anyone will finish.
+//
+// Query returns matching IDs rather than rows. The rows are then read through
+// the repository, so filters, sorts, and the row scope a policy applies all
+// still hold — an engine that knew how to return rows directly would be an
+// engine that had to be taught the panel's authorization, which is not a thing
+// to duplicate.
 type Searcher interface {
-	Index(ctx context.Context, doc SearchDoc) error
-	Query(ctx context.Context, q string, limit int) ([]SearchHit, error)
+	Index(ctx context.Context, docs ...SearchDoc) error
+	Delete(ctx context.Context, typ string, ids ...string) error
+	Query(ctx context.Context, typ, query string, limit int) ([]SearchHit, error)
 }
 
 // MemoryCache is a TTL map cache; the zero value is not usable, call

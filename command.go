@@ -78,11 +78,15 @@ func (t *typedResource[T]) searchCommand(c *Context, query string, limit int) []
 	if len(t.res.commandPaths) == 0 || !t.canViewAny(c) {
 		return nil
 	}
-	q := &ListQuery{
-		Search:      query,
-		SearchPaths: t.res.commandPaths,
-		PerPage:     limit,
-		Page:        1,
+	q := &ListQuery{PerPage: limit, Page: 1}
+	if ids, ok := t.searchIDs(c.Ctx(), query, limit); ok {
+		if len(ids) == 0 {
+			return nil
+		}
+		q.Conds = append(q.Conds, Cond{Path: t.ft.pk.Path, Op: OpIn, Val: ids})
+	} else {
+		q.Search = query
+		q.SearchPaths = t.res.commandPaths
 	}
 	// The same scoping the grid gets, so the palette cannot show a row its
 	// own list would hide.

@@ -50,6 +50,7 @@ type App struct {
 //	migrate down [-steps N]   roll back (default: last batch)
 //	migrate status            list migrations
 //	menu:sync                 re-sync menu entries from registered resources
+//	search:reindex [-batch]   rebuild the search index from the database
 //	admin:create-user         create a panel account interactively
 func CLI(app App) {
 	if err := runCLI(app, os.Args[1:]); err != nil {
@@ -167,6 +168,26 @@ func runCLI(app App, args []string) error {
 		fmt.Println("menu synced")
 		return nil
 
+	case "search:reindex":
+		// Indexing on write only ever covers what is written afterwards, so a
+		// table that already has rows needs this once before search is honest.
+		fs := flag.NewFlagSet("search:reindex", flag.ExitOnError)
+		batch := fs.Int("batch", 500, "rows read and sent per round trip")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		counts, err := a.Reindex(context.Background(), *batch)
+		for slug, n := range counts {
+			fmt.Printf("%s: %d indexed\n", slug, n)
+		}
+		if err != nil {
+			return err
+		}
+		if len(counts) == 0 {
+			fmt.Println("nothing to index — no resource called Searchable")
+		}
+		return nil
+
 	case "admin:create-user":
 		fs := flag.NewFlagSet("admin:create-user", flag.ExitOnError)
 		username := fs.String("username", "", "login username")
@@ -206,11 +227,11 @@ func runCLI(app App, args []string) error {
 		return nil
 
 	case "help", "-h", "--help":
-		fmt.Println("commands: serve [-addr], worker, migrate up|down|status, menu:sync, admin:create-user")
+		fmt.Println("commands: serve [-addr], worker, migrate up|down|status, menu:sync, search:reindex, admin:create-user")
 		return nil
 
 	default:
-		return fmt.Errorf("unknown command %q — try: serve, worker, migrate up|down|status, menu:sync, admin:create-user", cmd)
+		return fmt.Errorf("unknown command %q — try: serve, worker, migrate up|down|status, menu:sync, search:reindex, admin:create-user", cmd)
 	}
 }
 

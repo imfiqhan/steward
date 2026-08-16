@@ -30,6 +30,7 @@ type Resource[T any] struct {
 	m *resourceMeta
 
 	commandPaths []string
+	searchPaths  []string
 
 	gridFn   func(*Grid[T])
 	formFn   func(*Form[T])

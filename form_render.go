@@ -731,6 +731,9 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	if err != nil {
 		return err
 	}
+	// After the write, not from a Saved hook: a hook belongs to this form, and
+	// the index has to reflect the record however it was written.
+	t.indexRow(c.Ctx(), m)
 	t.dropReplacedUploads(c, m, held)
 	for i, n := range f.nested {
 		if err := n.persist(c, m, nestedPayloads[i]); err != nil {
