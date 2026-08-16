@@ -47,8 +47,12 @@
           {{with .Title}}<h3 role="heading" aria-level="3">{{.}}</h3>{{end}}
           {{range .Items}}
           {{if .URI}}
-          <div role="menuitem" data-steward-goto="{{.URI}}"
-               data-filter="{{.Title}}">
+          {{/* tabindex=-1 and an id: the component keeps focus on the input and
+               tracks the active item through aria-activedescendant, so an item
+               in the tab order would be reachable by Tab and do nothing on
+               Enter. The same contract the row menus hold. */}}
+          <div role="menuitem" id="cmd-nav-{{.URI | slugid}}" tabindex="-1"
+               data-steward-goto="{{.URI}}" data-filter="{{.Title}}">
             {{if .Icon}}{{icon .Icon}}{{end}}
             <span>{{.Title}}</span>
           </div>

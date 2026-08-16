@@ -1314,9 +1314,15 @@ window.htmx = htmx;
 
   // A menuitem the component filters like any other. data-filter carries the
   // text to match, so a fetched row is searchable by the same rules.
+  var commandItemSeq = 0;
+
   function commandItem(r, sprite) {
     var el = document.createElement("div");
     el.setAttribute("role", "menuitem");
+    // Same contract the static entries hold: out of the tab order, and
+    // addressable by id for aria-activedescendant.
+    el.setAttribute("tabindex", "-1");
+    el.id = "cmd-hit-" + (++commandItemSeq);
     el.setAttribute("data-steward-goto", r.url);
     el.setAttribute("data-filter", (r.title || "") + " " + (r.subtitle || ""));
     if (r.icon && sprite) {

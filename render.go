@@ -140,6 +140,25 @@ func (r *renderer) funcs() template.FuncMap {
 		},
 		"icon": r.icon,
 		"safe": func(s string) template.HTML { return template.HTML(s) },
+		// slugid turns a path into something usable as an element id, for the
+		// aria-activedescendant a menu needs.
+		"slugid": func(s string) string {
+			var b strings.Builder
+			for _, r := range strings.Trim(s, "/") {
+				switch {
+				case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-':
+					b.WriteRune(r)
+				case r >= 'A' && r <= 'Z':
+					b.WriteRune(r + 32)
+				default:
+					b.WriteByte('-')
+				}
+			}
+			if b.Len() == 0 {
+				return "root"
+			}
+			return b.String()
+		},
 		// dict builds a map inline for widget partials:
 		// {{template "widgets/metric.html" (dict "Label" "Users" "Value" 42)}}
 		"dict": func(pairs ...any) (map[string]any, error) {
