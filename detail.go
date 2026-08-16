@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net/http"
 	"reflect"
+	"slices"
 	"strings"
 
 	"gorm.io/gorm"
@@ -34,6 +35,16 @@ func (d *Detail[T]) Field(path string, label ...string) *DetailField[T] {
 	return df
 }
 
+// FieldFunc adds a row whose value is computed from the whole record rather
+// than read from one path, for anything a struct field cannot name: a
+// collection, a summary, several values at once.
+func (d *Detail[T]) FieldFunc(name, label string, fn func(row *T) template.HTML) *DetailField[T] {
+	df := &DetailField[T]{path: name, label: label, computed: true}
+	df.present = func(_ any, row *T) template.HTML { return fn(row) }
+	d.fields = append(d.fields, df)
+	return df
+}
+
 // DetailField is one show-view row; transformer methods chain.
 type DetailField[T any] struct {
 	path  string
@@ -55,6 +66,10 @@ type DetailField[T any] struct {
 
 	// disk names which storage disk a stored path belongs to.
 	disk string
+
+	// computed marks a row whose value comes from FieldFunc rather than from a
+	// path, so neither resolution nor verification applies to it.
+	computed bool
 
 	// badges is what Badge was given, kept so Verify can check the colours.
 	badges map[any]BadgeColor
@@ -338,13 +353,14 @@ func (t *typedResource[T]) show(c *Context) error {
 		CanDelete: t.grid.enabled("delete") && t.canDelete(c, row),
 	}
 	for _, df := range t.detail.fields {
-		if df.info == nil {
+		if df.info == nil && !df.computed {
 			continue
 		}
-		v, ok := df.info.value(reflect.ValueOf(row))
 		var val any
-		if ok {
-			val = v
+		if !df.computed {
+			if v, ok := df.info.value(reflect.ValueOf(row)); ok {
+				val = v
+			}
 		}
 		if df.storageRef && val != nil {
 			s := fmt.Sprint(val)
@@ -437,6 +453,7 @@ func (t *typedResource[T]) compileDetail(a *Admin) {
 		t.defaultDetailFields(d)
 	}
 	t.detail = d
+	var preloads []string
 	for _, df := range d.fields {
 		for _, colour := range df.badges {
 			if !badgeColors[colour] {
@@ -457,6 +474,12 @@ func (t *typedResource[T]) compileDetail(a *Admin) {
 					t.res.m.slug, df.path, df.disk, strings.Join(a.DiskNames(), ", ")))
 			}
 		}
+		if df.computed {
+			if df.label == "" {
+				df.label = df.path
+			}
+			continue
+		}
 		info, err := t.ft.lookup(df.path)
 		if err != nil {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf("resource %q: detail field: %w", t.res.m.slug, err))
@@ -466,6 +489,16 @@ func (t *typedResource[T]) compileDetail(a *Admin) {
 		if df.label == "" {
 			df.label = info.Label
 		}
+		if info.Relation != "" && !slices.Contains(preloads, info.Relation) {
+			preloads = append(preloads, info.Relation)
+		}
+	}
+	// A detail field naming a relation needs that relation loaded. The grid
+	// registers preloads for its own columns, which covered a detail page only
+	// where the two happened to name the same relation; anywhere else the row
+	// rendered as if the value were unset.
+	if gr, ok := t.repo.(*GormRepository[T]); ok && len(preloads) > 0 {
+		gr.With(preloads...)
 	}
 	for i := range d.relations {
 		if _, ok := a.byType[d.relations[i].typ]; !ok {

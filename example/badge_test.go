@@ -1,6 +1,7 @@
 package main
 
 import (
+	"html/template"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -214,5 +215,99 @@ func TestBadgeColoursKeyedOnTheReplacement(t *testing.T) {
 		if !strings.Contains(html, "text-green-700") {
 			t.Errorf("a colour keyed on Using's text should still apply, got: %s", badgeSpan(html))
 		}
+	}
+}
+
+// A detail page can only show what a struct path names, which leaves out
+// anything computed from the whole record — a collection, a summary. FieldFunc
+// is the grid's ColumnFunc on the show view.
+
+func TestDetailFieldFunc(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&badgeRow{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&badgeRow{Status: 1}).Error; err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("fieldfunc-test-secret-key"),
+		AuthExcept: []string{"/badge_rows*"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := steward.Register[badgeRow](app)
+	res.Detail(func(d *steward.Detail[badgeRow]) {
+		d.Field("ID")
+		d.FieldFunc("tags", "Tag", func(r *badgeRow) template.HTML {
+			return template.HTML(`<span class="badge">row-` + itoa(r.ID) + `</span>`)
+		})
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Verify(); err != nil {
+		t.Fatalf("a computed row has no path to verify: %v", err)
+	}
+	srv := httptest.NewServer(app)
+	defer srv.Close()
+
+	html := fetchOK(t, srv.URL+"/admin/badge_rows/1")
+	if !strings.Contains(html, "row-1") {
+		t.Error("the computed value should be rendered")
+	}
+	if !strings.Contains(html, ">Tag<") {
+		t.Error("the label should be the one given")
+	}
+}
+
+// A relation named only by a detail field still has to be loaded. Preloads were
+// collected from grid columns alone, so a detail row whose relation the grid
+// did not also name rendered as if the value were unset.
+
+type relOwner struct {
+	ID      uint `gorm:"primaryKey"`
+	Name    string
+	OwnerID *uint
+	Owner   *relOwner `gorm:"foreignKey:OwnerID"`
+}
+
+func TestDetailPreloadsItsOwnRelations(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&relOwner{}); err != nil {
+		t.Fatal(err)
+	}
+	parent := relOwner{Name: "the parent"}
+	if err := db.Create(&parent).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&relOwner{Name: "the child", OwnerID: &parent.ID}).Error; err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("detail-preload-test-secret-key"),
+		AuthExcept: []string{"/rel_owners*"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := steward.Register[relOwner](app)
+	// The grid deliberately names no relation, which is the case that used to
+	// leave the detail row empty.
+	res.Grid(func(g *steward.Grid[relOwner]) { g.Column("Name") })
+	res.Detail(func(d *steward.Detail[relOwner]) {
+		d.Field("Name")
+		d.Field("Owner.Name", "Parent")
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	defer srv.Close()
+
+	html := fetchOK(t, srv.URL+"/admin/rel_owners/2")
+	if !strings.Contains(html, "the parent") {
+		t.Error("the detail page should show the related row's value")
 	}
 }
