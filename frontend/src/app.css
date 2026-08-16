@@ -368,9 +368,28 @@ tr.steward-dragging { opacity: 0.5; }
   color: var(--muted-foreground);
 }
 
-/* A record's second line, dimmer and after its title. */
+/* iconGlyph carries no size of its own, and a bare <svg> in a flex row collapses
+   to nothing. The static entries get theirs from the {{icon}} helper's class. */
+[data-steward-command-results] [role="menuitem"] > svg {
+  width: 1rem;
+  height: 1rem;
+  opacity: 0.7;
+}
+
+/* One row, one line. A headline is long and a palette is not the place to read
+   it whole — the full text is on the title attribute. */
+.steward-command-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The trailing note keeps its own width so a long title cannot squeeze it to
+   "UM…", and gives it up before the title does. */
 .steward-command-sub {
-  margin-inline-start: 0.5rem;
+  flex-shrink: 0;
+  max-width: 30%;
+  padding-inline-start: 0.75rem;
   color: var(--muted-foreground);
   font-size: 0.8125rem;
   overflow: hidden;

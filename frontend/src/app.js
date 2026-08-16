@@ -1314,16 +1314,27 @@ window.htmx = htmx;
 
   // A menuitem the component filters like any other. data-filter carries the
   // text to match, so a fetched row is searchable by the same rules.
-  function commandItem(r) {
+  function commandItem(r, sprite) {
     var el = document.createElement("div");
     el.setAttribute("role", "menuitem");
     el.setAttribute("data-steward-goto", r.url);
     el.setAttribute("data-filter", (r.title || "") + " " + (r.subtitle || ""));
+    if (r.icon && sprite) {
+      var glyph = document.createElement("span");
+      glyph.innerHTML = iconGlyph(sprite, r.icon);
+      el.appendChild(glyph.firstChild);
+    }
     var title = document.createElement("span");
+    title.className = "steward-command-title";
     title.textContent = r.title || "";
+    title.title = r.title || "";
     el.appendChild(title);
     if (r.subtitle) {
       var sub = document.createElement("span");
+      // data-shortcut is the component's own trailing slot (ms-auto), so the
+      // second line sits where a keyboard hint would rather than fighting the
+      // title for the row.
+      sub.setAttribute("data-shortcut", "");
       sub.className = "steward-command-sub";
       sub.textContent = r.subtitle;
       el.appendChild(sub);
@@ -1341,26 +1352,31 @@ window.htmx = htmx;
       if (!byGroup[r.group]) { byGroup[r.group] = []; groups.push(r.group); }
       byGroup[r.group].push(r);
     });
+    var sprite = box.getAttribute("data-sprite") || "";
     groups.forEach(function (name) {
       var g = document.createElement("div");
       g.setAttribute("role", "group");
       g.setAttribute("aria-label", name);
       var h = document.createElement("h3");
+      // The component styles headings by role, not by tag.
+      h.setAttribute("role", "heading");
+      h.setAttribute("aria-level", "3");
       h.textContent = name;
       g.appendChild(h);
-      byGroup[name].forEach(function (r) { g.appendChild(commandItem(r)); });
+      byGroup[name].forEach(function (r) { g.appendChild(commandItem(r, sprite)); });
       box.appendChild(g);
     });
     box.hidden = results.length === 0;
-    // The component filters on input and marks what it has seen. Items arriving
-    // from a fetch afterwards were never judged, so they stay hidden until the
-    // filter is asked to run again over the list as it now stands.
-    var input = box.closest(".command").querySelector("header input");
-    if (input) {
-      commandRefiltering = true;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      commandRefiltering = false;
+    // refresh, not an input event: the component keeps the items it knows in
+    // its own state, and filtering only re-judges that list. Rows arriving from
+    // a fetch are absent from it, so they never become "visible" as far as the
+    // component is concerned — which is why hovering one highlighted nothing
+    // and the arrow keys walked straight past them.
+    commandRefiltering = true;
+    if (window.basecoat && window.basecoat.refresh) {
+      window.basecoat.refresh(box.closest(".command"));
     }
+    commandRefiltering = false;
     updateCommandEmpty();
   }
 

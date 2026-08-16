@@ -39,6 +39,17 @@ var legacyIconAliases = map[string]string{
 	"info-circle": "info",
 }
 
+// canonicalIconName maps a legacy alias onto the name the sprite actually holds.
+// Anything served as a <use href="…#name"> reference needs this: the alias
+// resolves through the Go lookup but not through the sprite, so an old name
+// renders an empty box the size of an icon.
+func canonicalIconName(name string) string {
+	if to, ok := legacyIconAliases[name]; ok {
+		return to
+	}
+	return name
+}
+
 // iconSet is the parsed sprite: each symbol's inner markup, plus the sorted
 // names for the picker.
 type iconSet struct {

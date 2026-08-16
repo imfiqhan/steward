@@ -98,7 +98,9 @@ func (t *typedResource[T]) searchCommand(c *Context, query string, limit int) []
 		row := &items[i]
 		res := CommandResult{
 			Group: t.res.m.title,
-			Icon:  t.res.m.icon,
+			// Canonical, because the palette draws it from the sprite by
+			// reference rather than through the Go lookup that knows the aliases.
+			Icon: canonicalIconName(t.res.m.icon),
 			URL:   c.URL(t.res.m.slug, t.rowKey(row)),
 		}
 		// Per row, not per resource: picking the columns once meant a resource
