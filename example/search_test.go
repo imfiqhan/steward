@@ -244,3 +244,47 @@ func deleteRow(t *testing.T, srv *httptest.Server, editPath, delPath string) (in
 	b, _ := io.ReadAll(out.Body)
 	return out.StatusCode, string(b)
 }
+
+// TestEngineRankingReachesTheRows is the defect this covers: the engine's IDs
+// went in as an IN condition and the database returned them in its own order,
+// so "the thousand best matches" became "ten of them, by id". On a grid sorted
+// newest-first that meant a search showed the newest matches, never the best.
+func TestEngineRankingReachesTheRows(t *testing.T) {
+	s := &countingSearcher{MemorySearcher: steward.NewMemorySearcher()}
+	srv, db, app := newSearchServer(t, s)
+
+	// The strongest match must be the OLDEST row, so that the grid's own sort —
+	// newest first — would put it last. Creating it newest as well proved
+	// nothing: it would have come first either way, which is how the first
+	// version of this test passed against code that ignored the ranking.
+	var best searchRow
+	if err := db.First(&best, 1).Error; err != nil {
+		t.Fatal(err)
+	}
+	best.Title = "jatim jatim jatim strongest match"
+	if err := db.Save(&best).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.Reindex(t.Context(), 100); err != nil {
+		t.Fatal(err)
+	}
+
+	got := rowTitles(t, srv, "q=jatim")
+	if len(got) == 0 {
+		t.Fatal("no rows")
+	}
+	if got[0] != "jatim jatim jatim strongest match" {
+		t.Errorf("first row is %q; the engine ranked the oldest row first, "+
+			"so the grid is still ordering by its own sort", got[0])
+	}
+
+	// A reader who picks a column to sort by has said what they want, and that
+	// beats relevance.
+	sorted := rowTitles(t, srv, "q=jatim&sort=Title")
+	if len(sorted) < 2 {
+		t.Fatalf("expected several rows, got %v", sorted)
+	}
+	if sorted[0] > sorted[1] {
+		t.Errorf("an explicit sort was overridden by relevance: %v", sorted)
+	}
+}

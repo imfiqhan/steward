@@ -46,9 +46,18 @@ type ListQuery struct {
 	SearchConds []Cond // parsed quick-search terms (field-targeted)
 	SearchPaths []string
 	Sorts       []Sort
-	Page        int
-	PerPage     int
-	Scopes      []any
+	// IDOrder ranks the rows by primary key, most relevant first, and is what a
+	// search engine's answer arrives as. It orders before Sorts, because the
+	// order a person asked for beats the order they did not — a chosen column
+	// sort is added to Sorts and takes precedence by not setting this at all.
+	//
+	// Without it the ranking is thrown away: the IDs go in as an IN condition
+	// and the database returns them in whatever order it likes, so "the 1000
+	// best matches" becomes "10 of them, by id".
+	IDOrder []string
+	Page    int
+	PerPage int
+	Scopes  []any
 }
 
 // Repository is the data seam Grid, Form, and Detail render through. The

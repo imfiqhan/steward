@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // GormRepository is the default Repository backed by a *gorm.DB. Field paths
@@ -157,17 +159,48 @@ func (r *GormRepository[T]) List(ctx context.Context, q *ListQuery) ([]T, int64,
 		return nil, 0, err
 	}
 
+	// Ordering. When a search engine ranked the rows, that ranking is the
+	// order — expressed as a CASE over the ids, because MySQL's FIELD() and
+	// Postgres' array_position have no common spelling and SQLite has neither.
+	//
+	// It is built as one expression rather than successive Order() calls:
+	// GORM's Order takes a string, a clause.OrderByColumn, or a clause.OrderBy,
+	// and silently drops anything else — a clause.Expr passed to it does
+	// nothing at all, which is how this shipped ordering by id and looking
+	// like it worked.
+	var order strings.Builder
+	var orderArgs []any
+	if len(q.IDOrder) > 0 {
+		if col, cerr := r.qcolumn(r.ft.pk.Path); cerr == nil {
+			order.WriteString("CASE " + col)
+			for i, id := range q.IDOrder {
+				order.WriteString(" WHEN ? THEN " + strconv.Itoa(i))
+				orderArgs = append(orderArgs, id)
+			}
+			order.WriteString(" ELSE " + strconv.Itoa(len(q.IDOrder)) + " END")
+		}
+	}
 	for _, s := range q.Sorts {
 		col, serr := r.qcolumn(s.Path)
 		if serr != nil {
 			continue
 		}
-		dir := " ASC"
-		if s.Desc {
-			dir = " DESC"
+		if order.Len() > 0 {
+			order.WriteString(", ")
 		}
-		db = db.Order(col + dir)
+		order.WriteString(col)
+		if s.Desc {
+			order.WriteString(" DESC")
+		} else {
+			order.WriteString(" ASC")
+		}
 	}
+	if order.Len() > 0 {
+		db = db.Order(clause.OrderBy{
+			Expression: clause.Expr{SQL: order.String(), Vars: orderArgs},
+		})
+	}
+
 	if q.PerPage > 0 {
 		page := max(q.Page, 1)
 		db = db.Limit(q.PerPage).Offset((page - 1) * q.PerPage)

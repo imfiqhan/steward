@@ -68,11 +68,13 @@ func (t *typedResource[T]) parseState(c *Context) *gridState {
 		st.per = 0
 	}
 
+	sortChosen := false
 	if s := q.Get("sort"); s != "" {
 		desc := strings.HasPrefix(s, "-")
 		path := strings.TrimPrefix(s, "-")
 		if info, ok := t.ft.byPath[path]; ok && info.DBName != "" {
 			st.sort = &Sort{Path: path, Desc: desc}
+			sortChosen = true
 		}
 	}
 	if st.sort == nil {
@@ -155,6 +157,12 @@ func (t *typedResource[T]) parseState(c *Context) *gridState {
 				} else {
 					st.query.Conds = append(st.query.Conds,
 						Cond{Path: t.ft.pk.Path, Op: OpIn, Val: ids})
+					// Rank by the engine's order unless the reader picked a
+					// column to sort by. Their choice wins; the default sort is
+					// not a choice, it is what the page does when nobody said.
+					if !sortChosen {
+						st.query.IDOrder = ids
+					}
 				}
 			} else {
 				st.query.Search = phrase

@@ -84,6 +84,8 @@ func (t *typedResource[T]) searchCommand(c *Context, query string, limit int) []
 			return nil
 		}
 		q.Conds = append(q.Conds, Cond{Path: t.ft.pk.Path, Op: OpIn, Val: ids})
+		// The palette shows five of them; which five is the whole question.
+		q.IDOrder = ids
 	} else {
 		q.Search = query
 		q.SearchPaths = t.res.commandPaths
