@@ -62,9 +62,10 @@ func (t *typedResource[T]) searchDocs(rows any) []SearchDoc {
 // searchDoc reads one row's declared paths into a document.
 func (t *typedResource[T]) searchDoc(row *T) SearchDoc {
 	doc := SearchDoc{
-		ID:     t.rowKey(row),
-		Type:   t.res.m.slug,
-		Fields: map[string]string{},
+		ID:         t.rowKey(row),
+		Type:       t.res.m.slug,
+		Fields:     map[string]string{},
+		Attributes: t.res.searchPaths,
 	}
 	for _, path := range t.res.searchPaths {
 		info, err := t.ft.lookup(path)

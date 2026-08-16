@@ -154,3 +154,29 @@ func TestIDsSurviveTheRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+// TestDeclaredOrderDecidesRanking: Meilisearch ranks a match by which attribute
+// it landed in, and its default order is whichever attribute it saw first —
+// which, since a document is built from a Go map and JSON sorts map keys, is
+// alphabetical. A match in SubTitle outranked a match in Title until the index
+// was told the order Searchable declared.
+func TestDeclaredOrderDecidesRanking(t *testing.T) {
+	s := live(t)
+	attrs := []string{"Title", "SubTitle"}
+	err := s.Index(t.Context(),
+		steward.SearchDoc{ID: "sub", Type: "ord", Attributes: attrs, Fields: map[string]string{
+			"Title": "irrelevant heading", "SubTitle": "gerhana matahari",
+		}},
+		steward.SearchDoc{ID: "title", Type: "ord", Attributes: attrs, Fields: map[string]string{
+			"Title": "gerhana matahari", "SubTitle": "irrelevant heading",
+		}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hits := settle(t, s, "ord", "gerhana matahari", 2)
+	if hits[0].ID != "title" {
+		t.Errorf("ranked %s above %s; the first declared attribute should win",
+			hits[0].ID, hits[1].ID)
+	}
+}

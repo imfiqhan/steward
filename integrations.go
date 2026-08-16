@@ -67,6 +67,11 @@ type SearchDoc struct {
 	ID     string
 	Type   string
 	Fields map[string]string
+	// Attributes is Fields in the order Searchable declared them, most
+	// important first. A map has no order and JSON sorts its keys, so without
+	// this an engine that ranks by attribute ranks alphabetically: a match in
+	// SubTitle beat a match in Title, which is not what the declaration says.
+	Attributes []string
 }
 
 // SearchHit is one match, in the engine's own order.

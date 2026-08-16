@@ -111,9 +111,15 @@ func (s *Store) do(ctx context.Context, method, path string, body any, out any) 
 	return json.NewDecoder(resp.Body).Decode(out)
 }
 
-// ensure creates the index once per process. Meilisearch infers a schema, so
-// the only thing it must be told is which attribute is the primary key.
-func (s *Store) ensure(ctx context.Context, uid string) error {
+// ensure creates the index once per process and tells it which attributes are
+// searchable, in the order they were declared.
+//
+// The order is not decoration. Meilisearch ranks a match by which attribute it
+// landed in, and its default — every attribute, in the order it first saw them
+// — makes that order whatever JSON happened to serialise first, which is
+// alphabetical. A match in SubTitle outranked a match in Title until this was
+// set.
+func (s *Store) ensure(ctx context.Context, uid string, attributes []string) error {
 	if s.ensured[uid] {
 		return nil
 	}
@@ -123,25 +129,41 @@ func (s *Store) ensure(ctx context.Context, uid string) error {
 	if err != nil && !strings.Contains(err.Error(), "index_already_exists") {
 		return err
 	}
+	if len(attributes) > 0 {
+		fields := make([]string, 0, len(attributes))
+		for _, a := range attributes {
+			fields = append(fields, attrName(a))
+		}
+		if err := s.do(ctx, http.MethodPut,
+			"/indexes/"+uid+"/settings/searchable-attributes", fields, nil); err != nil {
+			return err
+		}
+	}
 	s.ensured[uid] = true
 	return nil
 }
 
+// attrName is a steward path as a Meilisearch attribute: the alphabet there
+// allows letters, digits, - and _, and a path may be "Author.Name".
+func attrName(path string) string { return strings.ReplaceAll(path, ".", "_") }
+
 // Index implements steward.Searcher.
 func (s *Store) Index(ctx context.Context, docs ...steward.SearchDoc) error {
 	byType := map[string][]map[string]any{}
+	order := map[string][]string{}
 	for _, d := range docs {
 		row := map[string]any{"id": meiliID(d.ID)}
 		for k, v := range d.Fields {
-			// Meilisearch attribute names allow letters, digits, - and _ only,
-			// and a steward path may be "Author.Name".
-			row[strings.ReplaceAll(k, ".", "_")] = v
+			row[attrName(k)] = v
 		}
 		byType[d.Type] = append(byType[d.Type], row)
+		if len(d.Attributes) > 0 {
+			order[d.Type] = d.Attributes
+		}
 	}
 	for typ, rows := range byType {
 		uid := s.indexUID(typ)
-		if err := s.ensure(ctx, uid); err != nil {
+		if err := s.ensure(ctx, uid, order[typ]); err != nil {
 			return err
 		}
 		if err := s.do(ctx, http.MethodPost, "/indexes/"+uid+"/documents", rows, nil); err != nil {
@@ -157,7 +179,7 @@ func (s *Store) Delete(ctx context.Context, typ string, ids ...string) error {
 		return nil
 	}
 	uid := s.indexUID(typ)
-	if err := s.ensure(ctx, uid); err != nil {
+	if err := s.ensure(ctx, uid, nil); err != nil {
 		return err
 	}
 	out := make([]string, 0, len(ids))
