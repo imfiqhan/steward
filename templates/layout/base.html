@@ -33,17 +33,22 @@
   <dialog id="steward-command" class="command-dialog" aria-label="Command palette">
     <div class="command">
       <header>
-        <input type="text" placeholder="Search pages…" autocomplete="off"
-               autocorrect="off" spellcheck="false" aria-label="Search pages"/>
+        <input type="text" placeholder="Search pages and records…" autocomplete="off"
+               autocorrect="off" spellcheck="false" aria-label="Search pages and records"/>
       </header>
-      <div role="menu" data-empty="No matches.">
+      <div role="menu">
+        {{/* Results fetched as the reader types land here, above the static
+             navigation, because a record they are looking for beats a page they
+             could reach anyway. */}}
+        <div data-steward-command-results hidden></div>
+        <p class="steward-command-empty" data-steward-command-empty hidden>No matches.</p>
         {{range .Page.MenuSections}}
         <div role="group" {{if .Title}}aria-label="{{.Title}}"{{end}}>
           {{with .Title}}<h3>{{.}}</h3>{{end}}
           {{range .Items}}
           {{if .URI}}
           <div role="menuitem" data-steward-goto="{{.URI}}"
-               data-keywords="{{$.Page.Brand}}">
+               data-filter="{{.Title}}">
             {{if .Icon}}{{icon .Icon}}{{end}}
             <span>{{.Title}}</span>
           </div>

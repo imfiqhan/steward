@@ -83,6 +83,7 @@ func (a *Admin) buildRoutes() *http.ServeMux {
 	mux.HandleFunc("POST "+p+"/auth/profile/2fa/codes", a.h(a.twoFactorRegenerateCodes))
 
 	mux.HandleFunc("GET "+p+"/_assets/", a.serveAsset)
+	mux.HandleFunc("GET "+p+"/_command", a.h(a.commandSearch))
 
 	// Local uploads are served straight from disk; other Storage backends
 	// give absolute URLs and never hit this route.

@@ -29,6 +29,8 @@ type Resource[T any] struct {
 	a *Admin
 	m *resourceMeta
 
+	commandPaths []string
+
 	gridFn   func(*Grid[T])
 	formFn   func(*Form[T])
 	detailFn func(*Detail[T])
@@ -101,6 +103,21 @@ func (r *Resource[T]) Icon(name string) *Resource[T] { r.m.icon = name; return r
 
 // Group places the resource under a collapsible sidebar group.
 func (r *Resource[T]) Group(name string) *Resource[T] { r.m.group = name; return r }
+
+// Command makes the resource searchable from the command palette, over the
+// paths given.
+//
+//	posts.Command("Title", "Slug")
+//
+// It is opt-in rather than following QuickSearch, because the palette queries on
+// every keystroke and a LIKE over a table nobody meant to include is paid for by
+// every search that misses. Measured on one panel: eleven resources searched
+// automatically cost 1.5–4.2s per keystroke, the worst of it on queries that
+// matched nothing.
+func (r *Resource[T]) Command(paths ...string) *Resource[T] {
+	r.commandPaths = append(r.commandPaths, paths...)
+	return r
+}
 
 // Grid declares the list view; fn runs at Build time against a fresh
 // builder. Without it the grid shows every direct model field.

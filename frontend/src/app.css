@@ -351,6 +351,33 @@ tr.steward-dragging { opacity: 0.5; }
 
 /* ---- Command palette ----------------------------------------------------- */
 
+/* Basecoat sizes .command for an inline popover; as a palette it wants the
+   width of a search field and room for more than a few rows. */
+.command-dialog .command {
+  width: min(40rem, calc(100vw - 2rem));
+  max-width: none;
+}
+.command-dialog .command [role="menu"] {
+  max-height: min(28rem, calc(100vh - 12rem));
+}
+
+.steward-command-empty {
+  padding: 1.5rem 0.75rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+/* A record's second line, dimmer and after its title. */
+.steward-command-sub {
+  margin-inline-start: 0.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .steward-command-trigger {
   display: inline-flex;
   align-items: center;

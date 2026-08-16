@@ -28,6 +28,15 @@ type Context struct {
 // Ctx returns the request's context.Context for repository calls.
 func (c *Context) Ctx() context.Context { return c.R.Context() }
 
+// withContext returns a shallow copy whose Ctx is the one given. The request is
+// shared, so this is for handlers that fan out and want a deadline on the work
+// rather than on the response.
+func (c *Context) withContext(ctx context.Context) *Context {
+	clone := *c
+	clone.R = c.R.WithContext(ctx)
+	return &clone
+}
+
 // WantsFragment reports an HTMX partial-navigation request: the response
 // should be the page content only, not the full layout. Boosted requests are
 // full-page swaps and still want the fragment (layout stays put).

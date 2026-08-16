@@ -73,7 +73,10 @@ func (a *Admin) registerUsersResource() {
 	repo.With("Roles")
 
 	res := Register[AdminUser](a).Slug("auth/users").Title("Administrators").
-		Icon("users").Group("Admin").Repository(repo)
+		Icon("users").Group("Admin").Repository(repo).
+		// Reachable from the palette by whoever may already list them: the
+		// search runs behind the same ViewAny gate the grid does.
+		Command("Name", "Username", "Email")
 
 	res.Grid(func(g *Grid[AdminUser]) {
 		g.Column("ID").Sortable().Width(60)

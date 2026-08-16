@@ -170,6 +170,9 @@ type Admin struct {
 	// default one.
 	disks map[string]Disk
 
+	// commandSources are extra searchable sections in the command palette.
+	commandSources []namedCommandSource
+
 	mux          *http.ServeMux
 	handler      http.Handler
 	assetVersion string

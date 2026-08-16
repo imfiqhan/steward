@@ -1278,6 +1278,132 @@ window.htmx = htmx;
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.focus();
     }
+    renderCommandResults([]);
+  }
+
+  // One listener for the whole palette: the input is replaced on no page, so
+  // this can bind once.
+  document.addEventListener("input", function (e) {
+    var dlg = commandDialog();
+    if (!dlg || !dlg.open || commandRefiltering) return;
+    if (!e.target.closest("#steward-command header")) return;
+    var query = e.target.value;
+    clearTimeout(commandTimer);
+    commandTimer = setTimeout(function () { searchCommand(query); }, COMMAND_DEBOUNCE_MS);
+    // The static entries filter instantly; only the fetch waits.
+    updateCommandEmpty();
+  });
+
+  // --- searching records -------------------------------------------------------
+  // The static entries are filtered in the browser by Basecoat. Records cannot
+  // be: there are more of them than belong in a page, and which ones a reader
+  // may see is the server's to decide. So the palette asks as it types.
+
+  var COMMAND_DEBOUNCE_MS = 220;
+  var commandTimer = null;
+  var commandAbort = null;
+  // Set while the filter is re-run over freshly injected items: that dispatch
+  // is an input event like any other, and without this it would schedule the
+  // fetch that produced it, for ever.
+  var commandRefiltering = false;
+
+  function commandResultsBox() {
+    var dlg = commandDialog();
+    return dlg && dlg.querySelector("[data-steward-command-results]");
+  }
+
+  // A menuitem the component filters like any other. data-filter carries the
+  // text to match, so a fetched row is searchable by the same rules.
+  function commandItem(r) {
+    var el = document.createElement("div");
+    el.setAttribute("role", "menuitem");
+    el.setAttribute("data-steward-goto", r.url);
+    el.setAttribute("data-filter", (r.title || "") + " " + (r.subtitle || ""));
+    var title = document.createElement("span");
+    title.textContent = r.title || "";
+    el.appendChild(title);
+    if (r.subtitle) {
+      var sub = document.createElement("span");
+      sub.className = "steward-command-sub";
+      sub.textContent = r.subtitle;
+      el.appendChild(sub);
+    }
+    return el;
+  }
+
+  function renderCommandResults(results) {
+    var box = commandResultsBox();
+    if (!box) return;
+    box.innerHTML = "";
+    var groups = [];
+    var byGroup = {};
+    results.forEach(function (r) {
+      if (!byGroup[r.group]) { byGroup[r.group] = []; groups.push(r.group); }
+      byGroup[r.group].push(r);
+    });
+    groups.forEach(function (name) {
+      var g = document.createElement("div");
+      g.setAttribute("role", "group");
+      g.setAttribute("aria-label", name);
+      var h = document.createElement("h3");
+      h.textContent = name;
+      g.appendChild(h);
+      byGroup[name].forEach(function (r) { g.appendChild(commandItem(r)); });
+      box.appendChild(g);
+    });
+    box.hidden = results.length === 0;
+    // The component filters on input and marks what it has seen. Items arriving
+    // from a fetch afterwards were never judged, so they stay hidden until the
+    // filter is asked to run again over the list as it now stands.
+    var input = box.closest(".command").querySelector("header input");
+    if (input) {
+      commandRefiltering = true;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      commandRefiltering = false;
+    }
+    updateCommandEmpty();
+  }
+
+  // Shown when neither the pages nor the records matched — otherwise a typo
+  // leaves an empty box with nothing to say.
+  function updateCommandEmpty() {
+    var dlg = commandDialog();
+    if (!dlg) return;
+    var note = dlg.querySelector("[data-steward-command-empty]");
+    if (!note) return;
+    var visible = [...dlg.querySelectorAll('[role="menuitem"]')].some(function (i) {
+      return i.offsetParent !== null;
+    });
+    var typed = (dlg.querySelector("header input") || {}).value || "";
+    note.hidden = visible || typed.trim() === "";
+  }
+
+  function searchCommand(query) {
+    if (commandAbort) commandAbort.abort();
+    if (query.trim().length < 2) {
+      renderCommandResults([]);
+      return;
+    }
+    commandAbort = new AbortController();
+    fetch(stewardPrefix() + "/_command?q=" + encodeURIComponent(query), {
+      credentials: "same-origin",
+      signal: commandAbort.signal
+    })
+      .then(function (r) { return r.ok ? r.json() : { results: [] }; })
+      .then(function (body) { renderCommandResults(body.results || []); })
+      .catch(function (err) {
+        if (err && err.name === "AbortError") return;
+        console.error("steward: command search", err);
+      });
+  }
+
+  // The panel can be mounted anywhere, so the prefix is read off a link the
+  // layout always renders rather than assumed to be /admin.
+  function stewardPrefix() {
+    var el = document.querySelector("[data-steward-goto]");
+    var uri = el && el.getAttribute("data-steward-goto");
+    if (!uri) return "";
+    return uri.replace(/\/[^/]*$/, "");
   }
 
   document.addEventListener("keydown", function (e) {
