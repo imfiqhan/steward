@@ -4,6 +4,14 @@
  * MutationObserver, so htmx swaps initialize themselves. */
 import htmx from "../vendor/htmx/htmx.esm.js";
 import "../vendor/basecoat/js/all.js";
+// Basecoat ships its Chart component outside the full bundle, and it attaches
+// with `window.basecoat && (window.basecoat.chart = ...)` — it only takes if
+// basecoat already exists. Importing it here puts it after all.js and inside
+// the one deferred script, which is the only ordering that holds: a tag in the
+// page body runs before this bundle does, finds no basecoat, and silently
+// attaches nothing. Chart.js itself stays out — it is larger than this whole
+// bundle and most pages have no chart.
+import "../vendor/basecoat/js/chart.min.js";
 
 window.htmx = htmx;
 

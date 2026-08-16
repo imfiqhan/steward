@@ -48,7 +48,6 @@ vendor-chart:
 	    https://raw.githubusercontent.com/chartjs/Chart.js/v$(CHARTJS_VERSION)/LICENSE.md )
 	@mkdir -p assets/dist
 	@cp frontend/vendor/chartjs/chart.umd.min.js assets/dist/chart.umd.min.js
-	@cp frontend/vendor/basecoat/js/chart.min.js assets/dist/basecoat-chart.min.js
 	@echo "chart runtime staged in assets/dist (rebuild the binary to embed it)"
 
 # Vendors Lucide's full sprite (~400 KB, every icon as a <symbol>) into

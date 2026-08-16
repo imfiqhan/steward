@@ -30,10 +30,11 @@
 </div>
 
 {{if .Data.HasChart}}
-{{/* Loaded per page rather than bundled into app.js: Chart.js is larger than
-     the whole current bundle, and most pages have no chart. */}}
+{{/* Chart.js only: it is larger than the whole UI bundle and most pages have
+     no chart. Basecoat's Chart component rides in app.js instead, because it
+     attaches to window.basecoat and a tag here would run before app.js has
+     made one. */}}
 <script src="{{asset "dist/chart.umd.min.js"}}"></script>
-<script src="{{asset "dist/basecoat-chart.min.js"}}"></script>
 <script>
   (function () {
     function draw(root) {

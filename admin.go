@@ -331,6 +331,21 @@ func (a *Admin) build() error {
 		}
 	}
 
+	// A chart widget loads its runtime from the asset layers, and the drawing
+	// code gives up quietly when it is not there — the tile renders empty and
+	// only a 404 in the console says why. The files are fetched by
+	// `make vendor-chart` rather than committed, so a fresh clone has a
+	// dashboard whose charts are blank until someone knows to run it.
+	if a.dash != nil && a.dash.hasChartWidget() {
+		for _, name := range chartRuntimeAssets {
+			if _, err := readLayered(rend.assetLayers, name); err != nil {
+				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+					"dashboard has a chart widget but %s is missing from the asset layers; "+
+						"run `make vendor-chart` (it is fetched, not committed)", name))
+			}
+		}
+	}
+
 	a.mux = a.buildRoutes()
 	a.handler = a.wrap(a.mux)
 	a.built = true

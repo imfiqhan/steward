@@ -17,6 +17,21 @@ import (
 	"strconv"
 )
 
+// chartRuntimeAssets are what a chart tile needs in the page. They are fetched
+// by `make vendor-chart` rather than committed: Chart.js is Basecoat's peer
+// dependency and is not redistributed here.
+var chartRuntimeAssets = []string{"dist/chart.umd.min.js"}
+
+// hasChartWidget reports whether any tile needs that runtime.
+func (d *Dashboard) hasChartWidget() bool {
+	for _, w := range d.widgets {
+		if w.kind == widgetChart {
+			return true
+		}
+	}
+	return false
+}
+
 type widgetKind int
 
 const (

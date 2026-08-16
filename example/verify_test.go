@@ -131,3 +131,57 @@ func TestVerifyCatchesAnUnknownBadgeColour(t *testing.T) {
 		t.Errorf("the named colours were rejected: %s", got)
 	}
 }
+
+type chartRow struct {
+	ID   uint `gorm:"primaryKey"`
+	Name string
+}
+
+// TestVerifyCatchesAMissingChartRuntime covers a dashboard whose chart tiles
+// would render empty. The drawing code returns early when window.Chart is not
+// there, so the tile is blank and only a 404 in the console says why — and the
+// files are fetched by `make vendor-chart` rather than committed, so a fresh
+// clone is in exactly that state.
+func TestVerifyCatchesAMissingChartRuntime(t *testing.T) {
+	build := func(withChart bool) string {
+		db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/c.db"), &gorm.Config{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := db.AutoMigrate(&chartRow{}); err != nil {
+			t.Fatal(err)
+		}
+		app, err := steward.New(steward.Config{
+			DB: db, SecretKey: []byte("chart-test-secret-key-000"),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		steward.Register[chartRow](app)
+		app.Dashboard(func(d *steward.Dashboard) {
+			d.Metric("Rows", func(*steward.Context) (any, error) { return 1, nil })
+			if withChart {
+				d.Chart("Per month", func(*steward.Context) (*steward.ChartData, error) {
+					return &steward.ChartData{}, nil
+				})
+			}
+		})
+		if err := app.Verify(); err != nil {
+			return err.Error()
+		}
+		return ""
+	}
+
+	got := build(true)
+	if !strings.Contains(got, "chart.umd.min.js") {
+		t.Errorf("a chart widget with no runtime was not reported: %q", got)
+	}
+	if !strings.Contains(got, "make vendor-chart") {
+		t.Errorf("the error does not say how to fix it: %q", got)
+	}
+
+	// A dashboard with no chart tile needs none of it and must stay quiet.
+	if got := build(false); strings.Contains(got, "chart") {
+		t.Errorf("a chartless dashboard was reported: %q", got)
+	}
+}
