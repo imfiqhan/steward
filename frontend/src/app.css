@@ -286,6 +286,69 @@ tr.steward-dragging { opacity: 0.5; }
 .steward-detail-row dd > :first-child { min-width: 0; }
 .steward-detail-row-block dd { display: block; }
 
+/* ---- Date range filter --------------------------------------------------- */
+
+.steward-daterange {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.steward-daterange-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.steward-daterange[data-set="1"] .steward-daterange-trigger { color: var(--foreground); }
+.steward-daterange-trigger:hover { background: var(--muted); }
+.steward-daterange-trigger:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+
+.steward-daterange-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.steward-daterange-clear:hover { background: var(--muted); color: var(--foreground); }
+.steward-daterange-clear:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+
+/* The days between the two ends, tinted so the span reads as one selection
+   rather than two marks. */
+.steward-cal-range .steward-cal-day[data-in-range="1"] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  border-radius: 0;
+}
+
+.steward-cal-range .steward-cal-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+.steward-cal-preset {
+  padding: 0.25rem 0.5rem;
+  border-radius: calc(var(--radius) - 2px);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.steward-cal-preset:hover { background: var(--muted); color: var(--foreground); }
+.steward-cal-preset:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+
 /* ---- Command palette ----------------------------------------------------- */
 
 .steward-command-trigger {

@@ -2226,6 +2226,240 @@ window.htmx = htmx;
     document.querySelectorAll("[data-steward-datepicker]").forEach(close);
   });
 
+  /* ---- Date range filter ------------------------------------------------------ */
+  /*
+   * One calendar for both ends of a range. The two hidden inputs it writes are
+   * the same ones a Between filter submits, so nothing on the server knows the
+   * difference and a URL typed by hand still works.
+   *
+   * On a coarse pointer the control falls back to the platform's two date
+   * inputs, for the same reason the single picker does.
+   */
+
+  function rangeLabel(from, to) {
+    var lang = document.documentElement.lang || undefined;
+    var fmt = function (iso) {
+      var p = iso.split("-");
+      var d = new Date(+p[0], +p[1] - 1, +p[2]);
+      try {
+        return d.toLocaleDateString(lang, { day: "numeric", month: "short", year: "numeric" });
+      } catch (err) {
+        return iso;
+      }
+    };
+    if (from && to) return from === to ? fmt(from) : fmt(from) + " – " + fmt(to);
+    if (from) return "From " + fmt(from);
+    if (to) return "Until " + fmt(to);
+    return "Any date";
+  }
+
+  function buildRangeCalendar(root, from, to, onPick) {
+    var cal = document.createElement("div");
+    cal.className = "steward-cal steward-cal-range";
+    var view = new Date(from ? from + "T00:00:00" : Date.now());
+    // pending holds a first click waiting for its second.
+    var pending = null;
+    var hover = null;
+
+    function within(iso, a, b) {
+      if (!a || !b) return false;
+      var lo = a < b ? a : b, hi = a < b ? b : a;
+      return iso > lo && iso < hi;
+    }
+
+    function render() {
+      cal.innerHTML = "";
+      var head = document.createElement("div");
+      head.className = "steward-cal-head";
+      var prev = document.createElement("button");
+      prev.type = "button";
+      prev.className = "steward-cal-nav";
+      prev.textContent = "‹";
+      prev.setAttribute("aria-label", "Previous month");
+      prev.addEventListener("click", function () {
+        view = new Date(view.getFullYear(), view.getMonth() - 1, 1);
+        render();
+      });
+      var title = document.createElement("span");
+      title.className = "steward-cal-title";
+      title.textContent = shortMonth(view.getMonth()) + " " + view.getFullYear();
+      var next = document.createElement("button");
+      next.type = "button";
+      next.className = "steward-cal-nav";
+      next.textContent = "›";
+      next.setAttribute("aria-label", "Next month");
+      next.addEventListener("click", function () {
+        view = new Date(view.getFullYear(), view.getMonth() + 1, 1);
+        render();
+      });
+      head.append(prev, title, next);
+      cal.appendChild(head);
+
+      var grid = document.createElement("div");
+      grid.className = "steward-cal-grid";
+      weekdayNames().forEach(function (n) {
+        var el = document.createElement("span");
+        el.className = "steward-cal-dow";
+        el.setAttribute("aria-hidden", "true");
+        el.textContent = n;
+        grid.appendChild(el);
+      });
+
+      var first = new Date(view.getFullYear(), view.getMonth(), 1);
+      var lead = (first.getDay() + 6) % 7;
+      var start = new Date(first);
+      start.setDate(1 - lead);
+      var today = isoDate(new Date());
+
+      for (var i = 0; i < 42; i++) {
+        var day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+        var iso = isoDate(day);
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "steward-cal-day";
+        btn.textContent = String(day.getDate());
+        btn.dataset.iso = iso;
+        if (day.getMonth() !== view.getMonth()) btn.dataset.outside = "1";
+        if (iso === today) btn.dataset.today = "1";
+
+        var lo = pending || from, hi = pending ? (hover || pending) : to;
+        if (iso === lo || iso === hi) btn.setAttribute("aria-selected", "true");
+        if (within(iso, lo, hi)) btn.dataset.inRange = "1";
+        grid.appendChild(btn);
+      }
+      cal.appendChild(grid);
+
+      var foot = document.createElement("div");
+      foot.className = "steward-cal-foot";
+      [["This month", 0], ["Last 7 days", 7], ["Last 30 days", 30]].forEach(function (p) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "steward-cal-preset";
+        b.textContent = p[0];
+        b.addEventListener("click", function () {
+          var now = new Date();
+          if (p[1] === 0) {
+            onPick(isoDate(new Date(now.getFullYear(), now.getMonth(), 1)),
+              isoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)));
+            return;
+          }
+          var back = new Date(now.getFullYear(), now.getMonth(), now.getDate() - p[1] + 1);
+          onPick(isoDate(back), isoDate(now));
+        });
+        foot.appendChild(b);
+      });
+      cal.appendChild(foot);
+    }
+
+    cal.addEventListener("click", function (e) {
+      var day = e.target.closest(".steward-cal-day");
+      if (!day) return;
+      var iso = day.dataset.iso;
+      if (!pending) {
+        pending = iso;
+        hover = null;
+        render();
+        return;
+      }
+      // Second click completes it, in whichever order the two were chosen.
+      var a = pending, b = iso;
+      pending = null;
+      onPick(a < b ? a : b, a < b ? b : a);
+    });
+    cal.addEventListener("mouseover", function (e) {
+      if (!pending) return;
+      var day = e.target.closest(".steward-cal-day");
+      if (!day || day.dataset.iso === hover) return;
+      hover = day.dataset.iso;
+      render();
+    });
+
+    render();
+    return cal;
+  }
+
+  function closeRange(root) {
+    var cal = root.querySelector(".steward-cal");
+    if (cal) cal.remove();
+    var t = root.querySelector("[data-steward-daterange-trigger]");
+    if (t) t.setAttribute("aria-expanded", "false");
+  }
+
+  function initDateRanges() {
+    document.querySelectorAll("[data-steward-daterange]").forEach(function (root) {
+      if (root.dataset.stewardRangeReady === "1") return;
+      root.dataset.stewardRangeReady = "1";
+
+      var fromInput = root.querySelector("[data-steward-daterange-from]");
+      var toInput = root.querySelector("[data-steward-daterange-to]");
+      var label = root.querySelector("[data-steward-daterange-label]");
+      var clear = root.querySelector("[data-steward-daterange-clear]");
+      var trigger = root.querySelector("[data-steward-daterange-trigger]");
+
+      function paint() {
+        label.textContent = rangeLabel(fromInput.value, toInput.value);
+        root.dataset.set = fromInput.value || toInput.value ? "1" : "";
+        if (clear) clear.hidden = !(fromInput.value || toInput.value);
+      }
+      paint();
+
+      // Without a fine pointer, two native inputs beat a calendar built here.
+      if (COARSE) {
+        trigger.hidden = true;
+        [["from", fromInput], ["to", toInput]].forEach(function (pair) {
+          var d = document.createElement("input");
+          d.type = "date";
+          d.className = "input";
+          d.value = pair[1].value;
+          d.setAttribute("aria-label", pair[0] === "from" ? "From" : "Until");
+          d.addEventListener("change", function () { pair[1].value = d.value; paint(); });
+          root.insertBefore(d, clear);
+        });
+        return;
+      }
+
+      trigger.addEventListener("click", function () {
+        if (root.querySelector(".steward-cal")) { closeRange(root); return; }
+        document.querySelectorAll("[data-steward-daterange]").forEach(closeRange);
+        var cal = buildRangeCalendar(root, fromInput.value, toInput.value, function (a, b) {
+          fromInput.value = a;
+          toInput.value = b;
+          paint();
+          closeRange(root);
+        });
+        root.appendChild(cal);
+        var r = cal.getBoundingClientRect();
+        if (r.bottom > window.innerHeight - 8 && root.getBoundingClientRect().top > r.height + 8) {
+          cal.style.top = "auto";
+          cal.style.bottom = "calc(100% + 0.25rem)";
+        }
+        trigger.setAttribute("aria-expanded", "true");
+      });
+
+      if (clear) {
+        clear.addEventListener("click", function () {
+          fromInput.value = "";
+          toInput.value = "";
+          paint();
+          closeRange(root);
+        });
+      }
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", initDateRanges);
+  document.addEventListener("htmx:afterSettle", initDateRanges);
+  // mousedown for the same reason the single picker uses it: rendering replaces
+  // the calendar's children, so a click has nothing left to trace back to.
+  document.addEventListener("mousedown", function (e) {
+    if (e.target.closest("[data-steward-daterange]")) return;
+    document.querySelectorAll("[data-steward-daterange]").forEach(closeRange);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    document.querySelectorAll("[data-steward-daterange]").forEach(closeRange);
+  });
+
   /* ---- Theme toggle ----------------------------------------------------------- */
 
   document.addEventListener("click", function (e) {

@@ -446,6 +446,7 @@ const (
 	inputDatetime
 	inputBetween
 	inputDateBetween
+	inputDateRange
 )
 
 // FilterItem is one filter control.
@@ -457,6 +458,16 @@ type FilterItem[T any] struct {
 	optionsFn   func(*Context) Options
 	placeholder string
 	info        *fieldInfo
+}
+
+// dateLike reports whether the filter's values are dates, which decides how an
+// upper bound is read.
+func (fi *FilterItem[T]) dateLike() bool {
+	switch fi.input {
+	case inputDate, inputDatetime, inputDateBetween, inputDateRange:
+		return true
+	}
+	return false
 }
 
 // choices resolves a filter's options, whichever way they were declared.
@@ -553,6 +564,14 @@ func (fi *FilterItem[T]) SelectFunc(fn func(*Context) Options) *FilterItem[T] {
 	fi.input = inputSelect
 	fi.optionsFn = fn
 	return fi
+}
+
+// DateRange filters a date column by a range chosen in one calendar, rather
+// than two separate inputs. It submits the same two parameters a Between filter
+// does — {param} and {param}_to — so a half-open range still works and a URL
+// written by hand behaves the same.
+func (f *Filters[T]) DateRange(path string, label ...string) *FilterItem[T] {
+	return f.add(path, OpBetween, inputDateRange, label...)
 }
 
 // Datetime switches a Between filter to date-range inputs.

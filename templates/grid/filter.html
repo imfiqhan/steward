@@ -48,15 +48,43 @@
             <input id="filter-{{.Param}}" type="text" name="{{.Param}}" value="{{.Value}}" class="input" placeholder="min"/>
             <input type="text" name="{{.Param}}_to" value="{{.Value2}}" class="input" placeholder="max" aria-label="{{.Label}} max"/>
           </div>
+        {{else if eq .Input "daterange"}}
+          {{/* One control for both ends. The two inputs it writes are the same
+               ones a Between filter submits, so the server side is unchanged and
+               a hand-written URL still works. */}}
+          <div class="steward-daterange" data-steward-daterange>
+            <button type="button" class="steward-daterange-trigger" data-steward-daterange-trigger
+                    aria-haspopup="dialog" aria-expanded="false">
+              {{icon "calendar" "size-4"}}
+              <span data-steward-daterange-label>Any date</span>
+            </button>
+            <button type="button" class="steward-daterange-clear" data-steward-daterange-clear
+                    aria-label="Clear {{.Label}}" {{if and (not .Value) (not .Value2)}}hidden{{end}}>
+              {{icon "x" "size-3"}}
+            </button>
+            <input type="hidden" name="{{.Param}}" value="{{.Value}}" data-steward-daterange-from/>
+            <input type="hidden" name="{{.Param}}_to" value="{{.Value2}}" data-steward-daterange-to/>
+          </div>
         {{else if eq .Input "datebetween"}}
           <div class="flex gap-2">
-            <input id="filter-{{.Param}}" type="date" name="{{.Param}}" value="{{.Value}}" class="input"/>
-            <input type="date" name="{{.Param}}_to" value="{{.Value2}}" class="input" aria-label="{{.Label}} end"/>
+            <div class="steward-datepicker" data-steward-datepicker>
+              <input id="filter-{{.Param}}" type="date" name="{{.Param}}" value="{{.Value}}" class="input"/>
+            </div>
+            <div class="steward-datepicker" data-steward-datepicker>
+              <input type="date" name="{{.Param}}_to" value="{{.Value2}}" class="input" aria-label="{{.Label}} end"/>
+            </div>
           </div>
         {{else if eq .Input "date"}}
-          <input id="filter-{{.Param}}" type="date" name="{{.Param}}" value="{{.Value}}" class="input"/>
+          {{/* Wrapped, so the calendar app.js adds to a form's date field reaches
+               a filter's too — these were the browser's own control and nothing
+               else. */}}
+          <div class="steward-datepicker" data-steward-datepicker>
+            <input id="filter-{{.Param}}" type="date" name="{{.Param}}" value="{{.Value}}" class="input"/>
+          </div>
         {{else if eq .Input "datetime"}}
-          <input id="filter-{{.Param}}" type="datetime-local" name="{{.Param}}" value="{{.Value}}" class="input"/>
+          <div class="steward-datepicker" data-steward-datepicker>
+            <input id="filter-{{.Param}}" type="datetime-local" name="{{.Param}}" step="1" value="{{.Value}}" class="input"/>
+          </div>
         {{else}}
           <input id="filter-{{.Param}}" type="text" name="{{.Param}}" value="{{.Value}}" class="input" placeholder="{{.Placeholder}}"/>
         {{end}}

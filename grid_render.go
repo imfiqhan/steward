@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -26,6 +27,24 @@ type gridState struct {
 	ids    []string
 	// raw filter input values by param name, echoed back into the panel
 	filterVals map[string]string
+}
+
+// bareDate matches a day with no time on it.
+var bareDate = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
+
+// endOfDay turns a bare upper bound into the exclusive start of the next day,
+// which includes the whole of the day named whether the column stores a date or
+// a timestamp. It reports false for anything that is not a bare date, or for a
+// filter whose values are not dates at all.
+func endOfDay(v string, dateLike bool) (string, bool) {
+	if !dateLike || !bareDate.MatchString(v) {
+		return "", false
+	}
+	d, err := time.Parse("2006-01-02", v)
+	if err != nil {
+		return "", false
+	}
+	return d.AddDate(0, 0, 1).Format("2006-01-02"), true
 }
 
 // filterParam is the query-param name for a filter on the given field path.
@@ -80,6 +99,17 @@ func (t *typedResource[T]) parseState(c *Context) *gridState {
 		}
 		switch fi.op {
 		case OpBetween:
+			// A bare date as an upper bound means the whole of that day. Left as
+			// it is, it compares as that day's midnight, so a range labelled
+			// "1–31 July" drops everything written on the 31st after 00:00:00 —
+			// 13 rows of 294 on the table this was found against.
+			if end, ok := endOfDay(v2, fi.dateLike()); ok {
+				if v != "" {
+					st.query.Conds = append(st.query.Conds, Cond{Path: fi.path, Op: OpGte, Val: v})
+				}
+				st.query.Conds = append(st.query.Conds, Cond{Path: fi.path, Op: OpLt, Val: end})
+				continue
+			}
 			switch {
 			case v != "" && v2 != "":
 				st.query.Conds = append(st.query.Conds, Cond{Path: fi.path, Op: OpBetween, Val: v, Val2: v2})
@@ -428,7 +458,7 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 			Value:       st.filterVals[param],
 			Value2:      st.filterVals[param+"_to"],
 			Placeholder: fi.placeholder,
-			Input:       [...]string{"text", "select", "date", "datetime", "between", "datebetween"}[fi.input],
+			Input:       [...]string{"text", "select", "date", "datetime", "between", "datebetween", "daterange"}[fi.input],
 		}
 		if fv.Value != "" || fv.Value2 != "" {
 			vm.ActiveFilters++
