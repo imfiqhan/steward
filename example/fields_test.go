@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 
 	steward "github.com/imfiqhan/steward"
@@ -25,10 +24,7 @@ type fieldRow struct {
 
 func newFieldServer(t *testing.T, symbol string, cfgSymbol string) (*httptest.Server, *gorm.DB) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/f.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&fieldRow{}); err != nil {
 		t.Fatal(err)
 	}

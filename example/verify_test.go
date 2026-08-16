@@ -8,9 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
-
 	steward "github.com/imfiqhan/steward"
 )
 
@@ -25,10 +22,7 @@ type verifyRow struct {
 // Verify has to say about it.
 func verifyWith(t *testing.T, configure func(*steward.Resource[verifyRow]), disks map[string]steward.Disk) string {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/v.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&verifyRow{}); err != nil {
 		t.Fatal(err)
 	}
@@ -141,10 +135,7 @@ func TestVerifyCatchesAnUnknownBadgeColour(t *testing.T) {
 // be fetched by `make vendor-chart` and left uncommitted, so a consumer — who
 // cannot run this repo's Makefile — had charts that could never draw.
 func TestChartRuntimeShipsWithTheModule(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/c.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&chartRow{}); err != nil {
 		t.Fatal(err)
 	}

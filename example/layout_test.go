@@ -8,9 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
-
 	steward "github.com/imfiqhan/steward"
 )
 
@@ -43,10 +40,7 @@ type wideRow struct {
 // Asserted on the markup because the failure is a computed-layout property: it
 // needs a browser to observe, but it cannot happen while the cap is present.
 func TestPageWrappersCannotBeWidenedByContent(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/wide.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&wideRow{}); err != nil {
 		t.Fatal(err)
 	}
@@ -119,10 +113,7 @@ func TestPageWrappersCannotBeWidenedByContent(t *testing.T) {
 // TestActionsColumnIsPinned covers the column that must stay reachable once a
 // wide table starts scrolling sideways.
 func TestActionsColumnIsPinned(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/pin.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&wideRow{}); err != nil {
 		t.Fatal(err)
 	}
@@ -213,10 +204,7 @@ func TestMenuItemsStayOutOfTheTabOrder(t *testing.T) {
 // than guessed.
 func builtStylesheet(t *testing.T) string {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/css.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	app, err := steward.New(steward.Config{
 		DB: db, SecretKey: []byte("stylesheet-test-secret-key"),
 	})
@@ -316,10 +304,7 @@ func TestGridHeaderPinning(t *testing.T) {
 
 	// The hooks the rules select on, and the height chain, both have to be on
 	// the rendered page.
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/hdr.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&wideRow{}); err != nil {
 		t.Fatal(err)
 	}

@@ -8,9 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
-
 	steward "github.com/imfiqhan/steward"
 )
 
@@ -37,10 +34,7 @@ func (hiddenPolicy) Delete(*steward.Context, *cmdSecret) bool { return false }
 
 func newCommandServer(t *testing.T, withSource bool) *httptest.Server {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/cmd.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&cmdPost{}, &cmdSecret{}); err != nil {
 		t.Fatal(err)
 	}

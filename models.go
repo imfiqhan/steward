@@ -185,8 +185,11 @@ func (OperationLog) TableName() string { return prefixed("operation_log") }
 
 // Setting is one row of the slug→value KV store.
 type Setting struct {
-	Slug      string `gorm:"primaryKey;size:100"`
-	Value     string `gorm:"type:longtext"`
+	Slug string `gorm:"primaryKey;size:100"`
+	// text, not longtext: longtext exists only on MySQL, and this table has to
+	// migrate on PostgreSQL and SQLite too. On MySQL text caps a setting at
+	// 64KB.
+	Value     string `gorm:"type:text"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

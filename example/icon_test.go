@@ -9,9 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
-
 	steward "github.com/imfiqhan/steward"
 )
 
@@ -27,10 +24,7 @@ type iconWidget struct {
 
 func newIconServer(t *testing.T, resourceIcon string) (*httptest.Server, *steward.Admin) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/icon.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&iconWidget{}); err != nil {
 		t.Fatal(err)
 	}

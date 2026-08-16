@@ -46,11 +46,8 @@ type rfArticle struct {
 
 func newRelationServer(t *testing.T) (*httptest.Server, *gorm.DB) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/rel.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := db.AutoMigrate(&rfWriter{}, &rfLabel{}, &rfNote{}, &rfArticle{}); err != nil {
+	db := testDB(t)
+	if err := db.AutoMigrate(&rfWriter{}, &rfArticle{}, &rfLabel{}, &rfNote{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -236,7 +233,7 @@ func TestRelationSortIsRejectedAtBoot(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := db.AutoMigrate(&rfWriter{}, &rfLabel{}, &rfNote{}, &rfArticle{}); err != nil {
+		if err := db.AutoMigrate(&rfWriter{}, &rfArticle{}, &rfLabel{}, &rfNote{}); err != nil {
 			t.Fatal(err)
 		}
 		app, err := steward.New(steward.Config{

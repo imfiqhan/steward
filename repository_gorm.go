@@ -105,7 +105,7 @@ func (r *GormRepository[T]) condSQL(c Cond) (string, []any, error) {
 	if info.DBName == "" {
 		return "", nil, fmt.Errorf("steward: field %q is not filterable on %s", c.Path, r.ft.model.Name)
 	}
-	return predicateSQL(quoteColumn(r.db, info.DBName), c)
+	return predicateSQLFor(r.db.Name(), quoteColumn(r.db, info.DBName), c)
 }
 
 func (r *GormRepository[T]) applyCond(db *gorm.DB, c Cond) (*gorm.DB, error) {

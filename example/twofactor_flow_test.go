@@ -16,9 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 
 	steward "github.com/imfiqhan/steward"
 )
@@ -30,10 +28,7 @@ import (
 
 func new2FAServer(t *testing.T, require2FA bool) (*httptest.Server, *steward.Admin) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/2fa.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	app, err := steward.New(steward.Config{
 		DB:         db,
 		SecretKey:  []byte("two-factor-flow-test-secret-key"),

@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 
 	steward "github.com/imfiqhan/steward"
@@ -32,10 +31,7 @@ type timeRow struct {
 
 func newTimeServer(t *testing.T, saving func(*steward.Context, *timeRow) error) (*httptest.Server, *gorm.DB) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/time.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&timeRow{}); err != nil {
 		t.Fatal(err)
 	}
@@ -220,10 +216,7 @@ func TestUnchangedSaveWritesNothing(t *testing.T) {
 // own min and max, which is a hint to whoever is using the page and no obstacle
 // at all to anyone who is not — so the same range is checked on save.
 func TestDateBoundsAreEnforced(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/bounds.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&timeRow{}); err != nil {
 		t.Fatal(err)
 	}

@@ -9,9 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
-
 	steward "github.com/imfiqhan/steward"
 )
 
@@ -23,10 +20,7 @@ type mdRow struct {
 
 func newMarkdownServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/md.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&mdRow{}); err != nil {
 		t.Fatal(err)
 	}

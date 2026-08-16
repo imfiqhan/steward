@@ -13,9 +13,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
-
 	steward "github.com/imfiqhan/steward"
 )
 
@@ -58,10 +55,7 @@ func newComboServer(t *testing.T, seen *seenTags) *httptest.Server {
 
 func newComboServerWith(t *testing.T, opts steward.Options, seen *seenTags) *httptest.Server {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/combo.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&comboRow{}); err != nil {
 		t.Fatal(err)
 	}
@@ -352,10 +346,7 @@ func TestMultiSelectSubmission(t *testing.T) {
 // render the same control, but store the value the <select> they replaced would
 // have submitted, so nothing downstream changes.
 func TestSingleSelectRendersCombobox(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/single.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&comboRow{}); err != nil {
 		t.Fatal(err)
 	}

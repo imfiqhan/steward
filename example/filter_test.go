@@ -11,9 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
-
 	steward "github.com/imfiqhan/steward"
 )
 
@@ -29,10 +26,7 @@ type filterRow struct {
 // registration" is told apart from "resolved per request".
 func newFilterServer(t *testing.T, calls *atomic.Int32) *httptest.Server {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/fl.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&filterRow{}); err != nil {
 		t.Fatal(err)
 	}
@@ -185,10 +179,7 @@ type dateRow struct {
 // written on the 31st after 00:00:00 — 13 rows of 294 on the table this was
 // found against.
 func TestDateRangeIncludesTheWholeOfItsLastDay(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/dr.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&dateRow{}); err != nil {
 		t.Fatal(err)
 	}

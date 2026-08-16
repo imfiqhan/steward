@@ -12,9 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
-
 	steward "github.com/imfiqhan/steward"
 )
 
@@ -35,10 +32,7 @@ func newStorageServer(t *testing.T, public bool) (*httptest.Server, *steward.Adm
 		[]byte("private bytes"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	db, err := gorm.Open(sqlite.Open("file:"+dir+"/s.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&storeRow{}); err != nil {
 		t.Fatal(err)
 	}
@@ -192,10 +186,7 @@ func TestDisksAreSeparate(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	db, err := gorm.Open(sqlite.Open("file:"+dir+"/d.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&storeRow{}); err != nil {
 		t.Fatal(err)
 	}
@@ -266,10 +257,7 @@ func TestDisksAreSeparate(t *testing.T) {
 // TestFieldDiskDecidesWhereAnUploadLands is the half a resource sees.
 func TestFieldDiskDecidesWhereAnUploadLands(t *testing.T) {
 	dir := t.TempDir()
-	db, err := gorm.Open(sqlite.Open("file:"+dir+"/fd.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&storeRow{}); err != nil {
 		t.Fatal(err)
 	}

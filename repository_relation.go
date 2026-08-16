@@ -139,7 +139,7 @@ func (r *GormRepository[T]) relCondSQL(rt *relTarget, c Cond) (string, []any, er
 	q := func(name string) string { return quoteColumn(r.db, name) }
 	qual := func(table, col string) string { return q(table) + "." + q(col) }
 
-	inner, args, err := predicateSQL(qual(rt.Table, rt.Column), c)
+	inner, args, err := predicateSQLFor(r.db.Name(), qual(rt.Table, rt.Column), c)
 	if err != nil {
 		return "", nil, err
 	}
@@ -170,6 +170,19 @@ func (r *GormRepository[T]) relCondSQL(rt *relTarget, c Cond) (string, []any, er
 // operator: the same predicate goes either straight into the WHERE clause or
 // inside a subquery.
 func predicateSQL(col string, c Cond) (string, []any, error) {
+	return predicateSQLFor("", col, c)
+}
+
+// predicateSQLFor is predicateSQL against a named dialect.
+//
+// LIKE is what needs the dialect. MySQL compares it under a case-insensitive
+// collation and SQLite folds ASCII case; PostgreSQL's LIKE is case-sensitive,
+// so it takes ILIKE to match the other two.
+func predicateSQLFor(dialect, col string, c Cond) (string, []any, error) {
+	like := " LIKE ?"
+	if dialect == "postgres" {
+		like = " ILIKE ?"
+	}
 	switch c.Op {
 	case OpEq:
 		return col + " = ?", []any{c.Val}, nil
@@ -184,9 +197,9 @@ func predicateSQL(col string, c Cond) (string, []any, error) {
 	case OpLte:
 		return col + " <= ?", []any{c.Val}, nil
 	case OpLike:
-		return col + " LIKE ?", []any{"%" + fmt.Sprint(c.Val) + "%"}, nil
+		return col + like, []any{"%" + fmt.Sprint(c.Val) + "%"}, nil
 	case OpPrefix:
-		return col + " LIKE ?", []any{fmt.Sprint(c.Val) + "%"}, nil
+		return col + like, []any{fmt.Sprint(c.Val) + "%"}, nil
 	case OpIn:
 		return col + " IN ?", []any{c.Val}, nil
 	case OpBetween:

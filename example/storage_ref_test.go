@@ -7,9 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
-
 	steward "github.com/imfiqhan/steward"
 )
 
@@ -25,10 +22,7 @@ type mediaRow struct {
 
 func newMediaServer(t *testing.T, rows ...mediaRow) *httptest.Server {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/media.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&mediaRow{}); err != nil {
 		t.Fatal(err)
 	}
@@ -88,14 +82,14 @@ func TestStorageRefResolvesStoredPaths(t *testing.T) {
 		{
 			name:    "a storage path resolves",
 			stored:  "images/galleries/cover.jpg",
-			wantSrc: "/admin/_uploads/images/galleries/cover.jpg",
+			wantSrc: "/admin/_uploads/local/images/galleries/cover.jpg",
 		},
 		{
 			// A real filename from the imported data: unescaped, a space in a
 			// src or href is invalid.
 			name:     "a space is escaped",
 			stored:   "files/Majalah Potensi Januari.pdf",
-			wantSrc:  "/admin/_uploads/files/Majalah%20Potensi%20Januari.pdf",
+			wantSrc:  "/admin/_uploads/local/files/Majalah%20Potensi%20Januari.pdf",
 			wantText: "files/Majalah Potensi Januari.pdf",
 		},
 		{
@@ -118,16 +112,31 @@ func TestStorageRefResolvesStoredPaths(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			srv := newMediaServer(t, mediaRow{Cover: tc.stored, Doc: tc.stored})
 
+			// A stored path resolves to a signed URL on its disk, so the src is
+			// the prefix plus an expiry and a signature; anything already
+			// absolute is passed through untouched and must match exactly.
+			hasRef := func(html, attr string) bool {
+				want := attr + `="` + tc.wantSrc
+				if !strings.Contains(html, want) {
+					return false
+				}
+				if !strings.HasPrefix(tc.wantSrc, "/admin/_uploads/") {
+					return strings.Contains(html, want+`"`)
+				}
+				i := strings.Index(html, want)
+				return strings.Contains(html[i:min(len(html), i+300)], "sig=")
+			}
+
 			grid := fetchOK(t, srv.URL+"/admin/media_rows")
-			if !strings.Contains(grid, `src="`+tc.wantSrc+`"`) {
+			if !hasRef(grid, "src") {
 				t.Errorf("grid Image src is not %q", tc.wantSrc)
 			}
 
 			detail := fetchOK(t, srv.URL+"/admin/media_rows/1")
-			if !strings.Contains(detail, `src="`+tc.wantSrc+`"`) {
+			if !hasRef(detail, "src") {
 				t.Errorf("detail Image src is not %q", tc.wantSrc)
 			}
-			if !strings.Contains(detail, `href="`+tc.wantSrc+`"`) {
+			if !hasRef(detail, "href") {
 				t.Errorf("detail Link href is not %q", tc.wantSrc)
 			}
 			// The link shows the stored value; only the href is rewritten, so a

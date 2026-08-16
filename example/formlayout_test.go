@@ -5,9 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
-
 	steward "github.com/imfiqhan/steward"
 )
 
@@ -19,10 +16,7 @@ type layoutRow struct {
 
 func newLayoutServer(t *testing.T, width steward.FormWidth) *httptest.Server {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/lay.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&layoutRow{}); err != nil {
 		t.Fatal(err)
 	}

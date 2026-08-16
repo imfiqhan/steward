@@ -14,9 +14,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
-
 	steward "github.com/imfiqhan/steward"
 )
 
@@ -26,19 +23,16 @@ import (
 // administrator a link that acts as them.
 
 type uploadRow struct {
-	ID  uint `gorm:"primaryKey"`
+	ID   uint `gorm:"primaryKey"`
 	Doc  string
 	Pic  string
 	Body string
 }
 
-func newUploadServer(t *testing.T) (*httptest.Server, string) {
+func newUploadServer(t *testing.T) (*httptest.Server, string, *steward.Admin) {
 	t.Helper()
 	dir := t.TempDir()
-	db, err := gorm.Open(sqlite.Open("file:"+dir+"/up.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&uploadRow{}); err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +58,7 @@ func newUploadServer(t *testing.T) (*httptest.Server, string) {
 	}
 	srv := httptest.NewServer(app)
 	t.Cleanup(srv.Close)
-	return srv, dir
+	return srv, dir, app
 }
 
 // post uploads one file and returns the decoded reply.
@@ -114,7 +108,7 @@ func postUpload(t *testing.T, srv *httptest.Server, field, name, body string) (i
 // header below is the boundary; this refuses outright, so a File field cannot
 // become a page-hosting service by accident.
 func TestUploadRefusesActiveContent(t *testing.T) {
-	srv, _ := newUploadServer(t)
+	srv, _, _ := newUploadServer(t)
 
 	for _, name := range []string{"x.html", "x.svg", "x.js", "x.xhtml", "x.php"} {
 		code, body := postUpload(t, srv, "Doc", name, "<script>alert(1)</script>")
@@ -139,7 +133,7 @@ func TestUploadRefusesActiveContent(t *testing.T) {
 // It is an attribute the browser reads; until now the server never did, so a
 // field declaring PDF-only stored a .docx or a .zip just the same.
 func TestUploadAcceptIsEnforced(t *testing.T) {
-	srv, _ := newUploadServer(t)
+	srv, _, _ := newUploadServer(t)
 
 	// Doc declares Accept("application/pdf").
 	for _, name := range []string{"sheet.xlsx", "archive.zip", "photo.png", "notes.txt"} {
@@ -195,7 +189,7 @@ func TestAcceptResolvesTypesTheSameEverywhere(t *testing.T) {
 // TestUploadsAreServedInert covers the boundary itself, for the files already
 // on disk from before the check existed and for anything the check misses.
 func TestUploadsAreServedInert(t *testing.T) {
-	srv, dir := newUploadServer(t)
+	srv, dir, app := newUploadServer(t)
 
 	// Written directly, standing in for a file stored before the rule existed.
 	sub := filepath.Join(dir, "uploads", "legacy")
@@ -207,7 +201,21 @@ func TestUploadsAreServedInert(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, err := http.Get(srv.URL + "/admin/_uploads/legacy/old.html")
+	// Two things changed under this test since it was written, and both are
+	// deliberate: a stored file lives under its disk, and it is served only to
+	// a session or a signature. Anonymously it must not come back at all.
+	anon, err := http.Get(srv.URL + "/admin/_uploads/local/legacy/old.html") //nolint:noctx // test
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = anon.Body.Close()
+	if anon.StatusCode == http.StatusOK {
+		t.Fatal("an anonymous request read a stored file")
+	}
+
+	// Signed, which is how the panel itself links to it — and the headers that
+	// make it inert are what this test is actually about.
+	resp, err := http.Get(srv.URL + app.StorageURL("legacy/old.html")) //nolint:noctx // test
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,10 +235,7 @@ func TestUploadsAreServedInert(t *testing.T) {
 // and the value in the column are the same thing said twice, so the array is
 // rebuilt from the list rather than edited alongside it.
 func TestFilesFieldHoldsAJSONArray(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/files.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&uploadRow{}); err != nil {
 		t.Fatal(err)
 	}
@@ -285,10 +290,7 @@ func TestFilesFieldHoldsAJSONArray(t *testing.T) {
 // too late to be the one that matters.
 func TestUploadNeedsWritePermission(t *testing.T) {
 	dir := t.TempDir()
-	db, err := gorm.Open(sqlite.Open("file:"+dir+"/perm.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&uploadRow{}); err != nil {
 		t.Fatal(err)
 	}
@@ -330,10 +332,7 @@ func (readOnly[T]) Update(*steward.Context, *T) bool { return false }
 func TestReplacedUploadIsRemoved(t *testing.T) {
 	dir := t.TempDir()
 	uploads := filepath.Join(dir, "uploads")
-	db, err := gorm.Open(sqlite.Open("file:"+dir+"/drop.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&uploadRow{}); err != nil {
 		t.Fatal(err)
 	}
@@ -442,7 +441,7 @@ func submitForm(t *testing.T, srv *httptest.Server, values map[string]string) {
 // name it explicitly — miss that and it inherits the File branch, which accepts
 // anything that is not executable.
 func TestRichtextUploadIsHeldToImageRules(t *testing.T) {
-	srv, dir := newUploadServer(t)
+	srv, dir, _ := newUploadServer(t)
 
 	code, body := postUpload(t, srv, "Body", "foto.png", "\x89PNG\r\n\x1a\n")
 	if code != http.StatusOK {

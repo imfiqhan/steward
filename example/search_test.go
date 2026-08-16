@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 
 	steward "github.com/imfiqhan/steward"
@@ -50,10 +49,7 @@ func (c *countingSearcher) Query(ctx context.Context, typ, q string, limit int) 
 
 func newSearchServer(t *testing.T, s steward.Searcher) (*httptest.Server, *gorm.DB, *steward.Admin) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/s.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&searchRow{}); err != nil {
 		t.Fatal(err)
 	}

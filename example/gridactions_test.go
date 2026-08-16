@@ -7,9 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
-
 	steward "github.com/imfiqhan/steward"
 )
 
@@ -22,10 +19,7 @@ type actionRow struct {
 // overriding the style on the grid itself.
 func newActionServer(t *testing.T, global steward.GridActionStyle, override steward.GridActionStyle) string {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/act.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&actionRow{}); err != nil {
 		t.Fatal(err)
 	}
@@ -163,10 +157,7 @@ func TestGridActionStyles(t *testing.T) {
 // each dropdown by id, so duplicated ids would point every row's trigger at the
 // first row's menu.
 func TestRowMenuIdsAreUnique(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/ids.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testDB(t)
 	if err := db.AutoMigrate(&actionRow{}); err != nil {
 		t.Fatal(err)
 	}
