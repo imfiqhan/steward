@@ -195,6 +195,9 @@ type Column[T any] struct {
 	// badges is what Badge was given, kept so Verify can check the colours.
 	badges map[any]BadgeColor
 
+	// boolLabels is what Bool was given, kept so Verify can check the count.
+	boolLabels []string
+
 	info *fieldInfo // resolved at compile
 }
 
@@ -294,12 +297,32 @@ func badgeColorNames() []string {
 	return out
 }
 
+// labeledValue separates the value a badge is coloured by from the text it
+// shows, for the case where Using has already replaced one with the other.
+type labeledValue struct {
+	key  any
+	text string
+}
+
 func badgeHTML(colors map[any]BadgeColor, v any) template.HTML {
-	color, ok := colors[v]
-	if !ok {
-		color = colors[fmt.Sprint(v)]
+	if lv, ok := v.(labeledValue); ok {
+		return badgeLabeledHTML(colors, lv.key, lv.text)
 	}
-	label := template.HTMLEscapeString(fmt.Sprint(v))
+	return badgeLabeledHTML(colors, v, fmt.Sprint(v))
+}
+
+// badgeLabeledHTML colours by the stored value and shows text. The colour map
+// may be keyed either way: on the stored value, or on the text Using replaced
+// it with.
+func badgeLabeledHTML(colors map[any]BadgeColor, key any, text string) template.HTML {
+	color, ok := colors[key]
+	if !ok {
+		color, ok = colors[fmt.Sprint(key)]
+	}
+	if !ok {
+		color = colors[text]
+	}
+	label := template.HTMLEscapeString(text)
 	palette := map[BadgeColor]string{
 		"green":  "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300",
 		"blue":   "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
@@ -340,10 +363,22 @@ func (c *Column[T]) Badge(colors map[any]BadgeColor) *Column[T] {
 	return c
 }
 
-// Bool renders Yes/No statuses for truthy/falsy values.
-func (c *Column[T]) Bool() *Column[T] {
-	c.present = func(v any, _ *T) template.HTML { return statusHTML(truthy(v), "Yes", "No") }
+// Bool renders truthy/falsy values as a status. It says Yes and No unless
+// given two words of its own: Bool("Ya", "Tidak").
+func (c *Column[T]) Bool(labels ...string) *Column[T] {
+	c.boolLabels = labels
+	yes, no := boolWords(labels)
+	c.present = func(v any, _ *T) template.HTML { return statusHTML(truthy(v), yes, no) }
 	return c
+}
+
+// boolWords resolves Bool's optional labels, falling back to English. A wrong
+// count is reported by Verify rather than guessed at here.
+func boolWords(labels []string) (string, string) {
+	if len(labels) == 2 {
+		return labels[0], labels[1]
+	}
+	return "Yes", "No"
 }
 
 // Link renders the value as an anchor; href receives the typed row.

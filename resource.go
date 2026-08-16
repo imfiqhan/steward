@@ -227,6 +227,11 @@ func (t *typedResource[T]) compile(a *Admin) error {
 					t.res.m.slug, col.path, col.disk, strings.Join(a.DiskNames(), ", ")))
 			}
 		}
+		if n := len(col.boolLabels); n != 0 && n != 2 {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"resource %q: column %q: Bool takes no labels or exactly two, got %d",
+				t.res.m.slug, col.path, n))
+		}
 		col.info = verify("grid column", col.path)
 		if col.info != nil {
 			if col.label == "" {

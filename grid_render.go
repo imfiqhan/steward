@@ -556,8 +556,15 @@ func (t *typedResource[T]) renderCell(col *Column[T], row *T) template.HTML {
 	if col.inline != inlineNone && !col.computed {
 		return t.renderInlineCell(col, row, val)
 	}
+	raw := val
 	for _, tr := range col.transform {
 		val = tr(val, row)
+	}
+	// A badge's colour is keyed on the stored value, but Using has already
+	// replaced it with display text by now. Carrying both keeps the colour
+	// while the text is what Using asked for.
+	if col.badges != nil && len(col.transform) > 0 {
+		val = labeledValue{key: raw, text: fmt.Sprint(val)}
 	}
 	// After the transforms, so Using can pick the path and this resolves it —
 	// and before the presenter, which is what needs a fetchable reference.

@@ -58,6 +58,12 @@ type DetailField[T any] struct {
 
 	// badges is what Badge was given, kept so Verify can check the colours.
 	badges map[any]BadgeColor
+
+	// labels is what Using was given, consulted for the text a badge shows.
+	labels map[any]string
+
+	// boolLabels is what Bool was given, kept so Verify can check the count.
+	boolLabels []string
 }
 
 // Disk names which storage disk this field's stored paths live on, for the
@@ -79,16 +85,49 @@ func (df *DetailField[T]) As(fn func(v any, m *T) template.HTML) *DetailField[T]
 	return df
 }
 
-// Badge renders a colored badge (see Column.Badge).
+// Badge renders a colored badge (see Column.Badge). With Using, the colour is
+// keyed on the stored value and the text comes from Using's map.
 func (df *DetailField[T]) Badge(colors map[any]BadgeColor) *DetailField[T] {
 	df.badges = colors
-	df.present = func(v any, _ *T) template.HTML { return badgeHTML(colors, v) }
+	df.present = df.mappedHTML
 	return df
 }
 
-// Bool renders Yes/No statuses.
-func (df *DetailField[T]) Bool() *DetailField[T] {
-	df.present = func(v any, _ *T) template.HTML { return statusHTML(truthy(v), "Yes", "No") }
+// mappedHTML renders under whichever of Badge and Using are set. Both install
+// it, so the two compose whichever order they are called in.
+func (df *DetailField[T]) mappedHTML(v any, _ *T) template.HTML {
+	text, labeled := df.labelFor(v)
+	switch {
+	case df.badges != nil && labeled:
+		return badgeLabeledHTML(df.badges, v, text)
+	case df.badges != nil:
+		return badgeHTML(df.badges, v)
+	case labeled:
+		return template.HTML(template.HTMLEscapeString(text))
+	}
+	return defaultCell(v)
+}
+
+// labelFor looks the value up in Using's map, by value and by its fmt form.
+func (df *DetailField[T]) labelFor(v any) (string, bool) {
+	if df.labels == nil {
+		return "", false
+	}
+	if s, ok := df.labels[v]; ok {
+		return s, true
+	}
+	if s, ok := df.labels[fmt.Sprint(v)]; ok {
+		return s, true
+	}
+	return "", false
+}
+
+// Bool renders a truthy/falsy value as a status. It says Yes and No unless
+// given two words of its own: Bool("Ya", "Tidak").
+func (df *DetailField[T]) Bool(labels ...string) *DetailField[T] {
+	df.boolLabels = labels
+	yes, no := boolWords(labels)
+	df.present = func(v any, _ *T) template.HTML { return statusHTML(truthy(v), yes, no) }
 	return df
 }
 
@@ -213,15 +252,8 @@ func (df *DetailField[T]) Preformatted() *DetailField[T] {
 
 // Using maps stored values to display text.
 func (df *DetailField[T]) Using(m map[any]string) *DetailField[T] {
-	df.present = func(v any, _ *T) template.HTML {
-		if s, ok := m[v]; ok {
-			return template.HTML(template.HTMLEscapeString(s))
-		}
-		if s, ok := m[fmt.Sprint(v)]; ok {
-			return template.HTML(template.HTMLEscapeString(s))
-		}
-		return defaultCell(v)
-	}
+	df.labels = m
+	df.present = df.mappedHTML
 	return df
 }
 
@@ -412,6 +444,11 @@ func (t *typedResource[T]) compileDetail(a *Admin) {
 					"resource %q: detail field %q: unknown badge colour %q (known colours: %s)",
 					t.res.m.slug, df.path, colour, strings.Join(badgeColorNames(), ", ")))
 			}
+		}
+		if n := len(df.boolLabels); n != 0 && n != 2 {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"resource %q: detail field %q: Bool takes no labels or exactly two, got %d",
+				t.res.m.slug, df.path, n))
 		}
 		if df.disk != "" {
 			if _, ok := a.Disk(df.disk); !ok {
