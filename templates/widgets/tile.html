@@ -33,11 +33,15 @@
       <div data-steward-chart>
         <canvas{{with .Title}} aria-label="{{.}}"{{end}}></canvas>
         {{/* Server-rendered, and removed by the initializer once the chart
-             draws. If the chart runtime is missing the note simply stays, so a
-             missing dependency explains itself instead of leaving a blank box. */}}
+             draws. If it never draws the note simply stays, so the tile says
+             something rather than leaving a blank box.
+
+             It no longer names a command: the runtime ships with the module, so
+             a reader seeing this is not missing a fetch — something is wrong
+             with the assets being served, and telling them to run a Makefile
+             they may not have is advice that cannot work. */}}
         <p class="text-sm text-muted-foreground" data-steward-chart-note>
-          Chart runtime not loaded — run <code class="kbd">make vendor-chart</code>,
-          then <code class="kbd">make assets</code>.
+          Chart runtime not loaded.
         </p>
         <script type="application/json" data-steward-chart-data>{{.Payload}}</script>
       </div>

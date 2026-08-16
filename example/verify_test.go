@@ -1,6 +1,10 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -132,56 +136,58 @@ func TestVerifyCatchesAnUnknownBadgeColour(t *testing.T) {
 	}
 }
 
+// TestChartRuntimeShipsWithTheModule is the contract behind committing it: a
+// panel built from a released module must be able to serve Chart.js. It used to
+// be fetched by `make vendor-chart` and left uncommitted, so a consumer — who
+// cannot run this repo's Makefile — had charts that could never draw.
+func TestChartRuntimeShipsWithTheModule(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/c.db"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&chartRow{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("chart-test-secret-key-000"),
+		AuthExcept: []string{"/"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[chartRow](app)
+	app.Dashboard(func(d *steward.Dashboard) {
+		d.Chart("Per month", func(*steward.Context) (*steward.ChartData, error) {
+			return &steward.ChartData{}, nil
+		})
+	})
+	if err := app.Verify(); err != nil {
+		t.Fatalf("a dashboard with a chart does not verify: %v", err)
+	}
+	srv := httptest.NewServer(app)
+	defer srv.Close()
+
+	// The dashboard names the runtime's URL; follow it as a browser would.
+	page := getBody(t, srv.URL+"/admin/")
+	m := regexp.MustCompile(`src="([^"]*chart[.]umd[.]min[.]js[^"]*)"`).FindStringSubmatch(page)
+	if m == nil {
+		t.Fatal("the dashboard does not load the chart runtime")
+	}
+	code, body := getStatus(t, srv.URL+m[1])
+	if code != http.StatusOK {
+		t.Fatalf("GET %s = %d", m[1], code)
+	}
+	if len(body) < 100000 || !strings.Contains(body, "Chart") {
+		t.Errorf("that URL served %d bytes and does not look like Chart.js", len(body))
+	}
+
+	// MIT asks for the notice to travel with the code.
+	if _, err := os.Stat("../assets/dist/chart.umd.min.LICENSE"); err != nil {
+		t.Errorf("the licence does not ship beside the runtime: %v", err)
+	}
+}
+
 type chartRow struct {
 	ID   uint `gorm:"primaryKey"`
 	Name string
-}
-
-// TestVerifyCatchesAMissingChartRuntime covers a dashboard whose chart tiles
-// would render empty. The drawing code returns early when window.Chart is not
-// there, so the tile is blank and only a 404 in the console says why — and the
-// files are fetched by `make vendor-chart` rather than committed, so a fresh
-// clone is in exactly that state.
-func TestVerifyCatchesAMissingChartRuntime(t *testing.T) {
-	build := func(withChart bool) string {
-		db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/c.db"), &gorm.Config{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := db.AutoMigrate(&chartRow{}); err != nil {
-			t.Fatal(err)
-		}
-		app, err := steward.New(steward.Config{
-			DB: db, SecretKey: []byte("chart-test-secret-key-000"),
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		steward.Register[chartRow](app)
-		app.Dashboard(func(d *steward.Dashboard) {
-			d.Metric("Rows", func(*steward.Context) (any, error) { return 1, nil })
-			if withChart {
-				d.Chart("Per month", func(*steward.Context) (*steward.ChartData, error) {
-					return &steward.ChartData{}, nil
-				})
-			}
-		})
-		if err := app.Verify(); err != nil {
-			return err.Error()
-		}
-		return ""
-	}
-
-	got := build(true)
-	if !strings.Contains(got, "chart.umd.min.js") {
-		t.Errorf("a chart widget with no runtime was not reported: %q", got)
-	}
-	if !strings.Contains(got, "make vendor-chart") {
-		t.Errorf("the error does not say how to fix it: %q", got)
-	}
-
-	// A dashboard with no chart tile needs none of it and must stay quiet.
-	if got := build(false); strings.Contains(got, "chart") {
-		t.Errorf("a chartless dashboard was reported: %q", got)
-	}
 }

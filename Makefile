@@ -34,10 +34,16 @@ tailwind-bin:
 	    https://github.com/tailwindlabs/tailwindcss/releases/download/$(TAILWIND_VERSION)/tailwindcss-$(TW_OS)-$(TW_ARCH) && \
 	  chmod +x frontend/.bin/tailwindcss )
 
-# Vendors Chart.js and stages the chart runtime beside the UI bundle. Chart.js
-# is Basecoat's Chart peer dependency and is not redistributed here, so this
-# fetches it once. Charts are served per page, not bundled into app.js, because
-# Chart.js is larger than the whole current bundle and most pages have no chart.
+# Re-vendors Chart.js. The result is committed, like Lucide's sprite, so a panel
+# built from a released module has working charts — a consumer cannot run this
+# Makefile, and an asset that only a clone can fetch never reaches them.
+#
+# It is served per page rather than bundled into app.js: Chart.js is larger than
+# the whole UI bundle and most pages have no chart. Basecoat's own Chart
+# component is small and is imported by app.js instead, because it attaches to
+# window.basecoat and has to run after it.
+#
+# Run this after bumping CHARTJS_VERSION, then commit what it stages.
 vendor-chart:
 	@test -f frontend/vendor/chartjs/chart.umd.min.js || ( \
 	  mkdir -p frontend/vendor/chartjs && \
@@ -48,7 +54,9 @@ vendor-chart:
 	    https://raw.githubusercontent.com/chartjs/Chart.js/v$(CHARTJS_VERSION)/LICENSE.md )
 	@mkdir -p assets/dist
 	@cp frontend/vendor/chartjs/chart.umd.min.js assets/dist/chart.umd.min.js
-	@echo "chart runtime staged in assets/dist (rebuild the binary to embed it)"
+	# MIT requires the notice to travel with the code, so it ships beside it.
+	@cp frontend/vendor/chartjs/LICENSE.md assets/dist/chart.umd.min.LICENSE
+	@echo "chart runtime staged in assets/dist — commit it"
 
 # Vendors Lucide's full sprite (~400 KB, every icon as a <symbol>) into
 # assets/dist, where go:embed ships it. It is the source for both the icon

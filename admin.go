@@ -331,17 +331,16 @@ func (a *Admin) build() error {
 		}
 	}
 
-	// A chart widget loads its runtime from the asset layers, and the drawing
-	// code gives up quietly when it is not there — the tile renders empty and
-	// only a 404 in the console says why. The files are fetched by
-	// `make vendor-chart` rather than committed, so a fresh clone has a
-	// dashboard whose charts are blank until someone knows to run it.
+	// A chart tile draws nothing without its runtime, and says so only on the
+	// tile itself — which reaches whoever opens the dashboard, not whoever
+	// deployed it. The runtime ships with the module, so this firing means the
+	// assets being served are not the ones that were built.
 	if a.dash != nil && a.dash.hasChartWidget() {
 		for _, name := range chartRuntimeAssets {
 			if _, err := readLayered(rend.assetLayers, name); err != nil {
 				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-					"dashboard has a chart widget but %s is missing from the asset layers; "+
-						"run `make vendor-chart` (it is fetched, not committed)", name))
+					"dashboard has a chart widget but %s is not in the asset layers; "+
+						"it ships with the module, so check AssetsFS is not shadowing it", name))
 			}
 		}
 	}
