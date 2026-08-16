@@ -311,3 +311,44 @@ func TestDetailPreloadsItsOwnRelations(t *testing.T) {
 		t.Error("the detail page should show the related row's value")
 	}
 }
+
+// The built-in RBAC pages have to say what a user holds and what a role
+// permits; a list of names on the index is not the same as the record itself
+// answering the question.
+func TestRBACDetailPagesShowTheirGrants(t *testing.T) {
+	db := testDB(t)
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("rbac-detail-test-secret-key")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+	seedUser(t, app, "root", "correct-horse")
+
+	perm := steward.Permission{Name: "Manage posts", Slug: "manage-posts"}
+	if err := db.Create(&perm).Error; err != nil {
+		t.Fatal(err)
+	}
+	role := steward.Role{Name: "Editor", Slug: "editor", Permissions: []steward.Permission{perm}}
+	if err := db.Create(&role).Error; err != nil {
+		t.Fatal(err)
+	}
+	user := steward.AdminUser{Username: "ed", Name: "Ed", Roles: []steward.Role{role}}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	c := new2FAClient(t, srv)
+	if code, _ := c.login("root", "correct-horse"); code >= 400 {
+		t.Fatalf("login failed: %d", code)
+	}
+	if _, html := c.get("/auth/users/" + itoa(user.ID)); !strings.Contains(html, "Editor") {
+		t.Error("a user's page should name the roles it holds")
+	}
+	if _, html := c.get("/auth/roles/" + itoa(role.ID)); !strings.Contains(html, "Manage posts") {
+		t.Error("a role's page should name what it permits")
+	}
+}

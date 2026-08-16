@@ -83,13 +83,7 @@ func (a *Admin) registerUsersResource() {
 		g.Column("Username").Sortable()
 		g.Column("Name")
 		g.ColumnFunc("Roles", "Roles", func(u *AdminUser) template.HTML {
-			var b strings.Builder
-			for _, r := range u.Roles {
-				b.WriteString(`<span class="badge bg-blue-lt me-1">`)
-				b.WriteString(template.HTMLEscapeString(r.Name))
-				b.WriteString(`</span>`)
-			}
-			return template.HTML(b.String())
+			return grantBadges(u.Roles)
 		})
 		g.Column("CreatedAt", "Created").Sortable()
 		g.QuickSearch("Username", "Name")
@@ -144,13 +138,45 @@ func (a *Admin) registerUsersResource() {
 		d.Field("Username")
 		d.Field("Name")
 		d.Field("Email")
+		d.FieldFunc("Roles", "Roles", func(u *AdminUser) template.HTML {
+			return grantBadges(u.Roles)
+		})
+		d.FieldFunc("TwoFactor", "Two-factor", func(u *AdminUser) template.HTML {
+			return statusHTML(u.TwoFactorConfirmedAt != nil, "Enrolled", "Not enrolled")
+		})
 		d.Field("CreatedAt", "Created")
 	})
 }
 
+// grantBadges renders what a user or a role holds as a row of badges.
+func grantBadges[T interface{ grantName() string }](items []T) template.HTML {
+	if len(items) == 0 {
+		return `<span class="text-muted-foreground">—</span>`
+	}
+	var b strings.Builder
+	b.WriteString(`<span class="inline-flex flex-wrap gap-1">`)
+	for _, it := range items {
+		b.WriteString(`<span class="badge bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">`)
+		b.WriteString(template.HTMLEscapeString(it.grantName()))
+		b.WriteString(`</span>`)
+	}
+	b.WriteString(`</span>`)
+	return template.HTML(b.String()) //nolint:gosec // every value is escaped above
+}
+
+func (r Role) grantName() string       { return r.Name }
+func (p Permission) grantName() string { return p.Name }
+
 func (a *Admin) registerRolesResource() {
+	repo, err := NewGormRepository[Role](a.db)
+	if err != nil {
+		a.verifyErrs = append(a.verifyErrs, err)
+		return
+	}
+	repo.With("Permissions")
+
 	res := Register[Role](a).Slug("auth/roles").Title("Roles").
-		Icon("shield").Group("Admin")
+		Icon("shield").Group("Admin").Repository(repo)
 
 	res.Grid(func(g *Grid[Role]) {
 		g.Column("ID").Sortable().Width(60)
@@ -158,6 +184,19 @@ func (a *Admin) registerRolesResource() {
 		g.Column("Slug").Badge(map[any]BadgeColor{RoleAdministrator: BadgePurple})
 		g.Column("CreatedAt", "Created")
 		g.QuickSearch("Name", "Slug")
+	})
+
+	res.Detail(func(d *Detail[Role]) {
+		d.Field("ID")
+		d.Field("Name")
+		d.Field("Slug").Badge(map[any]BadgeColor{RoleAdministrator: BadgePurple})
+		// A role is what it permits; without this the page says nothing the
+		// list of roles did not already say.
+		d.FieldFunc("Permissions", "Permissions", func(r *Role) template.HTML {
+			return grantBadges(r.Permissions)
+		}).Block()
+		d.Field("CreatedAt", "Created")
+		d.Field("UpdatedAt", "Updated")
 	})
 
 	permOptions := func(c *Context) Options {
