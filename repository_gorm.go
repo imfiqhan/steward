@@ -155,8 +155,10 @@ func (r *GormRepository[T]) List(ctx context.Context, q *ListQuery) ([]T, int64,
 	}
 
 	var total int64
-	if err := db.Session(&gorm.Session{}).Count(&total).Error; err != nil {
-		return nil, 0, err
+	if !q.SkipCount {
+		if err := db.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+			return nil, 0, err
+		}
 	}
 
 	// Ordering. When a search engine ranked the rows, that ranking is the

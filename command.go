@@ -90,6 +90,10 @@ func (t *typedResource[T]) searchCommand(c *Context, query string, limit int) []
 		q.Search = query
 		q.SearchPaths = t.res.commandPaths
 	}
+	// The palette shows a fixed few rows and never pages, so the count that
+	// sizes a grid is work nobody reads — and on a large table it is the slow
+	// half, scanning every match to reach a number thrown away.
+	q.SkipCount = true
 	// The same scoping the grid gets, so the palette cannot show a row its
 	// own list would hide.
 	t.applyRowScope(c, q)
@@ -107,7 +111,7 @@ func (t *typedResource[T]) searchCommand(c *Context, query string, limit int) []
 			// Canonical, because the palette draws it from the sprite by
 			// reference rather than through the Go lookup that knows the aliases.
 			Icon: canonicalIconName(t.res.m.icon),
-			URL:   c.URL(t.res.m.slug, t.rowKey(row)),
+			URL:  c.URL(t.res.m.slug, t.rowKey(row)),
 		}
 		// Per row, not per resource: picking the columns once meant a resource
 		// whose first text column is often blank — a subtitle, a nickname —
@@ -122,8 +126,21 @@ func (t *typedResource[T]) searchCommand(c *Context, query string, limit int) []
 	return out
 }
 
-// commandLabels reads a row's first two non-empty text columns.
+// commandLabels reads what a palette row shows: the paths CommandDisplay named,
+// or the row's first two non-empty text columns when it named none.
 func (t *typedResource[T]) commandLabels(row *T) (title, subtitle string) {
+	if len(t.commandCols) > 0 {
+		var parts []string
+		for _, info := range t.commandCols {
+			if s := commandValue(info, row); s != "" {
+				parts = append(parts, s)
+			}
+		}
+		if len(parts) == 0 {
+			return "", ""
+		}
+		return parts[0], strings.Join(parts[1:], " · ")
+	}
 	for _, col := range t.grid.columns {
 		if col.hidden || col.computed || col.info == nil || col.info.Kind != kindString {
 			continue
@@ -139,6 +156,32 @@ func (t *typedResource[T]) commandLabels(row *T) (title, subtitle string) {
 		return title, text
 	}
 	return title, ""
+}
+
+// commandValue reads one path as a single trimmed line, formatting a time the
+// way an export does rather than as Go's default rendering of a struct.
+func commandValue[T any](info *fieldInfo, row *T) string {
+	v, ok := info.value(reflect.ValueOf(row))
+	if !ok || v == nil {
+		return ""
+	}
+	var s string
+	switch x := v.(type) {
+	case time.Time:
+		s = x.Format("2006-01-02")
+	case *time.Time:
+		if x == nil {
+			return ""
+		}
+		s = x.Format("2006-01-02")
+	default:
+		s = fmt.Sprint(v)
+	}
+	s = strings.Join(strings.Fields(s), " ")
+	if len([]rune(s)) > 90 {
+		s = string([]rune(s)[:90]) + "…"
+	}
+	return s
 }
 
 // commandText reads a column's raw value as a single trimmed line.
@@ -211,5 +254,12 @@ func (a *Admin) commandSearch(c *Context) error {
 	// Grouped in a stable order, so the list does not reshuffle between
 	// keystrokes for reasons the reader cannot see.
 	sort.SliceStable(results, func(i, j int) bool { return results[i].Group < results[j].Group })
-	return c.JSON(http.StatusOK, map[string]any{"results": results})
+	// A section cut off by the deadline contributes nothing, which reads as "no
+	// matches" — the same answer a typo gets. Saying which it was is the
+	// difference between a reader retyping and a reader concluding the record
+	// is not there.
+	return c.JSON(http.StatusOK, map[string]any{
+		"results": results,
+		"partial": ctx.Err() != nil,
+	})
 }

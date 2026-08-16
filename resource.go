@@ -29,8 +29,9 @@ type Resource[T any] struct {
 	a *Admin
 	m *resourceMeta
 
-	commandPaths []string
-	searchPaths  []string
+	commandPaths   []string
+	commandDisplay []string
+	searchPaths    []string
 
 	gridFn   func(*Grid[T])
 	formFn   func(*Form[T])
@@ -120,6 +121,18 @@ func (r *Resource[T]) Command(paths ...string) *Resource[T] {
 	return r
 }
 
+// CommandDisplay names what a palette row reads, rather than letting it be
+// guessed from the grid's first two text columns. The first path is the line
+// the reader reads; the rest join into the dimmer line beside it.
+//
+//	posts.Command("Title").CommandDisplay("Title", "Category.Name", "PostDate")
+//
+// A path may cross one relation, and is loaded for you.
+func (r *Resource[T]) CommandDisplay(paths ...string) *Resource[T] {
+	r.commandDisplay = append(r.commandDisplay, paths...)
+	return r
+}
+
 // Grid declares the list view; fn runs at Build time against a fresh
 // builder. Without it the grid shows every direct model field.
 func (r *Resource[T]) Grid(fn func(*Grid[T])) *Resource[T] { r.gridFn = fn; return r }
@@ -162,6 +175,9 @@ type typedResource[T any] struct {
 	detail *Detail[T]
 	repo   Repository[T]
 	policy Policy[T]
+
+	// commandCols are the resolved CommandDisplay paths, in the order given.
+	commandCols []*fieldInfo
 }
 
 func (t *typedResource[T]) meta() *resourceMeta { return t.res.m }
@@ -281,6 +297,26 @@ func (t *typedResource[T]) compile(a *Admin) error {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
 				"resource %q: quick search %q: relation %q has a composite key, which cannot be searched",
 				t.res.m.slug, p, info.Relation))
+		}
+	}
+	for _, p := range t.res.commandPaths {
+		if info := verify("command search", p); info != nil && !info.filterable() {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"resource %q: command search %q: relation %q has a composite key, which cannot be searched",
+				t.res.m.slug, p, info.Relation))
+		}
+	}
+	for _, p := range t.res.commandDisplay {
+		info := verify("command display", p)
+		if info == nil {
+			continue
+		}
+		t.commandCols = append(t.commandCols, info)
+		if info.Relation != "" && !slices.Contains(preloads, info.Relation) {
+			preloads = append(preloads, info.Relation)
+			if gr, ok := t.repo.(*GormRepository[T]); ok {
+				gr.With(info.Relation)
+			}
 		}
 	}
 	if g.defaultSort != nil {

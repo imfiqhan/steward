@@ -5,8 +5,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	steward "github.com/imfiqhan/steward"
+	"gorm.io/gorm"
 )
 
 // Badge colours a value; Using replaces it with display text. A status column
@@ -350,5 +352,168 @@ func TestRBACDetailPagesShowTheirGrants(t *testing.T) {
 	}
 	if _, html := c.get("/auth/roles/" + itoa(role.ID)); !strings.Contains(html, "Manage posts") {
 		t.Error("a role's page should name what it permits")
+	}
+}
+
+// What a palette row reads is otherwise guessed from the grid's first two text
+// columns, which cannot reach a relation and cannot combine two values.
+
+type paletteCategory struct {
+	ID   uint `gorm:"primaryKey"`
+	Name string
+}
+
+type paletteRow struct {
+	ID         uint `gorm:"primaryKey"`
+	Title      string
+	Slug       string
+	CategoryID *uint
+	Category   *paletteCategory
+	PostDate   time.Time
+}
+
+func TestCommandDisplayNamesWhatARowShows(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&paletteCategory{}, &paletteRow{}); err != nil {
+		t.Fatal(err)
+	}
+	cat := paletteCategory{Name: "Politics"}
+	if err := db.Create(&cat).Error; err != nil {
+		t.Fatal(err)
+	}
+	when := time.Date(2026, 7, 31, 9, 0, 0, 0, time.UTC)
+	if err := db.Create(&paletteRow{Title: "A headline", Slug: "a-headline", CategoryID: &cat.ID, PostDate: when}).Error; err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("command-display-test-secret")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[paletteRow](app).
+		Command("Title").
+		CommandDisplay("Title", "Category.Name", "PostDate")
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Verify(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+	seedUser(t, app, "root", "correct-horse")
+
+	c := new2FAClient(t, srv)
+	if code, _ := c.login("root", "correct-horse"); code >= 400 {
+		t.Fatalf("login failed: %d", code)
+	}
+	_, body := c.get("/_command?q=headline")
+	if !strings.Contains(body, `"title":"A headline"`) {
+		t.Errorf("the first path should be the row's title, got: %s", body)
+	}
+	// The rest join into the dimmer line, so one row can carry a category and a
+	// date without either replacing the headline.
+	if !strings.Contains(body, `"subtitle":"Politics · 2026-07-31"`) {
+		t.Errorf("the remaining paths should join into the subtitle, got: %s", body)
+	}
+}
+
+// TestCommandDisplayRejectsAnUnknownPath keeps a typo from quietly showing an
+// empty line.
+func TestCommandDisplayRejectsAnUnknownPath(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&paletteCategory{}, &paletteRow{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("command-display-bad-secret")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[paletteRow](app).Command("Title").CommandDisplay("Titel")
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	err = app.Verify()
+	if err == nil || !strings.Contains(err.Error(), "command display") {
+		t.Errorf("an unknown display path should be a boot error, got: %v", err)
+	}
+}
+
+// A palette search cut short by the deadline returns nothing, which is the
+// shape of "no matches". The response says which it was.
+func TestCommandSearchReportsBeingCutShort(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&paletteCategory{}, &paletteRow{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&paletteRow{Title: "A headline"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("command-partial-test-secret")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[paletteRow](app).Command("Title")
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+	seedUser(t, app, "root", "correct-horse")
+
+	c := new2FAClient(t, srv)
+	if code, _ := c.login("root", "correct-horse"); code >= 400 {
+		t.Fatal("login failed")
+	}
+	_, body := c.get("/_command?q=headline")
+	if !strings.Contains(body, `"partial":false`) {
+		t.Errorf("a search that finished should say so, got: %s", body)
+	}
+}
+
+// TestCommandSearchSkipsTheCount covers what made a large table time out: the
+// palette shows a fixed few rows, so the COUNT that pages a grid is work whose
+// answer nobody reads.
+func TestCommandSearchSkipsTheCount(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&paletteRow{}); err != nil {
+		t.Fatal(err)
+	}
+	var counted bool
+	db = db.Session(&gorm.Session{})
+	// After, not before: the statement's SQL is built by the query callback, so
+	// before it there is nothing to read.
+	db.Callback().Query().After("gorm:query").Register("count-probe", func(tx *gorm.DB) {
+		if tx.Statement != nil && strings.Contains(strings.ToLower(tx.Statement.SQL.String()), "count(") {
+			counted = true
+		}
+	})
+	for i := 0; i < 3; i++ {
+		if err := db.Create(&paletteRow{Title: "A headline"}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("command-count-test-secret")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[paletteRow](app).Command("Title")
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+	seedUser(t, app, "root", "correct-horse")
+
+	c := new2FAClient(t, srv)
+	if code, _ := c.login("root", "correct-horse"); code >= 400 {
+		t.Fatal("login failed")
+	}
+	counted = false
+	_, body := c.get("/_command?q=headline")
+	if !strings.Contains(body, "A headline") {
+		t.Fatalf("the search should find the row, got: %s", body)
+	}
+	if counted {
+		t.Error("the palette should not ask for a total it never shows")
 	}
 }

@@ -46,6 +46,12 @@ type ListQuery struct {
 	SearchConds []Cond // parsed quick-search terms (field-targeted)
 	SearchPaths []string
 	Sorts       []Sort
+	// SkipCount drops the COUNT that pages a grid. A caller that shows a fixed
+	// few rows and never paginates pays for it twice over: on a large table the
+	// count scans every match while the rows themselves stop at the limit.
+	// Total is 0 when it is set.
+	SkipCount bool
+
 	// IDOrder ranks the rows by primary key, most relevant first, and is what a
 	// search engine's answer arrives as. It orders before Sorts, because the
 	// order a person asked for beats the order they did not — a chosen column

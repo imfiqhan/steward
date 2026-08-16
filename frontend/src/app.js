@@ -1300,6 +1300,8 @@ window.htmx = htmx;
   // may see is the server's to decide. So the palette asks as it types.
 
   var COMMAND_DEBOUNCE_MS = 220;
+  // Whether the last answer was cut short by the server's deadline.
+  var commandPartial = false;
   var commandTimer = null;
   var commandAbort = null;
   // Set while the filter is re-run over freshly injected items: that dispatch
@@ -1397,6 +1399,12 @@ window.htmx = htmx;
       return i.offsetParent !== null;
     });
     var typed = (dlg.querySelector("header input") || {}).value || "";
+    // A search the server cut short returns nothing, which is the same shape as
+    // no match. Saying so is what tells the reader to try again rather than
+    // conclude the record does not exist.
+    note.textContent = commandPartial
+      ? "Search timed out before every section answered."
+      : "No matches.";
     note.hidden = visible || typed.trim() === "";
   }
 
@@ -1412,7 +1420,10 @@ window.htmx = htmx;
       signal: commandAbort.signal
     })
       .then(function (r) { return r.ok ? r.json() : { results: [] }; })
-      .then(function (body) { renderCommandResults(body.results || []); })
+      .then(function (body) {
+        commandPartial = !!body.partial;
+        renderCommandResults(body.results || []);
+      })
       .catch(function (err) {
         if (err && err.name === "AbortError") return;
         console.error("steward: command search", err);
@@ -1434,6 +1445,28 @@ window.htmx = htmx;
       var dlg = commandDialog();
       dlg && dlg.open ? dlg.close() : openCommand();
     }
+  });
+
+  /* Light dismiss. A modal dialog's backdrop belongs to the dialog element, so
+     a click beside the panel lands on the dialog and nothing closes it.
+     Whether a click may dismiss is decided at pointerdown: the dialog has to
+     have been open already, which keeps the click that opens it from closing
+     it again, and the press has to have started outside the panel, so a drag
+     that begins on the list and ends past its edge is a selection rather than
+     a dismissal. */
+  var commandDismiss = false;
+
+  document.addEventListener("pointerdown", function (e) {
+    var dlg = commandDialog();
+    commandDismiss = !!(dlg && dlg.open) &&
+      !(e.target.closest && e.target.closest("#steward-command .command"));
+  });
+
+  document.addEventListener("click", function (e) {
+    if (!commandDismiss) return;
+    commandDismiss = false;
+    var dlg = commandDialog();
+    if (dlg && dlg.open) dlg.close();
   });
 
   document.addEventListener("click", function (e) {
