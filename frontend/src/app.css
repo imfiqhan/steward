@@ -760,12 +760,17 @@ tr.steward-dragging { opacity: 0.5; }
 
 /* ---- Combobox: keeping a long option inside the field --------------------- */
 
-/* The popover is width:max-content, so one long option widened the whole list
-   past the field it belongs to — and the component's own truncate on an option
-   never engages without a width to truncate against. Capping it here supplies
-   that width. */
+/* Fixed, so neither the form card nor the shell's scroll container can clip a
+   list opened near the bottom of either. Script places it and pins its width to
+   the field's; see app.js. The width is also what the component's own truncate
+   on a long option needs in order to engage.
+
+   left and top are interpolable, so the shared transition would animate the
+   list in from wherever the stylesheet had put it. */
 .combobox [data-popover] {
-  max-width: 100%;
+  position: fixed;
+  max-width: 100vw;
+  transition-property: opacity, transform, visibility;
 }
 
 /* A chip is shrink-0 and nowrap, so a long value pushed the input out of its

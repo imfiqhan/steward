@@ -1924,22 +1924,23 @@ window.htmx = htmx;
    * of the way.
    */
 
-  function placeRowMenu(pop) {
-    var wrap = pop.closest("[data-steward-menu]");
-    var trigger = wrap && wrap.querySelector("[aria-haspopup]");
-    if (!trigger) return;
-
+  /* Places a fixed popover against its trigger. matchWidth aligns it to the
+     trigger's leading edge at the trigger's own width, for a listbox that
+     belongs to a field; otherwise it keeps its own width against the trailing
+     edge, for a menu. */
+  function placeFixedPopover(pop, trigger, matchWidth) {
     // Reset to the stylesheet's own placement before measuring, so a previous
     // open's pinned width is not what gets measured.
     pop.style.cssText = "";
     var r = trigger.getBoundingClientRect();
 
     // [data-popover] carries min-width:100%, which against a fixed box's
-    // containing block is the whole viewport. Pinned to the width it actually
-    // has so nothing can stretch it there.
-    var w = pop.offsetWidth;
-    var h = pop.offsetHeight;
+    // containing block is the whole viewport. Pinned to a real width so
+    // nothing can stretch it there.
+    var w = matchWidth ? r.width : pop.offsetWidth;
     pop.style.minWidth = w + "px";
+    if (matchWidth) pop.style.width = w + "px";
+    var h = pop.offsetHeight;
 
     pop.style.margin = "0";
     // Basecoat positions with logical offsets (data-align="end" is
@@ -1950,16 +1951,34 @@ window.htmx = htmx;
     pop.style.insetBlockStart = "auto";
     pop.style.insetBlockEnd = "auto";
 
-    // Aligned to the trigger's trailing edge, then kept inside the viewport.
-    var left = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
-    var top = r.bottom + 4;
-    // Flip above when there is not room below but there is above.
-    if (top + h > window.innerHeight - 8 && r.top - h - 4 > 8) top = r.top - h - 4;
+    var left = matchWidth ? r.left : r.right - w;
+    left = Math.min(Math.max(8, left), window.innerWidth - w - 8);
+
+    // Below unless it does not fit there and fits better above. A long list can
+    // fit neither, in which case it takes the larger gap and scrolls inside the
+    // height that gap allows — the alternative is a list running off the edge
+    // of the screen with no way to reach its last item.
+    var gapBelow = window.innerHeight - r.bottom - 12;
+    var gapAbove = r.top - 12;
+    var above = h > gapBelow && gapAbove > gapBelow;
+    var room = above ? gapAbove : gapBelow;
+    if (h > room) {
+      pop.style.maxHeight = room + "px";
+      h = room;
+    }
+    var top = above ? r.top - h - 4 : r.bottom + 4;
 
     pop.style.left = left + "px";
     pop.style.top = top + "px";
     pop.style.right = "auto";
     pop.style.bottom = "auto";
+  }
+
+  function placeRowMenu(pop) {
+    var wrap = pop.closest("[data-steward-menu]");
+    var trigger = wrap && wrap.querySelector("[aria-haspopup]");
+    if (!trigger) return;
+    placeFixedPopover(pop, trigger, false);
 
     // WebKit does not focus a button when it is clicked, so a menu opened with
     // the mouse there left focus on the body — and the component binds its keys
@@ -2005,6 +2024,74 @@ window.htmx = htmx;
   // A fixed menu no longer belongs to its row once anything moves.
   window.addEventListener("resize", closeOpenRowMenus);
   window.addEventListener("scroll", closeOpenRowMenus, true);
+
+  /* ---- Combobox popover ------------------------------------------------------ */
+  /*
+   * The listbox is absolutely positioned inside the field, so the form card and
+   * the shell's scroll container both clip it: a field low on a form showed a
+   * list cut off at the card's edge. Fixed takes it out of every ancestor's
+   * clip, which means script has to place it — against the field, at the
+   * field's width, flipping above when there is no room below.
+   *
+   * Unlike a row menu this follows its field on scroll rather than closing,
+   * because a form scrolls under an open field while it is being filled in.
+   */
+
+  /* The field to place against: the input group where the markup has one, and
+     otherwise the component's own root, which spans the same width. The
+     popover is fixed, so being inside the root does not stretch it. */
+  function comboboxField(pop) {
+    var root = pop.closest(".combobox");
+    if (!root) return null;
+    return root.querySelector(".input-group") || root;
+  }
+
+  function placeCombobox(pop) {
+    var field = comboboxField(pop);
+    if (field) placeFixedPopover(pop, field, true);
+  }
+
+  function openComboboxPopovers() {
+    return document.querySelectorAll('.combobox [data-popover][aria-hidden="false"]');
+  }
+
+  function trackComboboxes(e) {
+    // A long list scrolling its own overflow is not the page moving under it.
+    var t = e && e.target;
+    if (t && t.closest && t.closest(".combobox [data-popover]")) return;
+    openComboboxPopovers().forEach(function (pop) {
+      var field = comboboxField(pop);
+      if (!field) return;
+      var r = field.getBoundingClientRect();
+      // Once the field itself has scrolled out of view the list is pointing at
+      // nothing, so it goes with it.
+      if (r.bottom < 0 || r.top > window.innerHeight) {
+        var root = pop.closest(".combobox");
+        if (root && typeof root.close === "function") root.close(false);
+        return;
+      }
+      placeCombobox(pop);
+    });
+  }
+
+  var comboboxObserver = new MutationObserver(function (records) {
+    records.forEach(function (rec) {
+      if (rec.target.getAttribute("aria-hidden") === "false") placeCombobox(rec.target);
+    });
+  });
+
+  function initComboboxPopovers() {
+    document.querySelectorAll(".combobox [data-popover]").forEach(function (pop) {
+      if (pop.dataset.stewardComboPlaced === "1") return;
+      pop.dataset.stewardComboPlaced = "1";
+      comboboxObserver.observe(pop, { attributes: true, attributeFilter: ["aria-hidden"] });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", initComboboxPopovers);
+  document.addEventListener("htmx:afterSettle", initComboboxPopovers);
+  window.addEventListener("resize", trackComboboxes);
+  window.addEventListener("scroll", trackComboboxes, true);
 
   /* ---- Date picker, on pointer devices only ---------------------------------- */
   /*

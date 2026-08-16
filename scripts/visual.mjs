@@ -229,6 +229,69 @@ if (hasCombo) {
   check(w.over <= 1, `the list stays inside its field (${w.over}px past it)`);
   check(w.titled, "a truncated option is still readable in full on hover");
 
+  // The list is fixed and placed from script, so where it lands is computed
+  // layout. Absolutely positioned it was clipped by the form card and by the
+  // shell's scroll container, which cut a field low on a form mid-item.
+  const place = await page.evaluate(() => {
+    const root = document.querySelector(".combobox:has([aria-multiselectable=true])");
+    const pop = root.querySelector("[data-popover]");
+    const field = root.querySelector(".input-group") || root;
+    const p = pop.getBoundingClientRect();
+    const f = field.getBoundingClientRect();
+    const hit = document.elementFromPoint(p.left + p.width / 2, p.bottom - 4);
+    return {
+      fixed: getComputedStyle(pop).position === "fixed",
+      dx: Math.round(p.left - f.left),
+      dw: Math.round(p.width - f.width),
+      inView: p.top >= 0 && p.bottom <= window.innerHeight,
+      lastRowPainted: pop.contains(hit),
+    };
+  });
+  check(place.fixed, "the list escapes its ancestors' clipping");
+  check(Math.abs(place.dx) <= 2, `the list aligns to its field (${place.dx}px off)`);
+  check(Math.abs(place.dw) <= 2, `the list is the width of its field (${place.dw}px off)`);
+  check(place.inView, "the list stays inside the viewport");
+  check(place.lastRowPainted, "the list's last row is on screen, not clipped");
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+
+  // A field close to the bottom edge: the list opens upwards, and when it fits
+  // neither way it takes the larger gap and scrolls within it.
+  await page.setViewportSize({ width: 1400, height: 620 });
+  await page.evaluate(() => {
+    const sc = document.querySelector(".overflow-y-auto");
+    const root = document.querySelector(".combobox:has([aria-multiselectable=true])");
+    const field = root && (root.querySelector(".input-group") || root);
+    if (!sc || !field) return;
+    for (let i = 0; i < 300; i++) {
+      if (field.getBoundingClientRect().bottom > window.innerHeight - 200) break;
+      sc.scrollTop += 10;
+    }
+  });
+  await page.waitForTimeout(200);
+  await input.click();
+  await page.waitForTimeout(250);
+  const low = await page.evaluate(() => {
+    const root = document.querySelector(".combobox:has([aria-multiselectable=true])");
+    const pop = root.querySelector("[data-popover]");
+    const p = pop.getBoundingClientRect();
+    const f = (root.querySelector(".input-group") || root).getBoundingClientRect();
+    const hit = document.elementFromPoint(p.left + p.width / 2, p.bottom - 4);
+    return {
+      above: p.bottom <= f.top + 2,
+      inView: p.top >= 0 && p.bottom <= window.innerHeight,
+      lastRowPainted: pop.contains(hit),
+      height: Math.round(p.height),
+    };
+  });
+  check(low.above, "a field near the bottom opens its list upwards");
+  check(low.inView, `the flipped list stays inside the viewport (${low.height}px tall)`);
+  check(low.lastRowPainted, "the flipped list's last row is on screen");
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+
   // Filtering is the server's now, so this is a round trip rather than a
   // client-side hide: the list should come back different.
   const label = await box.locator("[role=option]").first().getAttribute("data-label");
