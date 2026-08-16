@@ -53,8 +53,19 @@
         if (!canvas.id) {
           canvas.id = "steward-chart-" + Math.random().toString(36).slice(2);
         }
-        window.basecoat.chart("#" + canvas.id, opts);
         var note = box.querySelector("[data-steward-chart-note]");
+        // An empty series draws axes and nothing else, which reads as a broken
+        // tile rather than as a quiet month. Say so instead of drawing it.
+        // The payload is the component's own shape — data is the array of rows,
+        // not Chart.js's {datasets: […]}.
+        if (!Array.isArray(opts.data) || opts.data.length === 0) {
+          canvas.remove();
+          if (note) note.textContent = "No data for this period.";
+          box.dataset.stewardChartDone = "1";
+          box.style.height = "auto";
+          return;
+        }
+        window.basecoat.chart("#" + canvas.id, opts);
         if (note) note.remove();
         box.dataset.stewardChartDone = "1";
       });

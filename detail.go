@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"path"
 	"reflect"
 	"slices"
 	"strings"
@@ -162,7 +163,7 @@ func (df *DetailField[T]) Image(width, height int) *DetailField[T] {
 		if height > 0 {
 			style += fmt.Sprintf("max-height:%dpx;", height)
 		}
-		return template.HTML(fmt.Sprintf(`<img src="%s" class="rounded-md border" style="%s" alt=""/>`,
+		return previewable(s, fmt.Sprintf(`<img src="%s" class="rounded-md border" style="%s" alt=""/>`,
 			template.HTMLEscapeString(s), style))
 	}
 	return df
@@ -181,8 +182,15 @@ func (df *DetailField[T]) Link() *DetailField[T] {
 		if raw == "" {
 			return `<span class="text-muted-foreground">—</span>`
 		}
-		return template.HTML(`<a href="` + template.HTMLEscapeString(href) +
-			`" target="_blank" rel="noopener">` + template.HTMLEscapeString(raw) + `</a>`)
+		anchor := `<a href="` + template.HTMLEscapeString(href) +
+			`" target="_blank" rel="noopener">` + template.HTMLEscapeString(raw) + `</a>`
+		// A stored file previews in place; anything already absolute belongs to
+		// another site and is left to navigate.
+		if previewableRef(raw, href) {
+			return template.HTML(anchor + ` <button type="button" class="btn steward-preview-open" data-variant="outline" data-size="sm" ` +
+				`data-steward-preview="` + template.HTMLEscapeString(href) + `">Preview</button>`)
+		}
+		return template.HTML(anchor)
 	}
 	return df
 }
@@ -506,4 +514,17 @@ func (t *typedResource[T]) compileDetail(a *Admin) {
 				"resource %q: RelationGrid target %s is not a registered resource", t.res.m.slug, d.relations[i].typ))
 		}
 	}
+}
+
+// previewableRef reports whether a stored path is something the viewer can
+// show: an image or a PDF, and not an absolute URL pointing elsewhere.
+func previewableRef(raw, href string) bool {
+	if raw == "" || absoluteRef(raw) {
+		return false
+	}
+	switch strings.ToLower(path.Ext(strings.Split(raw, "?")[0])) {
+	case ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".svg", ".pdf":
+		return href != ""
+	}
+	return false
 }

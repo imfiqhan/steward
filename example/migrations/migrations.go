@@ -31,8 +31,11 @@ var All = []migrate.Migration{
 				return err
 			}
 			posts := []models.Post{
-				{Title: "Hello, Steward", Body: "First post managed by the Steward admin panel.", Status: "published", AuthorID: author.ID},
-				{Title: "Drafting in the open", Body: "This one is still a draft.", Status: "draft", AuthorID: author.ID},
+				// A cover as a data URI: an Image column resolves a stored path
+				// through a disk, and this example ships no files, but the
+				// column and the preview it opens are the same either way.
+				{Title: "Hello, Steward", Body: "First post managed by the Steward admin panel.", Status: "published", AuthorID: author.ID, Cover: sampleCover},
+				{Title: "Drafting in the open", Body: "This one is still a draft.", Status: "draft", AuthorID: author.ID, Cover: sampleCover},
 			}
 			return tx.Create(&posts).Error
 		},
@@ -50,3 +53,10 @@ var All = []migrate.Migration{
 		Down: func(tx *gorm.DB) error { return nil },
 	},
 }
+
+// sampleCover is a 4x3 SVG, small enough to inline and large enough to see
+// scaled up in the preview.
+const sampleCover = "data:image/svg+xml;utf8," +
+	"%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20400%20300'%3E" +
+	"%3Crect%20width%3D'400'%20height%3D'300'%20fill%3D'%23dbeafe'%2F%3E" +
+	"%3Ccircle%20cx%3D'200'%20cy%3D'150'%20r%3D'90'%20fill%3D'%233b82f6'%2F%3E%3C%2Fsvg%3E"

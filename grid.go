@@ -407,10 +407,33 @@ func (c *Column[T]) Image(width, height int) *Column[T] {
 		if height > 0 {
 			style += fmt.Sprintf("height:%dpx;", height)
 		}
-		return template.HTML(fmt.Sprintf(`<img src="%s" class="rounded" style="%s object-fit:cover" alt=""/>`,
+		return previewable(s, fmt.Sprintf(`<img src="%s" class="rounded" style="%s object-fit:cover" alt=""/>`,
 			template.HTMLEscapeString(s), style))
 	}
 	return c
+}
+
+// previewable wraps rendered markup in the trigger that opens it full size, so
+// a thumbnail sized for a row is not the only look a reader gets at it.
+func previewable(href, inner string) template.HTML {
+	return Preview(href, template.HTML(inner)) //nolint:gosec // callers pass markup they built
+}
+
+// Preview wraps markup in the trigger that opens href in the panel's viewer —
+// images and PDFs inline, anything else as a link. Image columns and detail
+// fields do this already; this is for a cell built by hand.
+//
+//	g.ColumnFunc("photo", "Photo", func(r *Row) template.HTML {
+//	    url := app.DiskURL("", r.Photo)
+//	    return steward.Preview(url, template.HTML(`<img src="`+url+`" width="60"/>`))
+//	})
+func Preview(href string, inner template.HTML) template.HTML {
+	if href == "" {
+		return inner
+	}
+	return template.HTML(`<button type="button" class="steward-preview-trigger" ` + //nolint:gosec // inner is the caller's markup
+		`data-steward-preview="` + template.HTMLEscapeString(href) + `" ` +
+		`aria-label="Preview">` + string(inner) + `</button>`)
 }
 
 // copyGlyph is Lucide's "copy", inlined because a cell is rendered in Go rather

@@ -517,3 +517,42 @@ func TestCommandSearchSkipsTheCount(t *testing.T) {
 		t.Error("the palette should not ask for a total it never shows")
 	}
 }
+
+// A thumbnail sized for a row, and a stored file that is only a path, both open
+// full size rather than sending the reader to another tab.
+func TestImagesAndFilesPreview(t *testing.T) {
+	srv := newMediaServer(t, mediaRow{Cover: "images/cover.jpg", Doc: "files/report.pdf"})
+
+	grid := fetchOK(t, srv.URL+"/admin/media_rows")
+	if !strings.Contains(grid, "data-steward-preview=") {
+		t.Error("a grid thumbnail should open a preview")
+	}
+	if !strings.Contains(grid, "steward-preview-trigger") {
+		t.Error("the thumbnail's trigger should carry no button chrome")
+	}
+
+	detail := fetchOK(t, srv.URL+"/admin/media_rows/1")
+	if strings.Count(detail, "data-steward-preview=") < 2 {
+		t.Error("both the image and the stored file should be previewable on a detail page")
+	}
+	if !strings.Contains(detail, ">Preview</button>") {
+		t.Error("a stored file needs its own trigger, since its link is text")
+	}
+}
+
+// TestPreviewSkipsWhatItCannotShow keeps the button off a link that points
+// somewhere else, and off a file the viewer would render as a blank frame.
+func TestPreviewSkipsWhatItCannotShow(t *testing.T) {
+	for _, tc := range []struct{ name, stored string }{
+		{"an absolute URL", "https://cdn.example.com/a.zip"},
+		{"a format the viewer cannot show", "files/archive.zip"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := newMediaServer(t, mediaRow{Doc: tc.stored})
+			detail := fetchOK(t, srv.URL+"/admin/media_rows/1")
+			if strings.Contains(detail, ">Preview</button>") {
+				t.Errorf("%s should not offer a preview", tc.name)
+			}
+		})
+	}
+}

@@ -758,6 +758,88 @@ tr.steward-dragging { opacity: 0.5; }
   transition-property: opacity, transform, visibility;
 }
 
+/* ---- Preview viewer ------------------------------------------------------- */
+
+/* The trigger carries no button chrome: a thumbnail has to look exactly as it
+   did when it was an img, only clickable. */
+.steward-preview-trigger {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  line-height: 0;
+}
+
+.steward-preview-trigger:focus-visible {
+  outline: 2px solid var(--color-ring, currentColor);
+  outline-offset: 2px;
+}
+
+.steward-preview {
+  width: min(92vw, 1100px);
+  max-width: none;
+  max-height: 92vh;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius, 0.5rem);
+  background: var(--color-card, var(--color-background));
+  color: var(--color-card-foreground, var(--color-foreground));
+}
+
+.steward-preview::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+
+.steward-preview-body {
+  display: grid;
+  place-items: center;
+  min-height: 12rem;
+  max-height: calc(92vh - 4.5rem);
+  overflow: auto;
+}
+
+.steward-preview-body img {
+  max-width: 100%;
+  max-height: calc(92vh - 4.5rem);
+  object-fit: contain;
+}
+
+/* A PDF has no intrinsic size to fit to, so it takes the space that is left. */
+.steward-preview-body iframe {
+  width: 100%;
+  height: calc(92vh - 4.5rem);
+  border: 0;
+}
+
+.steward-preview-bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+}
+
+/* ---- Dashboard charts ---------------------------------------------------- */
+
+/* A dashboard chart is a glance, not a page. Chart.js runs with
+   maintainAspectRatio:false, so the canvas takes the height of its container —
+   and with no height there, a full-width tile drew a 589px canvas, which put
+   three charts and the tiles between them on a 2,700px page.
+
+   Relative positioning is what Chart.js's responsive resizing measures
+   against. */
+[data-steward-chart] {
+  height: clamp(180px, 30vh, 300px);
+}
+
+/* The component moves the canvas into a container of its own, and that is what
+   Chart.js measures — capping only the outer box left the canvas drawing past
+   it at its default 16:9. */
+[data-steward-chart] [data-basecoat-chart-container] {
+  position: relative;
+  height: 100%;
+}
+
 /* ---- Combobox: keeping a long option inside the field --------------------- */
 
 /* Fixed, so neither the form card nor the shell's scroll container can clip a

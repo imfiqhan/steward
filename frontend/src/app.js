@@ -1498,6 +1498,92 @@ window.htmx = htmx;
     });
   });
 
+  /* ---- Preview viewer -------------------------------------------------------- */
+  /*
+   * A thumbnail in a row is too small to read and a stored file is a path, so
+   * both open here rather than sending the reader to another tab to look and
+   * then back again. Delegated, because grid cells arrive from htmx.
+   */
+
+  function previewDialog() { return document.getElementById("steward-preview"); }
+
+  // What the viewer can show. Anything else is offered as a link instead of
+  // being embedded, which would leave the reader looking at a blank frame.
+  function previewKind(url) {
+    // A data URI carries its type instead of an extension.
+    if (/^data:/i.test(url)) {
+      if (/^data:image\//i.test(url)) return "image";
+      if (/^data:application\/pdf/i.test(url)) return "pdf";
+      return "";
+    }
+    var ext = (url.split("?")[0].split("#")[0].match(/\.([a-z0-9]+)$/i) || [])[1];
+    switch ((ext || "").toLowerCase()) {
+      case "png": case "jpg": case "jpeg": case "gif":
+      case "webp": case "avif": case "svg":
+        return "image";
+      case "pdf":
+        return "pdf";
+      default:
+        return "";
+    }
+  }
+
+  function openPreview(url) {
+    var dlg = previewDialog();
+    if (!dlg || !url) return;
+    var body = dlg.querySelector("[data-steward-preview-body]");
+    var open = dlg.querySelector("[data-steward-preview-download]");
+    if (open) open.setAttribute("href", url);
+    body.innerHTML = "";
+    var kind = previewKind(url);
+    if (kind === "image") {
+      var img = document.createElement("img");
+      img.src = url;
+      img.alt = "";
+      body.appendChild(img);
+    } else if (kind === "pdf") {
+      var frame = document.createElement("iframe");
+      frame.src = url;
+      frame.title = "Preview";
+      body.appendChild(frame);
+    } else {
+      var p = document.createElement("p");
+      p.className = "text-sm text-muted-foreground";
+      p.textContent = "This file cannot be shown here. Open it in a new tab.";
+      body.appendChild(p);
+    }
+    dlg.showModal();
+  }
+
+  document.addEventListener("click", function (e) {
+    var trigger = e.target.closest && e.target.closest("[data-steward-preview]");
+    if (trigger) {
+      // A grid row is itself a link to the record; opening the picture is not
+      // a request to leave the list.
+      e.preventDefault();
+      e.stopPropagation();
+      openPreview(trigger.getAttribute("data-steward-preview"));
+      return;
+    }
+    var dlg = previewDialog();
+    if (!dlg || !dlg.open) return;
+    if (e.target.closest && e.target.closest("[data-steward-preview-close]")) {
+      dlg.close();
+      return;
+    }
+    // Same light dismiss as the palette: a modal's backdrop belongs to the
+    // dialog, so a click beside the panel lands on the dialog itself.
+    if (e.target === dlg) dlg.close();
+  });
+
+  // The frame keeps loading a document nobody is looking at otherwise.
+  document.addEventListener("close", function (e) {
+    if (e.target && e.target.id === "steward-preview") {
+      var body = e.target.querySelector("[data-steward-preview-body]");
+      if (body) body.innerHTML = "";
+    }
+  }, true);
+
   /* ---- Copy to clipboard ------------------------------------------------------ */
   /*
    * Delegated, so it covers grid cells rendered by htmx as well as the detail

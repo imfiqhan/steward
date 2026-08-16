@@ -30,6 +30,16 @@
        reach there either — the menu is already built per request against their
        permissions. Basecoat's command component owns the filtering and the
        keyboard; app.js only opens it and follows the chosen entry. */}}
+  {{/* Opened from any thumbnail or stored file; the body is filled in script,
+       since what it holds depends on the file's type. */}}
+  <dialog id="steward-preview" class="steward-preview" aria-label="Preview">
+    <div class="steward-preview-body" data-steward-preview-body></div>
+    <div class="steward-preview-bar">
+      <a class="btn" data-variant="outline" data-size="sm" data-steward-preview-download target="_blank" rel="noopener">Open in a new tab</a>
+      <button type="button" class="btn" data-variant="outline" data-size="sm" data-steward-preview-close>Close</button>
+    </div>
+  </dialog>
+
   <dialog id="steward-command" class="command-dialog" aria-label="Command palette">
     <div class="command">
       <header>

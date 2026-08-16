@@ -192,6 +192,48 @@ await page.keyboard.press("Enter");
 await page.waitForTimeout(700);
 check(/\/authors\/\d/.test(page.url()), `Enter activates the highlighted item (${page.url()})`);
 
+// --- preview viewer -----------------------------------------------------------
+// A thumbnail is too small to read and a stored file is only a path, so both
+// open in place. What matters is that the trigger carries no button chrome, the
+// dialog actually shows the file, and a click beside it closes.
+await page.goto(BASE + "/posts");
+await page.waitForTimeout(300);
+const thumbs = await page.locator("[data-steward-preview]").count();
+if (thumbs > 0) {
+  const chrome = await page.evaluate(() => {
+    const t = document.querySelector(".steward-preview-trigger");
+    const cs = getComputedStyle(t);
+    return { border: cs.borderTopWidth, pad: cs.paddingTop, cursor: cs.cursor };
+  });
+  check(chrome.border === "0px" && chrome.pad === "0px",
+    `a thumbnail trigger looks like the image, not a button (${chrome.border}/${chrome.pad})`);
+  check(chrome.cursor === "zoom-in", `the trigger says it can be opened (${chrome.cursor})`);
+
+  await page.locator("[data-steward-preview]").first().click();
+  await page.waitForTimeout(350);
+  const shown = await page.evaluate(() => {
+    const d = document.getElementById("steward-preview");
+    const img = d.querySelector("img");
+    return {
+      open: d.open,
+      hasImage: !!img,
+      fits: img ? img.getBoundingClientRect().height <= window.innerHeight : true,
+      url: window.location.pathname,
+    };
+  });
+  check(shown.open, "clicking a thumbnail opens the viewer");
+  check(shown.hasImage, "the viewer shows the picture");
+  check(shown.fits, "the picture is scaled to the screen");
+  check(/\/posts$/.test(shown.url), "opening a picture does not navigate away from the list");
+
+  await page.mouse.click(8, 8);
+  await page.waitForTimeout(250);
+  check(await page.evaluate(() => !document.getElementById("steward-preview").open),
+    "clicking beside the viewer closes it");
+} else {
+  console.log("  -- no previewable media on /posts, viewer not exercised");
+}
+
 // --- multi-select combobox ----------------------------------------------------
 // The widget's whole point is that it filters and holds several values, and its
 // hidden input is what the server receives. None of that is visible in markup.
