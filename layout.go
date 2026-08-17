@@ -29,6 +29,10 @@ type nodeSpec struct {
 	title    string
 	children []Node
 	body     template.HTML
+	value    string
+	hint     string
+	icon     string
+	tone     BadgeColor
 	// tile is a dashboard widget placed in a layout. It carries a loader
 	// rather than a value, so it is resolved per request — which is what lets
 	// a slow aggregate stay Lazy inside a row.
@@ -83,18 +87,37 @@ func Divider() Node {
 	return &nodeSpec{kind: "html", body: `<hr class="border-border"/>`}
 }
 
+// MetricNode is one figure and its label. Icon and Color chain off Metric.
+type MetricNode struct{ s *nodeSpec }
+
+func (m *MetricNode) spec() *nodeSpec { return m.s }
+
+// Icon draws a Lucide glyph beside the figure, in the tile's colour. The name
+// is checked at boot, so a glyph that does not exist is a build error rather
+// than an empty square.
+func (m *MetricNode) Icon(name string) *MetricNode {
+	m.s.icon = canonicalIconName(name)
+	return m
+}
+
+// Color tints the card and the icon. It takes the panel's colour vocabulary,
+// the same one badges use, and an unknown colour is reported by Verify.
+func (m *MetricNode) Color(c BadgeColor) *MetricNode {
+	m.s.tone = c
+	return m
+}
+
 // Metric shows one figure with its label, the same tile the dashboard uses.
 // hint is optional secondary text beneath the value.
-func Metric(label string, value any, hint ...string) Node {
-	var b strings.Builder
-	b.WriteString(`<div class="card" data-size="sm"><section>`)
-	b.WriteString(`<p class="text-sm text-muted-foreground">` + template.HTMLEscapeString(label) + `</p>`)
-	b.WriteString(`<p class="mt-1 text-3xl font-semibold">` + template.HTMLEscapeString(fmt.Sprint(value)) + `</p>`)
-	if len(hint) > 0 && hint[0] != "" {
-		b.WriteString(`<p class="mt-1 text-sm text-muted-foreground">` + template.HTMLEscapeString(hint[0]) + `</p>`)
+//
+//	steward.Metric("Published", 1752, "live on the site").
+//	    Icon("newspaper").Color(steward.BadgeGreen)
+func Metric(label string, value any, hint ...string) *MetricNode {
+	n := &nodeSpec{kind: "metric", title: label, value: fmt.Sprint(value)}
+	if len(hint) > 0 {
+		n.hint = hint[0]
 	}
-	b.WriteString(`</section></div>`)
-	return &nodeSpec{kind: "html", body: template.HTML(b.String())} //nolint:gosec // every value is escaped above
+	return &MetricNode{s: n}
 }
 
 // Table renders rows under headers. Values are escaped, so a cell holding
@@ -190,6 +213,10 @@ type layoutNodeVM struct {
 	Span     int
 	Title    string
 	Body     template.HTML
+	Value    string
+	Hint     string
+	Icon     string
+	Tone     string
 	Children []layoutNodeVM
 	// Tile is set on a widget node, already resolved.
 	Tile *widgetVM
@@ -204,6 +231,7 @@ func viewNodes(nodes []Node, resolve func(*Widget) *widgetVM) []layoutNodeVM {
 		s := n.spec()
 		vm := layoutNodeVM{
 			Kind: s.kind, Span: s.span, Title: s.title, Body: s.body,
+			Value: s.value, Hint: s.hint, Icon: s.icon, Tone: string(s.tone),
 			Children: viewNodes(s.children, resolve),
 		}
 		if s.kind == "tile" && resolve != nil && s.tile != nil {
@@ -234,4 +262,24 @@ func (c *Context) Layout(title string, nodes ...Node) error {
 		Nodes:    viewNodes(nodes, nil),
 		HasChart: hasChart(nodes),
 	})
+}
+
+// verifyNodes reports icons and colours a layout names that do not exist. A
+// layout is built per request, so this covers the ones declared on a dashboard,
+// where the tree is known at boot.
+func verifyNodes(a *Admin, where string, nodes []Node) {
+	for _, n := range nodes {
+		s := n.spec()
+		if s.icon != "" && a.renderer != nil && !a.renderer.hasIcon(s.icon) {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"%s: icon %q not found; available: %s",
+				where, s.icon, strings.Join(a.renderer.iconNames(), ", ")))
+		}
+		if s.tone != "" && !badgeColors[s.tone] {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"%s: unknown colour %q (known colours: %s)",
+				where, s.tone, strings.Join(badgeColorNames(), ", ")))
+		}
+		verifyNodes(a, where, s.children)
+	}
 }

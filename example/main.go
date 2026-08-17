@@ -178,8 +178,10 @@ func registerResources(app *steward.Admin) {
 					}},
 				}))),
 				steward.Col(4,
-					steward.Metric("Published", published, "live on the site"),
-					steward.Metric("Drafts", drafts),
+					steward.Metric("Published", published, "live on the site").
+						Icon("newspaper").Color(steward.BadgeGreen),
+					steward.Metric("Drafts", drafts).
+						Icon("file-text").Color(steward.BadgeOrange),
 				),
 			),
 			steward.Row(

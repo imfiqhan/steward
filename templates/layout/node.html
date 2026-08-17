@@ -15,6 +15,17 @@
       {{range .Children}}{{template "layout-node" .}}{{end}}
     </section>
   </div>
+  {{else if eq .Kind "metric"}}
+  <div class="card steward-metric" data-size="sm"{{with .Tone}} data-tone="{{.}}"{{end}}>
+    <section class="flex items-start gap-3">
+      {{with .Icon}}<span class="steward-metric-icon">{{icon . "size-5"}}</span>{{end}}
+      <div class="min-w-0">
+        <p class="text-sm text-muted-foreground">{{.Title}}</p>
+        <p class="mt-1 text-3xl font-semibold">{{.Value}}</p>
+        {{with .Hint}}<p class="mt-1 text-sm text-muted-foreground">{{.}}</p>{{end}}
+      </div>
+    </section>
+  </div>
   {{else if eq .Kind "tile"}}
   {{with .Tile}}{{template "widgets/tile.html" .}}{{end}}
   {{else}}

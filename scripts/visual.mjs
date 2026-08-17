@@ -270,6 +270,18 @@ if (thumbs > 0) {
       url: window.location.pathname,
     };
   });
+  const placed = await page.evaluate(() => {
+    const d = document.getElementById("steward-preview");
+    const r = d.getBoundingClientRect();
+    return {
+      dx: Math.round(r.left - (window.innerWidth - r.width) / 2),
+      dy: Math.round(r.top - (window.innerHeight - r.height) / 2),
+    };
+  });
+  // A modal dialog centres through the user agent's margin:auto, which the
+  // stylesheet reset replaces with 0 — leaving it in the top-left corner.
+  check(Math.abs(placed.dx) <= 2 && Math.abs(placed.dy) <= 2,
+    `the viewer is centred (off by ${placed.dx},${placed.dy})`);
   check(shown.open, "clicking a thumbnail opens the viewer");
   check(shown.hasImage, "the viewer shows the picture");
   check(shown.fits, "the picture is scaled to the screen");

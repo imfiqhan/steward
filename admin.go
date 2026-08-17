@@ -94,7 +94,7 @@ type Config struct {
 	// Searcher backs quick search and the command palette for resources that
 	// declared Searchable. Without one they fall back to SQL LIKE.
 	Searcher Searcher
-	Mailer  Mailer  // optional; enables password reset
+	Mailer   Mailer // optional; enables password reset
 
 	// AuthExcept lists extra path patterns (relative to Prefix, * globs)
 	// that skip authentication and permission checks.
@@ -342,6 +342,23 @@ func (a *Admin) build() error {
 	// tile itself — which reaches whoever opens the dashboard, not whoever
 	// deployed it. The runtime ships with the module, so this firing means the
 	// assets being served are not the ones that were built.
+	// A dashboard's tree is known at boot, so the glyphs and colours it names
+	// are checked here rather than found missing on the page.
+	if a.dash != nil {
+		for _, w := range a.dash.allWidgets() {
+			if w.icon != "" && !rend.hasIcon(w.icon) {
+				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+					"dashboard widget %q: icon %q not found; available: %s",
+					w.title, w.icon, strings.Join(rend.iconNames(), ", ")))
+			}
+			if w.tone != "" && !badgeColors[w.tone] {
+				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+					"dashboard widget %q: unknown colour %q (known colours: %s)",
+					w.title, w.tone, strings.Join(badgeColorNames(), ", ")))
+			}
+		}
+		verifyNodes(a, "dashboard layout", a.dash.nodes)
+	}
 	if a.dash != nil && a.dash.hasChartWidget() {
 		for _, name := range chartRuntimeAssets {
 			if _, err := readLayered(rend.assetLayers, name); err != nil {

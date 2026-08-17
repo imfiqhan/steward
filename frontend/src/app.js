@@ -1540,6 +1540,16 @@ window.htmx = htmx;
       var img = document.createElement("img");
       img.src = url;
       img.alt = "";
+      // A stored path can outlive its file. The browser's own broken-image
+      // glyph in an otherwise empty dialog says nothing; this says what
+      // happened.
+      img.onerror = function () {
+        img.remove();
+        var note = document.createElement("p");
+        note.className = "text-sm text-muted-foreground";
+        note.textContent = "This file could not be loaded.";
+        body.appendChild(note);
+      };
       body.appendChild(img);
     } else if (kind === "pdf") {
       var frame = document.createElement("iframe");

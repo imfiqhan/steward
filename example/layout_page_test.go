@@ -280,3 +280,64 @@ func TestDashboardKeepsDeclarationOrder(t *testing.T) {
 		t.Errorf("the run before and the run after should be separate grids, got %d", n)
 	}
 }
+
+// A metric can carry a glyph and a colour, on a page and on the dashboard, and
+// both are checked at boot rather than found missing on the screen.
+func TestMetricIconAndColour(t *testing.T) {
+	srv := newPageLayoutServer(t, func(c *steward.Context) error {
+		return c.Layout("Metrics",
+			steward.Row(
+				steward.Col(6, steward.Metric("Published", 1752, "live").
+					Icon("newspaper").Color(steward.BadgeGreen)),
+				steward.Col(6, steward.Metric("Plain", 3)),
+			),
+		)
+	})
+	html := fetchOK(t, srv.URL+"/admin/page_layout_rows/report")
+	if !strings.Contains(html, `data-tone="green"`) {
+		t.Error("the colour should reach the card")
+	}
+	if !strings.Contains(html, "steward-metric-icon") || !strings.Contains(html, "<svg") {
+		t.Error("the glyph should be drawn")
+	}
+	if strings.Count(html, "steward-metric-icon") != 1 {
+		t.Error("a metric without an icon should not render an empty chip")
+	}
+	if !strings.Contains(html, "1752") || !strings.Contains(html, ">live<") {
+		t.Error("the value and hint should still render")
+	}
+}
+
+func TestMetricRejectsUnknownIconAndColour(t *testing.T) {
+	for _, tc := range []struct {
+		name, want string
+		build      func(d *steward.Dashboard)
+	}{
+		{"icon", "not found", func(d *steward.Dashboard) {
+			d.Metric("A", func(*steward.Context) (any, error) { return 1, nil }).Icon("no-such-glyph")
+		}},
+		{"colour", "unknown colour", func(d *steward.Dashboard) {
+			d.Metric("A", func(*steward.Context) (any, error) { return 1, nil }).Color("chartreuse")
+		}},
+		{"colour in a row", "unknown colour", func(d *steward.Dashboard) {
+			d.Row(steward.Col(12, steward.Metric("A", 1).Color("chartreuse")))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app, err := steward.New(steward.Config{
+				DB: testDB(t), SecretKey: []byte("metric-verify-test-secret-key"),
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			app.Dashboard(tc.build)
+			if err := app.Build(); err != nil {
+				t.Fatal(err)
+			}
+			err = app.Verify()
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("expected a boot error mentioning %q, got: %v", tc.want, err)
+			}
+		})
+	}
+}

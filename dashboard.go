@@ -49,6 +49,8 @@ type Widget struct {
 	hint  string
 	span  int
 	tmpl  string
+	icon  string
+	tone  BadgeColor
 	lazy  bool
 	load  func(*Context) (any, error)
 }
@@ -62,6 +64,14 @@ func (w *Widget) Span(n int) *Widget {
 
 // Hint adds secondary text under a metric's value.
 func (w *Widget) Hint(s string) *Widget { w.hint = s; return w }
+
+// Icon draws a Lucide glyph beside a metric's figure, in the tile's colour.
+// The name is checked at boot.
+func (w *Widget) Icon(name string) *Widget { w.icon = canonicalIconName(name); return w }
+
+// Color tints a metric tile and its icon, from the panel's colour vocabulary —
+// the same one badges use. An unknown colour is reported by Verify.
+func (w *Widget) Color(c BadgeColor) *Widget { w.tone = c; return w }
 
 // Lazy defers the widget's data callback to a follow-up request, so a slow
 // aggregate does not hold up the page. The tile renders a skeleton and swaps
@@ -189,6 +199,8 @@ type widgetVM struct {
 	Title string
 	Hint  string
 	Span  int
+	Icon  string
+	Tone  string
 	Value string
 	Body  template.HTML
 	// Payload is a chart's JSON, embedded for the client initializer.
@@ -205,7 +217,8 @@ type widgetVM struct {
 
 // resolve runs a widget's callback and renders its body.
 func (a *Admin) resolve(c *Context, w *Widget, i int) widgetVM {
-	vm := widgetVM{Index: i, Title: w.title, Hint: w.hint, Span: w.span}
+	vm := widgetVM{Index: i, Title: w.title, Hint: w.hint, Span: w.span,
+		Icon: w.icon, Tone: string(w.tone)}
 	switch w.kind {
 	case widgetMetric:
 		vm.Kind = "metric"

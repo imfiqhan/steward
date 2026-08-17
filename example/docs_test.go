@@ -2,6 +2,7 @@ package main
 
 import (
 	"html/template"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -160,5 +161,91 @@ func TestDocumentedFieldKindsAllWork(t *testing.T) {
 	// a snippet that names something that no longer exists fails here.
 	if err := app.Verify(); err != nil {
 		t.Fatalf("the documented calls should verify: %v", err)
+	}
+}
+
+// The layout page shows one example of every widget and both of the metric's
+// settings. Same reasoning as above: a snippet nobody compiles goes stale, and
+// this one already caught a chart type that does not exist.
+func TestDocumentedWidgetsAllWork(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&docsRow{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("docs-widgets-test-secret"),
+		AuthExcept: []string{"/docs_rows*"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	headers := []string{"Title", "Author"}
+	rows := [][]any{{"A headline", "Ada"}}
+
+	steward.Register[docsRow](app).Page("GET", "widgets", func(c *steward.Context) error {
+		return c.Layout("Widgets",
+			steward.Row(
+				steward.Col(6, steward.Card("Latest posts", steward.Table(headers, rows))),
+				steward.Col(6, steward.Card("", steward.Text("A card with no heading."))),
+			),
+			steward.Card("This week",
+				steward.Metric("Published", 12),
+				steward.Divider(),
+				steward.Table(headers, rows),
+			),
+			steward.Metric("Published", 1752),
+			steward.Metric("Published", 1752, "live on the site"),
+			steward.Metric("Published", 1752, "live on the site").
+				Icon("newspaper").
+				Color(steward.BadgeGreen),
+			steward.Chart(&steward.ChartData{
+				Type:   steward.ChartLine,
+				Labels: []string{"Jan", "Feb", "Mar"},
+				Series: []steward.ChartSeries{{Label: "Posts", Values: []float64{12, 19, 7}}},
+			}),
+			steward.Table([]string{"Title", "Status"}, [][]any{
+				{"A headline", template.HTML(`<span class="badge">Published</span>`)},
+			}),
+			steward.Heading("How this is counted"),
+			steward.Text("Drafts are excluded, and so is anything in the bin."),
+			steward.Divider(),
+			steward.Markup(template.HTML(`<ol class="grid gap-3"><li class="text-sm">an event</li></ol>`)),
+		)
+	})
+
+	// And the dashboard spellings the page shows.
+	app.Dashboard(func(d *steward.Dashboard) {
+		d.Metric("Users", func(c *steward.Context) (any, error) { return 3, nil }).
+			Icon("users").Color(steward.BadgeBlue).Lazy()
+		d.Row(
+			steward.Col(8, d.Chart("Trend", func(c *steward.Context) (*steward.ChartData, error) {
+				return &steward.ChartData{
+					Type: steward.ChartBar, Labels: []string{"a"},
+					Series: []steward.ChartSeries{{Label: "n", Values: []float64{1}}},
+				}, nil
+			}).Lazy()),
+			steward.Col(4, d.Metric("This month", func(c *steward.Context) (any, error) { return 9, nil })),
+		)
+	})
+
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Verify(); err != nil {
+		t.Fatalf("the documented calls should verify: %v", err)
+	}
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+
+	html := fetchOK(t, srv.URL+"/admin/docs_rows/widgets")
+	for _, want := range []string{
+		"Latest posts", "A card with no heading.", "1752", "live on the site",
+		`data-tone="green"`, "steward-metric-icon", "data-steward-chart",
+		"How this is counted", "an event",
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("the page should contain %q", want)
+		}
 	}
 }

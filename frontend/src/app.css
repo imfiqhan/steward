@@ -798,6 +798,83 @@ tr.steward-dragging { opacity: 0.5; }
   transition-property: opacity, transform, visibility;
 }
 
+/* ---- Metric tile ---------------------------------------------------------- */
+
+/* The icon sits in a tinted chip and the card takes a wash of the same colour,
+   so a row of figures can be told apart at a glance without reading them. The
+   tones are the panel's badge vocabulary, one rule per colour because the
+   class is chosen at runtime and the bundle carries no generated utilities. */
+.steward-metric-icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  border-radius: 0.5rem;
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+}
+
+.steward-metric[data-tone] { border-color: var(--steward-tone-border, var(--color-border)); }
+
+.steward-metric[data-tone] .steward-metric-icon {
+  background: var(--steward-tone-bg);
+  color: var(--steward-tone-fg);
+}
+
+.steward-metric[data-tone="green"] {
+  --steward-tone-bg: var(--color-green-50, #f0fdf4);
+  --steward-tone-fg: var(--color-green-700, #15803d);
+  --steward-tone-border: var(--color-green-200, #bbf7d0);
+}
+.steward-metric[data-tone="blue"] {
+  --steward-tone-bg: var(--color-blue-50, #eff6ff);
+  --steward-tone-fg: var(--color-blue-700, #1d4ed8);
+  --steward-tone-border: var(--color-blue-200, #bfdbfe);
+}
+.steward-metric[data-tone="azure"] {
+  --steward-tone-bg: var(--color-sky-50, #f0f9ff);
+  --steward-tone-fg: var(--color-sky-700, #0369a1);
+  --steward-tone-border: var(--color-sky-200, #bae6fd);
+}
+.steward-metric[data-tone="purple"] {
+  --steward-tone-bg: var(--color-purple-50, #faf5ff);
+  --steward-tone-fg: var(--color-purple-700, #7e22ce);
+  --steward-tone-border: var(--color-purple-200, #e9d5ff);
+}
+.steward-metric[data-tone="orange"] {
+  --steward-tone-bg: var(--color-orange-50, #fff7ed);
+  --steward-tone-fg: var(--color-orange-700, #c2410c);
+  --steward-tone-border: var(--color-orange-200, #fed7aa);
+}
+.steward-metric[data-tone="yellow"] {
+  --steward-tone-bg: var(--color-amber-50, #fffbeb);
+  --steward-tone-fg: var(--color-amber-700, #b45309);
+  --steward-tone-border: var(--color-amber-200, #fde68a);
+}
+.steward-metric[data-tone="red"],
+.steward-metric[data-tone="destructive"] {
+  --steward-tone-bg: var(--color-red-50, #fef2f2);
+  --steward-tone-fg: var(--color-red-700, #b91c1c);
+  --steward-tone-border: var(--color-red-200, #fecaca);
+}
+.steward-metric[data-tone="secondary"],
+.steward-metric[data-tone="outline"] {
+  --steward-tone-bg: var(--color-muted);
+  --steward-tone-fg: var(--color-muted-foreground);
+}
+
+@media (prefers-color-scheme: dark) {
+  .steward-metric[data-tone="green"] { --steward-tone-bg: #052e16; --steward-tone-fg: #86efac; --steward-tone-border: #14532d; }
+  .steward-metric[data-tone="blue"] { --steward-tone-bg: #172554; --steward-tone-fg: #93c5fd; --steward-tone-border: #1e3a8a; }
+  .steward-metric[data-tone="azure"] { --steward-tone-bg: #082f49; --steward-tone-fg: #7dd3fc; --steward-tone-border: #0c4a6e; }
+  .steward-metric[data-tone="purple"] { --steward-tone-bg: #3b0764; --steward-tone-fg: #d8b4fe; --steward-tone-border: #581c87; }
+  .steward-metric[data-tone="orange"] { --steward-tone-bg: #431407; --steward-tone-fg: #fdba74; --steward-tone-border: #7c2d12; }
+  .steward-metric[data-tone="yellow"] { --steward-tone-bg: #451a03; --steward-tone-fg: #fcd34d; --steward-tone-border: #78350f; }
+  .steward-metric[data-tone="red"],
+  .steward-metric[data-tone="destructive"] { --steward-tone-bg: #450a0a; --steward-tone-fg: #fca5a5; --steward-tone-border: #7f1d1d; }
+}
+
 /* ---- Preview viewer ------------------------------------------------------- */
 
 /* The trigger carries no button chrome: a thumbnail has to look exactly as it
@@ -817,6 +894,10 @@ tr.steward-dragging { opacity: 0.5; }
 }
 
 .steward-preview {
+  /* A modal dialog centres itself through the user agent's margin:auto, which
+     the stylesheet reset replaces with 0 — leaving it pinned to the top-left
+     corner by inset:0. */
+  margin: auto;
   width: min(92vw, 1100px);
   max-width: none;
   max-height: 92vh;
