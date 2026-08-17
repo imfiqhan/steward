@@ -215,10 +215,14 @@ func New(cfg Config) (*Admin, error) {
 	if len(cfg.SecretKey) < 16 {
 		return nil, errors.New("steward: Config.SecretKey must be at least 16 bytes")
 	}
-	if cfg.Prefix == "" {
-		cfg.Prefix = "/admin"
+	// Normalised to either "" (mounted at the root) or "/segment", with no
+	// trailing slash, so that every pattern and URL below can concatenate it
+	// without special-casing. Build URLs with a.url, never by concatenation:
+	// at the root the prefix is empty and "" + "/x" is only correct by luck.
+	cfg.Prefix = strings.TrimRight(cfg.Prefix, "/")
+	if cfg.Prefix != "" && !strings.HasPrefix(cfg.Prefix, "/") {
+		cfg.Prefix = "/" + cfg.Prefix
 	}
-	cfg.Prefix = "/" + strings.Trim(cfg.Prefix, "/")
 	if cfg.Brand == "" {
 		cfg.Brand = "Steward"
 	}
@@ -270,7 +274,9 @@ func (a *Admin) DB() *gorm.DB { return a.db }
 
 // url joins segments onto the prefix.
 func (a *Admin) url(parts ...string) string {
-	return path.Join(append([]string{a.cfg.Prefix}, parts...)...)
+	// The leading "/" is passed to Join rather than concatenated because the
+	// prefix is empty for a panel mounted at the root.
+	return path.Join(append([]string{"/", a.cfg.Prefix}, parts...)...)
 }
 
 // Build freezes registration: wires join tables, runs framework migrations
@@ -468,7 +474,7 @@ func (a *Admin) saveSession(c *Context) {
 	http.SetCookie(c.W, &http.Cookie{
 		Name:     sessionCookie,
 		Value:    val,
-		Path:     a.cfg.Prefix,
+		Path:     a.url("/"),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 		Secure:   c.R.TLS != nil,
@@ -480,7 +486,7 @@ func (a *Admin) clearSession(c *Context) {
 	http.SetCookie(c.W, &http.Cookie{
 		Name:     sessionCookie,
 		Value:    "",
-		Path:     a.cfg.Prefix,
+		Path:     a.url("/"),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,

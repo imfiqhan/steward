@@ -40,7 +40,9 @@ func newUploadServer(t *testing.T) (*httptest.Server, string, *steward.Admin) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("upload-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("upload-test-secret-key"),
 		UploadDir:  filepath.Join(dir, "uploads"),
 		AuthExcept: []string{"/upload_rows*"},
 	})
@@ -245,7 +247,9 @@ func TestFilesFieldHoldsAJSONArray(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("files-field-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("files-field-test-secret-key"),
 		AuthExcept: []string{"/upload_rows*"},
 	})
 	if err != nil {
@@ -298,7 +302,9 @@ func TestUploadNeedsWritePermission(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("upload-perm-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("upload-perm-test-secret-key"),
 		UploadDir: filepath.Join(dir, "uploads"), AuthExcept: []string{"/upload_rows*"},
 	})
 	if err != nil {
@@ -340,7 +346,9 @@ func TestReplacedUploadIsRemoved(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("upload-drop-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("upload-drop-test-secret-key"),
 		UploadDir: uploads, AuthExcept: []string{"/upload_rows*"},
 	})
 	if err != nil {

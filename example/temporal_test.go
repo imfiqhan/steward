@@ -45,7 +45,9 @@ func newTimeServer(t *testing.T, saving func(*steward.Context, *timeRow) error) 
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("temporal-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("temporal-test-secret-key"),
 		AuthExcept: []string{"/time_rows*"},
 	})
 	if err != nil {
@@ -226,7 +228,9 @@ func TestDateBoundsAreEnforced(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("bounds-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("bounds-test-secret-key"),
 		AuthExcept: []string{"/time_rows*"},
 	})
 	if err != nil {

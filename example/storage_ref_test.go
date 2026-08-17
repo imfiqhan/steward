@@ -32,7 +32,9 @@ func newMediaServer(t *testing.T, rows ...mediaRow) *httptest.Server {
 		}
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("storage-ref-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("storage-ref-test-secret-key"),
 		AuthExcept: []string{"/media_rows*"},
 	})
 	if err != nil {

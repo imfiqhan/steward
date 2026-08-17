@@ -35,6 +35,8 @@ func newTokenTestServer(t *testing.T) (*httptest.Server, *gorm.DB) {
 	}
 
 	app, err := steward.New(steward.Config{
+		// These exercise a prefixed mount; the default is the root.
+		Prefix:          "/admin",
 		DB:              db,
 		SecretKey:       []byte("token-test-secret-key"),
 		EnableTokenAuth: true,
@@ -177,6 +179,8 @@ func TestTokenRateLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
+		// These exercise a prefixed mount; the default is the root.
+		Prefix:          "/admin",
 		DB:              db,
 		SecretKey:       []byte("token-rate-secret-key"),
 		EnableTokenAuth: true,

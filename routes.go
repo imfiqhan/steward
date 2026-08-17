@@ -47,9 +47,12 @@ func (a *Admin) buildRoutes() *http.ServeMux {
 	mux := http.NewServeMux()
 	p := a.cfg.Prefix
 
-	// Bare prefix → canonical trailing-slash home.
+	// Bare prefix → canonical trailing-slash home. At the root there is no
+	// bare form to redirect: "" + "/{$}" already matches "/".
 	mux.HandleFunc("GET "+p+"/{$}", a.h(a.dashboard))
-	mux.Handle("GET "+p, http.RedirectHandler(p+"/", http.StatusMovedPermanently))
+	if p != "" {
+		mux.Handle("GET "+p, http.RedirectHandler(p+"/", http.StatusMovedPermanently))
+	}
 
 	// Lazy dashboard widgets fetch their own tile.
 	mux.HandleFunc("GET "+p+"/_widget/{index}", a.h(a.widgetFragment))

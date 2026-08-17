@@ -27,7 +27,9 @@ func verifyWith(t *testing.T, configure func(*steward.Resource[verifyRow]), disk
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("verify-test-secret-key-00"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("verify-test-secret-key-00"),
 		UploadDir: t.TempDir(), Disks: disks, DefaultDisk: defaultDiskFor(disks),
 	})
 	if err != nil {
@@ -140,7 +142,9 @@ func TestChartRuntimeShipsWithTheModule(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("chart-test-secret-key-000"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("chart-test-secret-key-000"),
 		AuthExcept: []string{"/"},
 	})
 	if err != nil {

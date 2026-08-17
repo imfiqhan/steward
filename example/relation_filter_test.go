@@ -76,7 +76,9 @@ func newRelationServer(t *testing.T) (*httptest.Server, *gorm.DB) {
 	}
 
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("relation-filter-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("relation-filter-test-secret-key"),
 		AuthExcept: []string{"/rf_articles*"},
 	})
 	if err != nil {
@@ -237,7 +239,9 @@ func TestRelationSortIsRejectedAtBoot(t *testing.T) {
 			t.Fatal(err)
 		}
 		app, err := steward.New(steward.Config{
-			DB: db, SecretKey: []byte("relation-sort-test-secret-key"),
+			// These exercise a prefixed mount; the default is the root.
+			Prefix: "/admin",
+			DB:     db, SecretKey: []byte("relation-sort-test-secret-key"),
 		})
 		if err != nil {
 			t.Fatal(err)

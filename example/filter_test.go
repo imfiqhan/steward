@@ -36,7 +36,9 @@ func newFilterServer(t *testing.T, calls *atomic.Int32) *httptest.Server {
 		}
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("filter-test-secret-key-00"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("filter-test-secret-key-00"),
 		AuthExcept: []string{"/filter_rows*"},
 	})
 	if err != nil {
@@ -196,7 +198,9 @@ func TestDateRangeIncludesTheWholeOfItsLastDay(t *testing.T) {
 		}
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("daterange-test-secret-00"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("daterange-test-secret-00"),
 		AuthExcept: []string{"/date_rows*"},
 	})
 	if err != nil {
@@ -280,7 +284,9 @@ func TestDateRangeWithTimesIsExact(t *testing.T) {
 		}
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("daterange-time-test-secret"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("daterange-time-test-secret"),
 		AuthExcept: []string{"/date_rows*"},
 	})
 	if err != nil {

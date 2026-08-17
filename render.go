@@ -269,10 +269,10 @@ type pageMeta struct {
 	Brand  string
 	Title  string
 	Prefix string
-	CSRF   string
-	Theme  string
-	Dev    bool
-	User   *AdminUser
+	CSRF          string
+	Theme         string
+	Dev           bool
+	User          *AdminUser
 	// Menu is the raw tree. MenuSections is the same entries batched for
 	// rendering; the shipped sidebar uses the latter, and Menu stays so an
 	// overridden sidebar template keeps working.
@@ -312,17 +312,17 @@ func (a *Admin) pageMetaFor(c *Context, title string) pageMeta {
 	// Built once and shared: the sections are a view of the same tree.
 	menu := a.buildMenu(c)
 	return pageMeta{
-		Brand:        a.cfg.Brand,
-		Title:        title,
-		Prefix:       a.cfg.Prefix,
-		CSRF:         c.CSRF(),
-		Theme:        themeFrom(c.R),
-		Dev:          a.cfg.Dev,
-		User:         c.User,
-		Menu:         menu,
-		MenuSections: menuSections(menu),
-		Flashes:      c.takeFlashes(),
-		Path:         c.R.URL.Path,
+		Brand:         a.cfg.Brand,
+		Title:         title,
+		Prefix:        a.cfg.Prefix,
+		CSRF:          c.CSRF(),
+		Theme:         themeFrom(c.R),
+		Dev:           a.cfg.Dev,
+		User:          c.User,
+		Menu:          menu,
+		MenuSections:  menuSections(menu),
+		Flashes:       c.takeFlashes(),
+		Path:          c.R.URL.Path,
 	}
 }
 
@@ -389,7 +389,7 @@ func (o overlayFS) Open(name string) (fs.File, error) { return openLayered(o, na
 // content-hash version segment ({prefix}/_assets/{version}/dist/app.css)
 // so cache headers can be immutable outside dev.
 func (a *Admin) serveAsset(w http.ResponseWriter, r *http.Request) {
-	rel := strings.TrimPrefix(r.URL.Path, a.cfg.Prefix+"/_assets/")
+	rel := strings.TrimPrefix(r.URL.Path, a.url("_assets")+"/")
 	i := strings.IndexByte(rel, '/')
 	if i < 0 {
 		http.NotFound(w, r)

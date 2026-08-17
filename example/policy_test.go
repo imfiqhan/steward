@@ -58,6 +58,8 @@ func newPolicyTestServer(t *testing.T) (*httptest.Server, map[string]uint) {
 	}
 
 	app, err := steward.New(steward.Config{
+		// These exercise a prefixed mount; the default is the root.
+		Prefix:    "/admin",
 		DB:        db,
 		SecretKey: []byte("policy-test-secret-key"),
 		// Skip the login dance: policies are orthogonal to authentication.

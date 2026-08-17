@@ -32,7 +32,9 @@ func newIconServer(t *testing.T, resourceIcon string) (*httptest.Server, *stewar
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("icon-picker-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("icon-picker-test-secret-key"),
 		AuthExcept: []string{"/icon_widgets*"},
 	})
 	if err != nil {

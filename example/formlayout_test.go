@@ -24,7 +24,9 @@ func newLayoutServer(t *testing.T, width steward.FormWidth) *httptest.Server {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("layout-test-secret-key-0"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("layout-test-secret-key-0"),
 		AuthExcept: []string{"/layout_rows*"},
 	})
 	if err != nil {

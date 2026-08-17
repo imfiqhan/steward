@@ -184,12 +184,12 @@ func (a *Admin) diskOf(name string) Disk {
 
 // uploadRoutePrefix is where a local disk's files are served from.
 func (a *Admin) uploadRoutePrefix(name string) string {
-	return a.cfg.Prefix + "/_uploads/" + name + "/"
+	return a.url("_uploads", name) + "/"
 }
 
 // diskFromUploadPath splits "{prefix}/_uploads/{disk}/{name}" into its parts.
 func (a *Admin) diskFromUploadPath(p string) (disk, name string) {
-	rest := strings.TrimPrefix(p, a.cfg.Prefix+"/_uploads/")
+	rest := strings.TrimPrefix(p, a.url("_uploads")+"/")
 	if rest == p {
 		return "", ""
 	}

@@ -39,6 +39,8 @@ func dashboardServer(t *testing.T, dsn string, widgets func(*steward.Dashboard))
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
+		// These exercise a prefixed mount; the default is the root.
+		Prefix:          "/admin",
 		DB:              db,
 		SecretKey:       []byte("dashboard-test-secret-key"),
 		EnableTokenAuth: true,

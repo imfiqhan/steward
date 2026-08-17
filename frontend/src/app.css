@@ -1415,3 +1415,4 @@ input[type="month"] {
 .steward-cal-cell:disabled,
 .steward-cal-day:disabled { opacity: 0.35; cursor: not-allowed; }
 .steward-cal-day:disabled:hover { background: transparent; }
+

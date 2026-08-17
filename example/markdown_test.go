@@ -28,7 +28,9 @@ func newMarkdownServer(t *testing.T) *httptest.Server {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("markdown-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("markdown-test-secret-key"),
 		AuthExcept: []string{"/md_rows*"},
 	})
 	if err != nil {

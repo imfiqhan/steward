@@ -32,7 +32,9 @@ func newFieldServer(t *testing.T, symbol string, cfgSymbol string) (*httptest.Se
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("fields-test-secret-key-000"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("fields-test-secret-key-000"),
 		AuthExcept: []string{"/field_rows*"}, CurrencySymbol: cfgSymbol,
 	})
 	if err != nil {

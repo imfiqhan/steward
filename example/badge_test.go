@@ -41,7 +41,9 @@ func newBadgeServer(t *testing.T, grid func(*steward.Grid[badgeRow]), detail fun
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("badge-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("badge-test-secret-key"),
 		AuthExcept: []string{"/badge_rows*"},
 	})
 	if err != nil {
@@ -237,7 +239,9 @@ func TestDetailFieldFunc(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("fieldfunc-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("fieldfunc-test-secret-key"),
 		AuthExcept: []string{"/badge_rows*"},
 	})
 	if err != nil {
@@ -292,7 +296,9 @@ func TestDetailPreloadsItsOwnRelations(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("detail-preload-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("detail-preload-test-secret-key"),
 		AuthExcept: []string{"/rel_owners*"},
 	})
 	if err != nil {
@@ -636,7 +642,9 @@ func TestSearchTotalSaysWhenItIsAFloor(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("capped-total-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("capped-total-test-secret-key"),
 		AuthExcept: []string{"/palette_rows*"},
 		Searcher:   &windowSearcher{n: 1000},
 	})
@@ -672,7 +680,9 @@ func TestSearchTotalIsExactWhenItFits(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("exact-total-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("exact-total-test-secret-key"),
 		AuthExcept: []string{"/palette_rows*"},
 		Searcher:   &windowSearcher{n: 3}, // fewer matches than the window
 	})
@@ -738,7 +748,9 @@ func TestFilterSpans(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("filter-span-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("filter-span-test-secret-key"),
 		AuthExcept: []string{"/palette_rows*"},
 	})
 	if err != nil {
@@ -786,7 +798,9 @@ func TestFilterSpanIsClamped(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("filter-clamp-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("filter-clamp-test-secret-key"),
 		AuthExcept: []string{"/palette_rows*"},
 	})
 	if err != nil {
@@ -835,7 +849,9 @@ func newRangeFormServer(t *testing.T) *httptest.Server {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("form-daterange-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("form-daterange-test-secret-key"),
 		AuthExcept: []string{"/range_rows*"},
 	})
 	if err != nil {
@@ -893,7 +909,9 @@ func TestFormDateRangeSavesBothEnds(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("form-daterange-save-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("form-daterange-save-secret-key"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -970,7 +988,9 @@ func TestFilterLayouts(t *testing.T) {
 				t.Fatal(err)
 			}
 			app, err := steward.New(steward.Config{
-				DB: db, SecretKey: []byte("filter-layout-test-secret-key"),
+				// These exercise a prefixed mount; the default is the root.
+				Prefix: "/admin",
+				DB:     db, SecretKey: []byte("filter-layout-test-secret-key"),
 				AuthExcept: []string{"/palette_rows*"},
 			})
 			if err != nil {
@@ -1048,7 +1068,9 @@ func TestFormDateRangeWithTimes(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("form-range-time-test-secret"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("form-range-time-test-secret"),
 	})
 	if err != nil {
 		t.Fatal(err)

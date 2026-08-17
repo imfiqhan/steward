@@ -30,6 +30,8 @@ func new2FAServer(t *testing.T, require2FA bool) (*httptest.Server, *steward.Adm
 	t.Helper()
 	db := testDB(t)
 	app, err := steward.New(steward.Config{
+		// These exercise a prefixed mount; the default is the root.
+		Prefix:     "/admin",
 		DB:         db,
 		SecretKey:  []byte("two-factor-flow-test-secret-key"),
 		Require2FA: require2FA,

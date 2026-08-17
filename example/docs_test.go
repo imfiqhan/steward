@@ -75,7 +75,9 @@ func TestDocumentedFieldKindsAllWork(t *testing.T) {
 	}
 
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("docs-field-kinds-test-secret"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("docs-field-kinds-test-secret"),
 		AuthExcept: []string{"/docs_rows*"},
 	})
 	if err != nil {
@@ -181,7 +183,9 @@ func TestDocumentedWidgetsAllWork(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("docs-widgets-test-secret"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("docs-widgets-test-secret"),
 		AuthExcept: []string{"/docs_rows*"},
 	})
 	if err != nil {
@@ -271,7 +275,7 @@ func TestEveryConfigFieldIsDocumented(t *testing.T) {
 		"UploadDir":    true, "Storage": true, "Disks": true, "DefaultDisk": true,
 		"PublicUploads": true, "SignedURLTTL": true,
 		"TablePrefix": true, "DisableAutoMigrate": true,
-		"Require2FA": true, "LoginCheck": true, "AuthExcept": true,
+		"Require2FA":           true, "LoginCheck": true, "AuthExcept": true,
 		"EnableTokenAuth": true, "TokenTTL": true,
 		"TokenRateLimit": true, "TokenRateWindow": true,
 		"Cache": true, "Searcher": true, "Mailer": true, "Logger": true,
@@ -304,6 +308,8 @@ func TestDocumentedConfigSourcesCompile(t *testing.T) {
 	// Environment, as a generated project starts.
 	fromEnv := func(db *gorm.DB) (*steward.Admin, error) {
 		return steward.New(steward.Config{
+			// These exercise a prefixed mount; the default is the root.
+			Prefix:    "/admin",
 			DB:        db,
 			SecretKey: []byte(envOr("STEWARD_SECRET", "docs-test-secret-key-0000")),
 			Dev:       os.Getenv("STEWARD_DEV") != "",
@@ -352,7 +358,9 @@ func fakeSecret(_ context.Context, _ string) (string, error) {
 func TestDocumentedSettingsStore(t *testing.T) {
 	db := testDB(t)
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("docs-settings-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("docs-settings-test-secret-key"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -386,3 +394,4 @@ func TestDocumentedSettingsStore(t *testing.T) {
 		t.Errorf("a misspelled slug should read as empty, got %q, %v", v, err)
 	}
 }
+

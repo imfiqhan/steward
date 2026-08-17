@@ -63,7 +63,9 @@ func newSearchServer(t *testing.T, s steward.Searcher) (*httptest.Server, *gorm.
 		}
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("search-test-secret-key-0"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("search-test-secret-key-0"),
 		AuthExcept: []string{"/*"}, Searcher: s,
 	})
 	if err != nil {

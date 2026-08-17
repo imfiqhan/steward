@@ -63,7 +63,9 @@ func newComboServerWith(t *testing.T, opts steward.Options, seen *seenTags) *htt
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("combobox-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("combobox-test-secret-key"),
 		AuthExcept: []string{"/combo_rows*"},
 	})
 	if err != nil {
@@ -354,7 +356,9 @@ func TestSingleSelectRendersCombobox(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("single-combobox-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("single-combobox-test-secret-key"),
 		AuthExcept: []string{"/combo_rows*"},
 	})
 	if err != nil {

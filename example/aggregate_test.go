@@ -63,6 +63,8 @@ func newAggTestServer(t *testing.T) (string, string) {
 	}
 
 	app, err := steward.New(steward.Config{
+		// These exercise a prefixed mount; the default is the root.
+		Prefix:     "/admin",
 		DB:         db,
 		SecretKey:  []byte("aggregate-test-secret-key"),
 		AuthExcept: []string{"/sales*"},

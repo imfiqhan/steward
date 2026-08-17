@@ -50,6 +50,8 @@ func newShowTestServer(t *testing.T) *httptest.Server {
 	}
 
 	app, err := steward.New(steward.Config{
+		// These exercise a prefixed mount; the default is the root.
+		Prefix:     "/admin",
 		DB:         db,
 		SecretKey:  []byte("richtext-show-test-secret-key"),
 		AuthExcept: []string{"/articles*"},

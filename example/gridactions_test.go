@@ -27,7 +27,9 @@ func newActionServer(t *testing.T, global steward.GridActionStyle, override stew
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("grid-actions-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("grid-actions-test-secret-key"),
 		AuthExcept:  []string{"/action_rows*"},
 		GridActions: global,
 	})
@@ -167,7 +169,9 @@ func TestRowMenuIdsAreUnique(t *testing.T) {
 		}
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("grid-actions-ids-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("grid-actions-ids-secret-key"),
 		AuthExcept: []string{"/action_rows*"}, GridActions: steward.GridActionsMenu,
 	})
 	if err != nil {

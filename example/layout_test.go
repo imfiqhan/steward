@@ -54,7 +54,9 @@ func TestPageWrappersCannotBeWidenedByContent(t *testing.T) {
 	}
 
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("layout-width-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("layout-width-test-secret-key"),
 		AuthExcept: []string{"/wide_rows*", "/"},
 	})
 	if err != nil {
@@ -122,7 +124,9 @@ func TestActionsColumnIsPinned(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("pinned-actions-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("pinned-actions-test-secret-key"),
 		AuthExcept: []string{"/wide_rows*"},
 	})
 	if err != nil {
@@ -207,7 +211,9 @@ func builtStylesheet(t *testing.T) string {
 	t.Helper()
 	db := testDB(t)
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("stylesheet-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("stylesheet-test-secret-key"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -324,7 +330,9 @@ func TestGridHeaderPinning(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("grid-header-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("grid-header-test-secret-key"),
 		AuthExcept: []string{"/wide_rows*"},
 	})
 	if err != nil {

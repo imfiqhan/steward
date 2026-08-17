@@ -37,7 +37,9 @@ func newStorageServer(t *testing.T, public bool) (*httptest.Server, *steward.Adm
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("storage-test-secret-key-0"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("storage-test-secret-key-0"),
 		UploadDir: filepath.Join(dir, "uploads"), PublicUploads: public,
 		DefaultDisk: "local",
 	})
@@ -191,7 +193,9 @@ func TestDisksAreSeparate(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("disks-test-secret-key-000"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("disks-test-secret-key-000"),
 		UploadDir: dir,
 		Disks: map[string]steward.Disk{
 			"public":  {Public: true},
@@ -265,7 +269,9 @@ func TestFieldDiskDecidesWhereAnUploadLands(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("field-disk-secret-key-000"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("field-disk-secret-key-000"),
 		UploadDir:  dir,
 		AuthExcept: []string{"/store_rows*"},
 		Disks: map[string]steward.Disk{

@@ -25,7 +25,9 @@ func newPageLayoutServer(t *testing.T, build func(c *steward.Context) error) *ht
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("layout-page-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("layout-page-test-secret-key"),
 		AuthExcept: []string{"/page_layout_rows*"},
 	})
 	if err != nil {
@@ -184,7 +186,9 @@ func TestDashboardRowsPlaceTiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("dashboard-rows-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("dashboard-rows-test-secret-key"),
 		AuthExcept: []string{"/*"},
 	})
 	if err != nil {
@@ -242,7 +246,9 @@ func TestDashboardRowsPlaceTiles(t *testing.T) {
 func TestDashboardKeepsDeclarationOrder(t *testing.T) {
 	db := testDB(t)
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("dashboard-order-test-secret-key"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("dashboard-order-test-secret-key"),
 		AuthExcept: []string{"/*"},
 	})
 	if err != nil {
@@ -325,7 +331,9 @@ func TestMetricRejectsUnknownIconAndColour(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			app, err := steward.New(steward.Config{
-				DB: testDB(t), SecretKey: []byte("metric-verify-test-secret-key"),
+				// These exercise a prefixed mount; the default is the root.
+				Prefix: "/admin",
+				DB:     testDB(t), SecretKey: []byte("metric-verify-test-secret-key"),
 			})
 			if err != nil {
 				t.Fatal(err)

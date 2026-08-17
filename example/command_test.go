@@ -50,7 +50,9 @@ func newCommandServer(t *testing.T, withSource bool) *httptest.Server {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
-		DB: db, SecretKey: []byte("command-test-secret-key-0"),
+		// These exercise a prefixed mount; the default is the root.
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("command-test-secret-key-0"),
 		AuthExcept: []string{"/*"},
 	})
 	if err != nil {
