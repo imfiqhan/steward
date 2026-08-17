@@ -2103,10 +2103,67 @@ window.htmx = htmx;
     pop.style.bottom = "auto";
   }
 
+  /* The menu is moved to <body> while it is open.
+   *
+   * Fixed positioning alone was supposed to take it out of the scroll
+   * container's clip, and does in some engines; in others an ancestor still
+   * becomes its containing block — a sticky cell, a scroller that has been
+   * scrolled — and the menu is cut off at the table's bottom edge, losing its
+   * last item behind the pager. Nothing about the table can clip a child of
+   * body, so this holds wherever it runs.
+   *
+   * The component reads its elements once at init and keeps the references, so
+   * moving the node does not disturb it; its outside-click handler asks whether
+   * the click was inside the wrapper, and an item's own handler runs first. */
+  /* The host carries .dropdown-menu because every item rule is written as a
+     descendant of it — moved to a bare body the menu keeps its box and loses
+     its rows, icon above label. It is display:contents so it adds no box of
+     its own, and it must never gain a transform, which would make it the
+     containing block this move exists to escape. */
+  function menuPortalHost() {
+    var host = document.getElementById("steward-menu-portal");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "steward-menu-portal";
+      host.className = "dropdown-menu";
+      host.style.display = "contents";
+      document.body.appendChild(host);
+    }
+    return host;
+  }
+
+  function portalMenu(pop) {
+    if (pop.dataset.stewardPortal === "1") return;
+    var home = pop.parentElement;
+    if (!home || home.id === "steward-menu-portal") return;
+    pop.stewardHome = home;
+    pop.dataset.stewardPortal = "1";
+    menuPortalHost().appendChild(pop);
+  }
+
+  function unportalMenu(pop) {
+    if (pop.dataset.stewardPortal !== "1") return;
+    delete pop.dataset.stewardPortal;
+    var home = pop.stewardHome;
+    if (home && home.isConnected) {
+      home.appendChild(pop);
+    } else {
+      // The row was swapped out from under it.
+      pop.remove();
+    }
+  }
+
+  // The wrapper is the trigger's, and has to be found before the move.
+  function menuWrapper(pop) {
+    return pop.stewardWrap || pop.closest("[data-steward-menu]");
+  }
+
   function placeRowMenu(pop) {
-    var wrap = pop.closest("[data-steward-menu]");
+    var wrap = menuWrapper(pop);
     var trigger = wrap && wrap.querySelector("[aria-haspopup]");
     if (!trigger) return;
+    pop.stewardWrap = wrap;
+    portalMenu(pop);
     placeFixedPopover(pop, trigger, false);
 
     // WebKit does not focus a button when it is clicked, so a menu opened with
@@ -2122,13 +2179,18 @@ window.htmx = htmx;
   function closeOpenRowMenus(e) {
     // A tall menu scrolling its own overflow is not the table moving under it.
     var t = e && e.target;
+    if (t && t.closest && t.closest("[data-popover][data-steward-portal]")) return;
     if (t && t.closest && t.closest("[data-steward-menu] > [data-popover]")) return;
-    document.querySelectorAll('[data-steward-menu] [data-popover][aria-hidden="false"]')
-      .forEach(function (pop) {
-        var wrap = pop.closest("[data-steward-menu]");
-        // Ask the component to close, so it restores focus and aria itself.
-        if (wrap && typeof wrap.close === "function") wrap.close(false);
-      });
+    // An open menu has been moved out of its wrapper, so it is matched by the
+    // marker the move leaves behind as well as in place.
+    document.querySelectorAll(
+      '[data-steward-menu] [data-popover][aria-hidden="false"], ' +
+      '[data-popover][data-steward-portal][aria-hidden="false"]'
+    ).forEach(function (pop) {
+      var wrap = menuWrapper(pop);
+      // Ask the component to close, so it restores focus and aria itself.
+      if (wrap && typeof wrap.close === "function") wrap.close(false);
+    });
   }
 
   // Basecoat flips aria-hidden when it opens; that is the signal. The placement
@@ -2136,7 +2198,15 @@ window.htmx = htmx;
   // and resetting it there would snap the menu back to the trigger first.
   var rowMenuObserver = new MutationObserver(function (records) {
     records.forEach(function (rec) {
-      if (rec.target.getAttribute("aria-hidden") === "false") placeRowMenu(rec.target);
+      if (rec.target.getAttribute("aria-hidden") === "false") {
+        placeRowMenu(rec.target);
+      } else {
+        // Returned to its row once the fade is over, so a swap of that row
+        // takes the menu with it.
+        setTimeout(function () {
+          if (rec.target.getAttribute("aria-hidden") === "true") unportalMenu(rec.target);
+        }, 200);
+      }
     });
   });
 

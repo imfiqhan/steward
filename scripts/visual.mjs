@@ -148,7 +148,9 @@ for (const idx of [...new Set([0, trigs.length - 1])]) {
     const wrap = [...document.querySelectorAll("[data-steward-menu]")]
       .find((w) => w.querySelector("button").getAttribute("aria-expanded") === "true");
     if (!wrap) return null;
-    const pop = wrap.querySelector("[data-popover]");
+    // An open menu is moved to <body>, so it is found by its id rather than
+    // inside the wrapper it belongs to.
+    const pop = document.getElementById(wrap.id + "-popover");
     const t = wrap.querySelector("button").getBoundingClientRect();
     const p = pop.getBoundingClientRect();
     const at = (y) => {
@@ -189,10 +191,25 @@ const kb = await page.evaluate(() => {
   return {
     active: trig.getAttribute("aria-activedescendant"),
     onTrigger: document.activeElement === trig,
-    tabbable: [...wrap.querySelectorAll('[role="menuitem"]')]
+    tabbable: [...document.getElementById(wrap.id + "-popover")
+      .querySelectorAll('[role="menuitem"]')]
       .every((i) => i.getAttribute("tabindex") === "-1"),
   };
 });
+// The move is the whole point: nothing inside the table can clip a child of
+// body, whatever an engine decides a fixed element's containing block is.
+const portal = await page.evaluate(() => {
+  const pop = document.querySelector("[data-popover][data-steward-portal]");
+  if (!pop) return { portaled: false, clippers: -1 };
+  let clippers = 0;
+  for (let el = pop.parentElement; el; el = el.parentElement) {
+    if (getComputedStyle(el).overflow !== "visible") clippers++;
+  }
+  return { portaled: pop.closest("#steward-menu-portal") !== null, clippers };
+});
+check(portal.portaled, "an open menu is moved out of the table");
+check(portal.clippers === 0, `nothing above it can clip it (${portal.clippers})`);
+
 check(kb.onTrigger, "opening a menu leaves focus on its trigger");
 check(!!kb.active, `arrow keys track the highlighted item by id (${kb.active})`);
 check(kb.tabbable, "menu items stay out of the tab order");
