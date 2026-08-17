@@ -1,14 +1,18 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"html/template"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	steward "github.com/imfiqhan/steward"
+	"gorm.io/gorm"
 )
 
 // The docs show one example of every field kind and every detail renderer. A
@@ -287,4 +291,53 @@ func TestEveryConfigFieldIsDocumented(t *testing.T) {
 			t.Errorf("the reference documents Config.%s, which no longer exists", name)
 		}
 	}
+}
+
+// The configuration page shows where a panel's values can come from. The
+// point is that Config is an ordinary struct, so this compiles the shapes:
+// environment variables, and a fetch that can fail.
+func TestDocumentedConfigSourcesCompile(t *testing.T) {
+	// Environment, as a generated project starts.
+	fromEnv := func(db *gorm.DB) (*steward.Admin, error) {
+		return steward.New(steward.Config{
+			DB:        db,
+			SecretKey: []byte(envOr("STEWARD_SECRET", "docs-test-secret-key-0000")),
+			Dev:       os.Getenv("STEWARD_DEV") != "",
+		})
+	}
+
+	// A secrets manager: Build returns an error, so it is a fine place to fetch.
+	fromSecrets := func(ctx context.Context, db *gorm.DB) (*steward.Admin, error) {
+		key, err := fakeSecret(ctx, "prod/panel/session-key")
+		if err != nil {
+			return nil, fmt.Errorf("reading the session key: %w", err)
+		}
+		return steward.New(steward.Config{DB: db, SecretKey: []byte(key)})
+	}
+
+	db := testDB(t)
+	for name, build := range map[string]func() (*steward.Admin, error){
+		"environment": func() (*steward.Admin, error) { return fromEnv(db) },
+		"secrets":     func() (*steward.Admin, error) { return fromSecrets(context.Background(), db) },
+	} {
+		app, err := build()
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if err := app.Build(); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+}
+
+func envOr(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
+}
+
+// fakeSecret stands in for whatever store the reader uses.
+func fakeSecret(_ context.Context, _ string) (string, error) {
+	return "docs-test-secret-key-0000", nil
 }
