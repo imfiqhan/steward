@@ -198,8 +198,8 @@ type Admin struct {
 	// exportWake nudges the queued-export worker; nil when the panel is not
 	// running one.
 	exportWake chan struct{}
-	bySlug   map[string]resourceEntry
-	byType   map[reflect.Type]resourceEntry
+	bySlug     map[string]resourceEntry
+	byType     map[reflect.Type]resourceEntry
 
 	// disks are the configured storage disks, always holding at least the
 	// default one.

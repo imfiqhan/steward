@@ -194,13 +194,3 @@ func (a *Admin) diskOf(name string) Disk {
 func (a *Admin) uploadRoutePrefix(name string) string {
 	return a.url("_uploads", name) + "/"
 }
-
-// diskFromUploadPath splits "{prefix}/_uploads/{disk}/{name}" into its parts.
-func (a *Admin) diskFromUploadPath(p string) (disk, name string) {
-	rest := strings.TrimPrefix(p, a.url("_uploads")+"/")
-	if rest == p {
-		return "", ""
-	}
-	disk, name, _ = strings.Cut(rest, "/")
-	return disk, name
-}

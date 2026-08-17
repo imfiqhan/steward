@@ -71,8 +71,8 @@ type ListQuery struct {
 	// as all of the ones before it.
 	//
 	// Nil means offset paging. A caller walks with the last key it saw.
-	After any
-	Scopes  []any
+	After  any
+	Scopes []any
 }
 
 // Repository is the data seam Grid, Form, and Detail render through. The
