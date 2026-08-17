@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 
 	steward "github.com/imfiqhan/steward"
@@ -65,10 +64,10 @@ func getPath(t *testing.T, client *http.Client, url string) (int, string) {
 
 func newNotifyApp(t *testing.T) (*steward.Admin, *gorm.DB) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:notify?mode=memory&cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Through testDB rather than SQLite directly: the bell orders by
+	// "read_at IS NULL DESC", and whether that is accepted is the dialect's
+	// business.
+	db := testDB(t)
 	app, err := steward.New(steward.Config{
 		DB:        db,
 		SecretKey: []byte("notification-test-secret-key"),
@@ -80,9 +79,6 @@ func newNotifyApp(t *testing.T) (*steward.Admin, *gorm.DB) {
 	if err := app.Build(); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		db.Exec("DELETE FROM admin_notifications")
-	})
 	return app, db
 }
 
