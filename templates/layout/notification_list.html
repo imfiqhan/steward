@@ -51,6 +51,13 @@
 <p class="steward-notification-empty">Nothing yet.</p>
 {{end}}
 
+<hr role="separator"/>
+{{/* The bell holds fifteen; the archive holds the rest. */}}
+<a role="menuitem" tabindex="-1" class="steward-notification-all" href="{{url "auth/notifications"}}"
+   hx-get="{{url "auth/notifications"}}" hx-target="#page-content" hx-push-url="true">
+  See all notifications
+</a>
+
 <span id="notification-badge" hx-swap-oob="innerHTML">
   {{if .Data.Unread}}
   <span class="steward-notification-count" aria-hidden="true">{{if gt .Data.Unread 99}}99+{{else}}{{.Data.Unread}}{{end}}</span>

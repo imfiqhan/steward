@@ -93,6 +93,9 @@ func (a *Admin) buildRoutes() *http.ServeMux {
 		mux.HandleFunc("POST "+p+"/_notifications/read", a.h(a.notificationReadAll))
 		mux.HandleFunc("POST "+p+"/_notifications/{id}/read", a.h(a.notificationRead))
 		mux.HandleFunc("GET "+p+"/_notifications/{id}/go", a.h(a.notificationGo))
+		// The archive, for when the bell's fifteen are not enough.
+		mux.HandleFunc("GET "+p+"/auth/notifications", a.h(a.notificationsPage))
+		mux.HandleFunc("POST "+p+"/auth/notifications", a.h(a.notificationsPageAction))
 	}
 
 	mux.HandleFunc("GET "+p+"/_assets/", a.serveAsset)

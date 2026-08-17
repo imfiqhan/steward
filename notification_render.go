@@ -3,6 +3,7 @@ package steward
 import (
 	"bytes"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -160,4 +161,138 @@ func relativeTime(t time.Time) string {
 	default:
 		return t.Format("2 Jan 2006")
 	}
+}
+
+// notificationPageSize is how many rows the archive shows at a time.
+const notificationPageSize = 50
+
+type notificationPageVM struct {
+	Items      []notificationVM
+	Unread     int64
+	Total      int64
+	UnreadOnly bool
+	Page       int
+	Pages      int
+	PrevURL    string
+	NextURL    string
+	// BackURL is this listing, so a row's own control returns to the page and
+	// filter it was pressed on.
+	BackURL string
+}
+
+// notificationsPage lists an account's whole history, because the bell shows
+// only the most recent and a busy panel buries anything older within a day.
+func (a *Admin) notificationsPage(c *Context) error {
+	if c.User == nil {
+		return c.Redirect(a.url("auth/login"))
+	}
+	unreadOnly := c.R.URL.Query().Get("unread") == "1"
+	page := 1
+	if n, err := strconv.Atoi(c.R.URL.Query().Get("page")); err == nil && n > 1 {
+		page = n
+	}
+
+	q := a.db.WithContext(c.Ctx()).Model(&Notification{}).Where("user_id = ?", c.User.ID)
+	if unreadOnly {
+		q = q.Where("read_at IS NULL")
+	}
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return err
+	}
+	pages := int((total + notificationPageSize - 1) / notificationPageSize)
+	if pages == 0 {
+		pages = 1
+	}
+	if page > pages {
+		page = pages
+	}
+
+	var items []Notification
+	err := q.Order("created_at DESC, id DESC").
+		Limit(notificationPageSize).
+		Offset((page - 1) * notificationPageSize).
+		Find(&items).Error
+	if err != nil {
+		return err
+	}
+	unread, err := a.UnreadNotifications(c.Ctx(), c.User.ID)
+	if err != nil {
+		return err
+	}
+
+	vm := notificationPageVM{
+		Unread: unread, Total: total, UnreadOnly: unreadOnly,
+		Page: page, Pages: pages,
+		Items: make([]notificationVM, 0, len(items)),
+	}
+	for i := range items {
+		it := &items[i]
+		vm.Items = append(vm.Items, notificationVM{
+			ID: it.ID, Title: it.Title, Body: it.Body, URL: it.URL, Icon: it.Icon,
+			When: relativeTime(it.CreatedAt), Read: it.Read(),
+		})
+	}
+	base := a.url("auth/notifications")
+	link := func(p int) string {
+		v := url.Values{}
+		if unreadOnly {
+			v.Set("unread", "1")
+		}
+		if p > 1 {
+			v.Set("page", strconv.Itoa(p))
+		}
+		if len(v) == 0 {
+			return base
+		}
+		return base + "?" + v.Encode()
+	}
+	if page > 1 {
+		vm.PrevURL = link(page - 1)
+	}
+	if page < pages {
+		vm.NextURL = link(page + 1)
+	}
+	vm.BackURL = link(page)
+	return a.render(c, "pages/notifications.html", "Notifications", vm)
+}
+
+// notificationsPageAction handles the page's own mark-read and delete
+// controls, then returns to the list the request came from.
+func (a *Admin) notificationsPageAction(c *Context) error {
+	if c.User == nil {
+		return c.JSON(http.StatusUnauthorized, Error("Sign in first."))
+	}
+	if err := c.R.ParseForm(); err != nil {
+		return err
+	}
+	back := c.R.PostFormValue("back")
+	if back == "" {
+		back = a.url("auth/notifications")
+	}
+	switch c.R.PostFormValue("do") {
+	case "read-all":
+		if err := a.MarkNotificationsRead(c.Ctx(), c.User.ID); err != nil {
+			return err
+		}
+	case "read":
+		id, err := strconv.ParseUint(c.R.PostFormValue("id"), 10, 64)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, Error("Unknown notification."))
+		}
+		if err := a.MarkNotificationRead(c.Ctx(), c.User.ID, uint(id)); err != nil {
+			return err
+		}
+	case "delete":
+		id, err := strconv.ParseUint(c.R.PostFormValue("id"), 10, 64)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, Error("Unknown notification."))
+		}
+		if err := a.DeleteNotification(c.Ctx(), c.User.ID, uint(id)); err != nil {
+			return err
+		}
+	default:
+		return c.JSON(http.StatusBadRequest, Error("Unknown action."))
+	}
+	return c.Redirect(localPath(back, a.url("auth/notifications")))
 }

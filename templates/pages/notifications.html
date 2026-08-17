@@ -1,0 +1,96 @@
+{{/* The whole history, because the bell holds only the most recent and a busy
+     panel buries anything older within a day. */}}
+<div class="p-6 flex flex-col gap-4 min-h-0">
+  <div class="flex flex-wrap items-center gap-2">
+    <h1 class="text-2xl font-semibold">Notifications</h1>
+    <span class="text-sm text-muted-foreground">
+      {{if .Data.UnreadOnly}}{{.Data.Total}} unread{{else}}{{.Data.Total}} in all{{if .Data.Unread}}, {{.Data.Unread}} unread{{end}}{{end}}
+    </span>
+
+    <div class="ms-auto flex items-center gap-2">
+      {{if .Data.UnreadOnly}}
+      <a href="{{url "auth/notifications"}}" class="btn" data-variant="outline" data-size="sm"
+         hx-get="{{url "auth/notifications"}}" hx-target="#page-content" hx-push-url="true">Show all</a>
+      {{else}}
+      <a href="{{url "auth/notifications"}}?unread=1" class="btn" data-variant="outline" data-size="sm"
+         hx-get="{{url "auth/notifications"}}?unread=1" hx-target="#page-content" hx-push-url="true">Unread only</a>
+      {{end}}
+      {{if .Data.Unread}}
+      <form method="post" action="{{url "auth/notifications"}}">
+        <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+        <input type="hidden" name="do" value="read-all"/>
+        <button type="submit" class="btn" data-variant="outline" data-size="sm">Mark all read</button>
+      </form>
+      {{end}}
+    </div>
+  </div>
+
+  <div class="card" data-size="sm">
+    <section class="px-0">
+      {{if .Data.Items}}
+      <ul class="divide-y" role="list">
+        {{range .Data.Items}}
+        <li class="steward-notification-row{{if not .Read}} is-unread{{end}}">
+          {{if .Icon}}<span class="steward-notification-icon">{{icon .Icon "size-4"}}</span>{{end}}
+          <div class="min-w-0 flex-1">
+            {{if .URL}}
+            <a class="steward-notification-row-title" href="{{url "_notifications"}}/{{.ID}}/go">{{.Title}}</a>
+            {{else}}
+            <p class="steward-notification-row-title">{{.Title}}</p>
+            {{end}}
+            {{if .Body}}<p class="steward-notification-row-body">{{.Body}}</p>{{end}}
+            <p class="steward-notification-when">{{.When}}</p>
+          </div>
+          <div class="flex shrink-0 items-center gap-1">
+            {{if not .Read}}
+            <form method="post" action="{{url "auth/notifications"}}">
+              <input type="hidden" name="_token" value="{{$.Page.CSRF}}"/>
+              <input type="hidden" name="do" value="read"/>
+              <input type="hidden" name="id" value="{{.ID}}"/>
+              <input type="hidden" name="back" value="{{$.Data.BackURL}}"/>
+              <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="Mark read">
+                {{icon "check" "size-4"}}
+              </button>
+            </form>
+            {{end}}
+            <form method="post" action="{{url "auth/notifications"}}">
+              <input type="hidden" name="_token" value="{{$.Page.CSRF}}"/>
+              <input type="hidden" name="do" value="delete"/>
+              <input type="hidden" name="id" value="{{.ID}}"/>
+              <input type="hidden" name="back" value="{{$.Data.BackURL}}"/>
+              <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="Delete">
+                {{icon "trash-2" "size-4"}}
+              </button>
+            </form>
+          </div>
+        </li>
+        {{end}}
+      </ul>
+      {{else}}
+      <p class="px-4 py-10 text-center text-sm text-muted-foreground">
+        {{if .Data.UnreadOnly}}Nothing unread.{{else}}Nothing yet.{{end}}
+      </p>
+      {{end}}
+    </section>
+
+    {{if gt .Data.Pages 1}}
+    <footer class="flex items-center justify-between gap-2">
+      <p class="text-sm text-muted-foreground">Page {{.Data.Page}} of {{.Data.Pages}}</p>
+      <div class="flex items-center gap-1">
+        {{if .Data.PrevURL}}
+        <a href="{{.Data.PrevURL}}" class="btn" data-variant="outline" data-size="sm"
+           hx-get="{{.Data.PrevURL}}" hx-target="#page-content" hx-push-url="true">{{icon "chevron-left" "size-4"}} Newer</a>
+        {{else}}
+        <span class="btn opacity-50 pointer-events-none" data-variant="outline" data-size="sm">{{icon "chevron-left" "size-4"}} Newer</span>
+        {{end}}
+        {{if .Data.NextURL}}
+        <a href="{{.Data.NextURL}}" class="btn" data-variant="outline" data-size="sm"
+           hx-get="{{.Data.NextURL}}" hx-target="#page-content" hx-push-url="true">Older {{icon "chevron-right" "size-4"}}</a>
+        {{else}}
+        <span class="btn opacity-50 pointer-events-none" data-variant="outline" data-size="sm">Older {{icon "chevron-right" "size-4"}}</span>
+        {{end}}
+      </div>
+    </footer>
+    {{end}}
+  </div>
+</div>

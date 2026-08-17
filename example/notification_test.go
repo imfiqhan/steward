@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -381,5 +382,108 @@ func TestFollowingANotificationStaysOnThisOrigin(t *testing.T) {
 				t.Errorf("URL %q redirected off-origin to %q", it.URL, loc)
 			}
 		}
+	}
+}
+
+// The bell holds fifteen. An account with more than that needs somewhere to
+// read the rest, which is the whole point of the page.
+func TestNotificationArchivePagesAndFilters(t *testing.T) {
+	app, _ := newNotifyApp(t)
+	ctx := context.Background()
+	for i := 1; i <= 60; i++ {
+		n := steward.Notification{Title: fmt.Sprintf("note %02d", i)}
+		if err := app.Notify(ctx, 1, n); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Half read, so the unread filter has something to leave out.
+	items, _ := app.Notifications(ctx, 1, 100)
+	for i := 0; i < 30; i++ {
+		if err := app.MarkNotificationRead(ctx, 1, items[i].ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar}
+	signIn(t, client, srv.URL)
+
+	// On the list item, so the title and body classes — which begin with the
+	// same string — are not counted as rows of their own.
+	rows := func(body string) int { return strings.Count(body, `<li class="steward-notification-row`) }
+
+	code, body := getPath(t, client, srv.URL+"/admin/auth/notifications")
+	if code != http.StatusOK {
+		t.Fatalf("the archive = %d, want 200", code)
+	}
+	if !strings.Contains(body, "60 in all") {
+		t.Errorf("the archive does not report 60 in all")
+	}
+	// One page holds fifty; the sixty here must therefore span two.
+	if n := rows(body); n != 50 {
+		t.Errorf("page 1 shows %d rows, want 50", n)
+	}
+	if !strings.Contains(body, "page=2") {
+		t.Error("no link to the second page")
+	}
+
+	code, body = getPath(t, client, srv.URL+"/admin/auth/notifications?page=2")
+	if code != http.StatusOK {
+		t.Fatalf("page 2 = %d, want 200", code)
+	}
+	if n := rows(body); n != 10 {
+		t.Errorf("page 2 shows %d rows, want 10", n)
+	}
+
+	code, body = getPath(t, client, srv.URL+"/admin/auth/notifications?unread=1")
+	if code != http.StatusOK {
+		t.Fatalf("the unread view = %d, want 200", code)
+	}
+	if n := rows(body); n != 30 {
+		t.Errorf("the unread view shows %d rows, want 30", n)
+	}
+	if !strings.Contains(body, "30 unread") {
+		t.Errorf("the unread view does not report 30 unread")
+	}
+}
+
+// The page's own controls act on one account's rows only.
+func TestArchiveActionsAreScopedToTheAccount(t *testing.T) {
+	app, db := newNotifyApp(t)
+	ctx := context.Background()
+	other := secondUser(t, db)
+	if err := app.Notify(ctx, other, steward.Notification{Title: "Theirs"}); err != nil {
+		t.Fatal(err)
+	}
+	theirs, _ := app.Notifications(ctx, other, 0)
+
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar}
+	signIn(t, client, srv.URL)
+
+	// A token is needed, and the page is where a browser would find one.
+	_, page := getPath(t, client, srv.URL+"/admin/auth/notifications")
+	m := notifyTokenRe.FindStringSubmatch(page)
+	if m == nil {
+		t.Skip("no CSRF token on the archive page")
+	}
+
+	form := url.Values{"_token": {m[1]}, "do": {"delete"}, "id": {itoa(theirs[0].ID)}}
+	resp, err := client.PostForm(srv.URL+"/admin/auth/notifications", form)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = readBody(t, resp)
+
+	left, err := app.Notifications(ctx, other, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(left) != 1 {
+		t.Fatalf("another account deleted this one's notification: %d left", len(left))
 	}
 }
