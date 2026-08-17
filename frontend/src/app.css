@@ -870,16 +870,17 @@ tr.steward-dragging { opacity: 0.5; }
   --steward-tone-fg: var(--color-muted-foreground);
 }
 
-@media (prefers-color-scheme: dark) {
-  .steward-metric[data-tone="green"] { --steward-tone-bg: #052e16; --steward-tone-fg: #86efac; --steward-tone-border: #14532d; }
-  .steward-metric[data-tone="blue"] { --steward-tone-bg: #172554; --steward-tone-fg: #93c5fd; --steward-tone-border: #1e3a8a; }
-  .steward-metric[data-tone="azure"] { --steward-tone-bg: #082f49; --steward-tone-fg: #7dd3fc; --steward-tone-border: #0c4a6e; }
-  .steward-metric[data-tone="purple"] { --steward-tone-bg: #3b0764; --steward-tone-fg: #d8b4fe; --steward-tone-border: #581c87; }
-  .steward-metric[data-tone="orange"] { --steward-tone-bg: #431407; --steward-tone-fg: #fdba74; --steward-tone-border: #7c2d12; }
-  .steward-metric[data-tone="yellow"] { --steward-tone-bg: #451a03; --steward-tone-fg: #fcd34d; --steward-tone-border: #78350f; }
-  .steward-metric[data-tone="red"],
-  .steward-metric[data-tone="destructive"] { --steward-tone-bg: #450a0a; --steward-tone-fg: #fca5a5; --steward-tone-border: #7f1d1d; }
-}
+/* The panel switches theme with a class on the root, not the media query:
+   written as prefers-color-scheme these never applied to a reader who
+   toggled dark themselves, leaving a pale chip on a dark card. */
+.dark .steward-metric[data-tone="green"] { --steward-tone-bg: #052e16; --steward-tone-fg: #86efac; --steward-tone-border: #14532d; }
+.dark .steward-metric[data-tone="blue"] { --steward-tone-bg: #172554; --steward-tone-fg: #93c5fd; --steward-tone-border: #1e3a8a; }
+.dark .steward-metric[data-tone="azure"] { --steward-tone-bg: #082f49; --steward-tone-fg: #7dd3fc; --steward-tone-border: #0c4a6e; }
+.dark .steward-metric[data-tone="purple"] { --steward-tone-bg: #3b0764; --steward-tone-fg: #d8b4fe; --steward-tone-border: #581c87; }
+.dark .steward-metric[data-tone="orange"] { --steward-tone-bg: #431407; --steward-tone-fg: #fdba74; --steward-tone-border: #7c2d12; }
+.dark .steward-metric[data-tone="yellow"] { --steward-tone-bg: #451a03; --steward-tone-fg: #fcd34d; --steward-tone-border: #78350f; }
+.dark .steward-metric[data-tone="red"],
+.dark .steward-metric[data-tone="destructive"] { --steward-tone-bg: #450a0a; --steward-tone-fg: #fca5a5; --steward-tone-border: #7f1d1d; }
 
 /* ---- Preview viewer ------------------------------------------------------- */
 
