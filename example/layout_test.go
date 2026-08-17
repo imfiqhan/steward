@@ -264,12 +264,26 @@ func builtStylesheet(t *testing.T) string {
 func TestRowMenuStylesheetRules(t *testing.T) {
 	css := builtStylesheet(t)
 
+	if !strings.Contains(css, `steward-col-actions:has([aria-expanded=true]){z-index:3}`) {
+		t.Error("the built stylesheet is missing the open cell's z-index")
+	}
+
+	// The rule has to reach the menu in both places it can be: inside its
+	// wrapper, and moved out of the table while it is open. A selector that
+	// covers only the first leaves the moved one absolutely positioned against
+	// the document and animating its way in.
+	i := strings.Index(css, "[data-steward-menu]>[data-popover]")
+	if i < 0 {
+		t.Fatal("the built stylesheet does not position the row menu at all")
+	}
+	rule := css[i : i+strings.Index(css[i:], "}")+1]
 	for _, want := range []string{
-		`steward-col-actions:has([aria-expanded=true]){z-index:3}`,
-		`[data-steward-menu]>[data-popover]{transition-property:opacity,transform,visibility;position:fixed}`,
+		"[data-popover][data-steward-portal]",
+		"position:fixed",
+		"transition-property:opacity,transform,visibility",
 	} {
-		if !strings.Contains(css, want) {
-			t.Errorf("the built stylesheet is missing %s", want)
+		if !strings.Contains(rule, want) {
+			t.Errorf("the row menu rule is missing %s: %s", want, rule)
 		}
 	}
 }
