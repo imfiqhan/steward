@@ -20,6 +20,8 @@ type Grid[T any] struct {
 	toolActions  []*Action
 	// actionStyle overrides Config.GridActions for this grid; "" inherits it.
 	actionStyle GridActionStyle
+	// filterLayout overrides Config.FilterLayout for this grid; "" inherits it.
+	filterLayout GridFilterLayout
 
 	headerGroups []headerGroup
 
@@ -140,6 +142,29 @@ func (g *Grid[T]) DisableEdit() *Grid[T] { g.off["edit"] = true; return g }
 
 // DisableView hides the row detail action.
 func (g *Grid[T]) DisableView() *Grid[T] { g.off["view"] = true; return g }
+
+// GridFilterLayout chooses where a grid's filter panel lives.
+type GridFilterLayout string
+
+const (
+	// FiltersAbove puts the panel between the toolbar and the rows, open in
+	// place. The default.
+	FiltersAbove GridFilterLayout = "above"
+	// FiltersDrawer puts it in a drawer from the right, over the page. Worth it
+	// where a grid has enough filters that opening them in place pushes the
+	// rows off the screen.
+	FiltersDrawer GridFilterLayout = "drawer"
+)
+
+// filterLayouts lists what the template renders. One outside it would fall
+// back to "above" silently, which is why Verify reports it.
+var filterLayouts = map[GridFilterLayout]bool{FiltersAbove: true, FiltersDrawer: true}
+
+// FilterLayout overrides Config.FilterLayout for this grid.
+func (g *Grid[T]) FilterLayout(l GridFilterLayout) *Grid[T] {
+	g.filterLayout = l
+	return g
+}
 
 // DisableFilter hides the filter panel.
 func (g *Grid[T]) DisableFilter() *Grid[T] { g.off["filter"] = true; return g }
@@ -622,6 +647,17 @@ func (s GridActionStyle) resolve(fallback GridActionStyle) GridActionStyle {
 		return GridActionsMenu
 	}
 	return GridActionsButtons
+}
+
+// resolve settles a grid's layout against the panel-wide default.
+func (l GridFilterLayout) resolve(fallback GridFilterLayout) GridFilterLayout {
+	if l == "" {
+		l = fallback
+	}
+	if l == FiltersDrawer {
+		return FiltersDrawer
+	}
+	return FiltersAbove
 }
 
 // Options maps stored values to display labels for selects/radios.

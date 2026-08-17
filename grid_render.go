@@ -303,8 +303,8 @@ func pageWindow(cur, last int) []int {
 }
 
 type filterVM struct {
-	Param       string
-	Label       string
+	Param string
+	Label string
 	// Span is how many of the panel's twelve columns the control takes.
 	Span        int
 	Input       string // text | select | date | datetime | between | datebetween
@@ -352,7 +352,9 @@ type gridVM struct {
 	Features       map[string]bool
 	DeleteURLBase  string
 	// ActionStyle is "buttons" or "menu"; the template branches on it.
-	ActionStyle  string
+	ActionStyle string
+	// FilterLayout is "above" or "drawer".
+	FilterLayout string
 	RowActions   []actionVM
 	BatchActions []actionVM
 	ToolActions  []actionVM
@@ -409,6 +411,7 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		ResetURL:       c.URL(m.slug),
 		DeleteURLBase:  c.URL(m.slug),
 		ActionStyle:    string(g.actionStyle.resolve(c.Admin.cfg.GridActions)),
+		FilterLayout:   string(g.filterLayout.resolve(c.Admin.cfg.FilterLayout)),
 		RowActions:     actionVMs(c.URL(m.slug), g.rowActions),
 		BatchActions:   actionVMs(c.URL(m.slug), g.batchActions),
 		ToolActions:    actionVMs(c.URL(m.slug), g.toolActions),

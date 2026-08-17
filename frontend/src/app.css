@@ -280,6 +280,21 @@ tr.steward-dragging { opacity: 0.5; }
   .steward-filter-grid > .steward-span-12 { grid-column: span 12; }
 }
 
+/* A drawer is one column wide, so the twelve-column spans collapse: written
+   out per span because a [class*=] rule after them takes every span with it. */
+.steward-filter-drawer .steward-filter-grid > .steward-span-1,
+.steward-filter-drawer .steward-filter-grid > .steward-span-2,
+.steward-filter-drawer .steward-filter-grid > .steward-span-3,
+.steward-filter-drawer .steward-filter-grid > .steward-span-4,
+.steward-filter-drawer .steward-filter-grid > .steward-span-5,
+.steward-filter-drawer .steward-filter-grid > .steward-span-6,
+.steward-filter-drawer .steward-filter-grid > .steward-span-7,
+.steward-filter-drawer .steward-filter-grid > .steward-span-8,
+.steward-filter-drawer .steward-filter-grid > .steward-span-9,
+.steward-filter-drawer .steward-filter-grid > .steward-span-10,
+.steward-filter-drawer .steward-filter-grid > .steward-span-11,
+.steward-filter-drawer .steward-filter-grid > .steward-span-12 { grid-column: span 12; }
+
 /* ---- Page layout (steward.Row / steward.Col) ------------------------------ */
 
 /* The same twelve columns a form divides into, so a span means one thing across
@@ -426,6 +441,11 @@ tr.steward-dragging { opacity: 0.5; }
 .steward-daterange-trigger {
   display: inline-flex;
   align-items: center;
+  /* Fills its column, like every other control in the panel: sized to its
+     content it came out at 107px in a 574px slot, so the widest filter looked
+     like the narrowest. */
+  justify-content: flex-start;
+  width: 100%;
   gap: 0.5rem;
   height: 2.25rem;
   padding: 0 0.75rem;

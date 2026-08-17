@@ -143,6 +143,17 @@ window.htmx = htmx;
     if (!t) return;
     var target = document.querySelector(t.getAttribute("data-steward-toggle"));
     if (!target) return;
+    // The filter panel is a <dialog> when the grid asked for the drawer layout,
+    // and a dialog is opened, not un-hidden.
+    if (target.tagName === "DIALOG") {
+      if (target.open) {
+        target.close();
+      } else {
+        target.showModal();
+      }
+      t.setAttribute("aria-expanded", target.open ? "true" : "false");
+      return;
+    }
     var hidden = target.classList.toggle("hidden");
     t.setAttribute("aria-expanded", hidden ? "false" : "true");
   });

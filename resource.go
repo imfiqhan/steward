@@ -299,6 +299,11 @@ func (t *typedResource[T]) compile(a *Admin) error {
 				t.res.m.slug, p, info.Relation))
 		}
 	}
+	if l := g.filterLayout; l != "" && !filterLayouts[l] {
+		a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+			"resource %q: unknown filter layout %q (known: %s, %s)",
+			t.res.m.slug, l, FiltersAbove, FiltersDrawer))
+	}
 	for _, p := range t.res.commandPaths {
 		if info := verify("command search", p); info != nil && !info.filterable() {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(

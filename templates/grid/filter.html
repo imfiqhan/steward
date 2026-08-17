@@ -1,106 +1,31 @@
 {{if .Data.Features.filter}}
+{{if eq .Data.FilterLayout "drawer"}}
+{{/* Over the page from the right, for a grid with enough filters that opening
+     them in place would push the rows off the screen. Basecoat's drawer is a
+     native <dialog>, so modality, focus and inert content are the platform's. */}}
+<dialog id="grid-filters" class="drawer" data-side="right" aria-labelledby="grid-filters-title">
+  <article>
+    <header>
+      <h2 id="grid-filters-title">Filters</h2>
+    </header>
+    <section class="px-4">
+      <form method="get" action="{{.Data.BaseURL}}"
+            hx-get="{{.Data.BaseURL}}" hx-target="#page-content" hx-push-url="true"
+            class="steward-filter-drawer">
+        {{template "grid/_filter_body" .}}
+      </form>
+    </section>
+  </article>
+</dialog>
+{{else}}
 {{/* a plain div child spans the card's full width (cards pad only
      header/section/footer), so no negative margins: px-4 matches the
      sm card's child padding so content lines up with the toolbar */}}
 <div id="grid-filters" class="{{if not .Data.ActiveFilters}}hidden{{end}} border-y bg-muted/40 px-4 py-4">
   <form method="get" action="{{.Data.BaseURL}}"
         hx-get="{{.Data.BaseURL}}" hx-target="#page-content" hx-push-url="true">
-    {{/* The same twelve columns a form divides into, so a span means one thing
-         across the panel. Flowed instead, a date range — which needs room for
-         two controls — ended up the narrowest thing in the row. */}}
-    <div class="steward-filter-grid items-end">
-      {{range .Data.Filters}}
-      <div class="steward-span-{{.Span}} grid gap-2 min-w-0">
-        <label class="label" for="filter-{{.Param}}">{{.Label}}</label>
-        {{if eq .Input "select"}}
-          {{/* The same combobox the form uses. A <select> has to carry every
-               option in the page: a tag filter over 7,776 rows put 7,779 of
-               them into every page of the grid. */}}
-          <div id="filter-{{.Param}}-combobox" class="combobox w-full" data-auto-highlight="true"
-               {{if .Search}}data-filter="manual" data-steward-options="{{.OptionsURL}}"{{end}}>
-            <div class="input-group">
-              <input type="text" role="combobox" id="filter-{{.Param}}"
-                     value="{{.SelectedLabel}}" placeholder="Any"
-                     autocomplete="off" autocorrect="off" spellcheck="false"
-                     aria-autocomplete="list" aria-expanded="false"
-                     aria-controls="filter-{{.Param}}-listbox"/>
-              <span role="group" data-align="inline-end">
-                <button type="button" data-clear aria-label="Clear {{.Label}}">
-                  {{icon "x" "size-3"}}
-                </button>
-                <button type="button" class="btn" data-variant="ghost" data-size="icon-xs"
-                        aria-label="Open suggestions" aria-haspopup="listbox" aria-expanded="false"
-                        aria-controls="filter-{{.Param}}-listbox">
-                  {{icon "chevron-down"}}
-                </button>
-              </span>
-            </div>
-            <div id="filter-{{.Param}}-popover" data-popover aria-hidden="true">
-              <div role="listbox" id="filter-{{.Param}}-listbox" class="scrollbar-sm"
-                   aria-orientation="vertical" data-empty="No matches.">
-                {{range .Options}}
-                <div role="option" data-value="{{.Value}}" data-label="{{.Label}}" title="{{.Label}}"
-                     {{if .Selected}}aria-selected="true"{{end}}>{{.Label}}</div>
-                {{end}}
-              </div>
-            </div>
-            <input type="hidden" name="{{.Param}}" value="{{.Value}}"/>
-          </div>
-        {{else if eq .Input "between"}}
-          <div class="flex gap-2">
-            <input id="filter-{{.Param}}" type="text" name="{{.Param}}" value="{{.Value}}" class="input" placeholder="min"/>
-            <input type="text" name="{{.Param}}_to" value="{{.Value2}}" class="input" placeholder="max" aria-label="{{.Label}} max"/>
-          </div>
-        {{else if eq .Input "daterange"}}
-          {{/* One control for both ends. The two inputs it writes are the same
-               ones a Between filter submits, so the server side is unchanged and
-               a hand-written URL still works. */}}
-          <div class="steward-daterange" data-steward-daterange>
-            <button type="button" class="steward-daterange-trigger" data-steward-daterange-trigger
-                    aria-haspopup="dialog" aria-expanded="false">
-              {{icon "calendar" "size-4"}}
-              <span data-steward-daterange-label>Any date</span>
-            </button>
-            <button type="button" class="steward-daterange-clear" data-steward-daterange-clear
-                    aria-label="Clear {{.Label}}" {{if and (not .Value) (not .Value2)}}hidden{{end}}>
-              {{icon "x" "size-3"}}
-            </button>
-            <input type="hidden" name="{{.Param}}" value="{{.Value}}" data-steward-daterange-from/>
-            <input type="hidden" name="{{.Param}}_to" value="{{.Value2}}" data-steward-daterange-to/>
-          </div>
-        {{else if eq .Input "datebetween"}}
-          <div class="flex gap-2">
-            <div class="steward-datepicker" data-steward-datepicker="compact">
-              <input id="filter-{{.Param}}" type="date" name="{{.Param}}" value="{{.Value}}" class="input"/>
-            </div>
-            <div class="steward-datepicker" data-steward-datepicker="compact">
-              <input type="date" name="{{.Param}}_to" value="{{.Value2}}" class="input" aria-label="{{.Label}} end"/>
-            </div>
-          </div>
-        {{else if eq .Input "date"}}
-          {{/* Wrapped, so the calendar app.js adds to a form's date field reaches
-               a filter's too — these were the browser's own control and nothing
-               else. */}}
-          <div class="steward-datepicker" data-steward-datepicker="compact">
-            <input id="filter-{{.Param}}" type="date" name="{{.Param}}" value="{{.Value}}" class="input"/>
-          </div>
-        {{else if eq .Input "datetime"}}
-          <div class="steward-datepicker" data-steward-datepicker="compact">
-            <input id="filter-{{.Param}}" type="datetime-local" name="{{.Param}}" step="1" value="{{.Value}}" class="input"/>
-          </div>
-        {{else}}
-          <input id="filter-{{.Param}}" type="text" name="{{.Param}}" value="{{.Value}}" class="input" placeholder="{{.Placeholder}}"/>
-        {{end}}
-      </div>
-      {{end}}
-      {{/* The buttons are a grid item too, or they take one implicit column and
-           come out narrower than the label above them. */}}
-      <div class="steward-span-3 flex gap-2">
-        <button type="submit" class="btn">{{icon "filter"}} Apply</button>
-        <a class="btn" data-variant="ghost" href="{{.Data.ResetURL}}"
-           hx-get="{{.Data.ResetURL}}" hx-target="#page-content" hx-push-url="true">Reset</a>
-      </div>
-    </div>
+    {{template "grid/_filter_body" .}}
   </form>
 </div>
+{{end}}
 {{end}}

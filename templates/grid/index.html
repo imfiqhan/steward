@@ -27,7 +27,12 @@
        and pagination keep their own height, which is what leaves the pagination
        in view without needing to be sticky — it sits outside the scroll area,
        not pinned inside it. */}}
-  <div class="card overflow-visible self-start max-h-full min-h-0" data-size="sm">
+  {{/* The cap starts at the small breakpoint. Below it the toolbar, an open
+       filter panel and the pagination already exceed a phone's viewport on
+       their own, and since they cannot shrink the card's content spilled past
+       its own bottom edge — which, the card being overflow-visible, drew that
+       edge straight across the filters. There the page scrolls instead. */}}
+  <div class="card overflow-visible self-start sm:max-h-full min-h-0" data-size="sm">
     {{template "grid/toolbar.html" .}}
     {{template "grid/filter.html" .}}
     <section class="px-0 min-w-0 flex flex-col flex-auto min-h-0">

@@ -106,6 +106,12 @@ type Config struct {
 	// Grid.ActionStyle.
 	GridActions GridActionStyle
 
+	// FilterLayout chooses where every grid's filter panel lives:
+	// FiltersAbove (the default) opens it in place between the toolbar and the
+	// rows, FiltersDrawer opens it over the page from the right. A single grid
+	// can differ via Grid.FilterLayout.
+	FilterLayout GridFilterLayout
+
 	// Require2FA makes TOTP two-factor authentication mandatory: an account
 	// that has not enrolled is redirected to its profile page and can reach
 	// nothing else until it does. Off by default, in which case each user

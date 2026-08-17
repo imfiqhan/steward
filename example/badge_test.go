@@ -951,3 +951,91 @@ func rangeControl(html string) string {
 	}
 	return strings.Join(strings.Fields(html[max(0, i-40):min(len(html), i+320)]), " ")
 }
+
+// Where the filter panel lives is a choice: above the rows, or in a drawer over
+// the page. Both render the same controls.
+func TestFilterLayouts(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		layout     steward.GridFilterLayout
+		wantDrawer bool
+	}{
+		{"above by default", "", false},
+		{"above", steward.FiltersAbove, false},
+		{"drawer", steward.FiltersDrawer, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := testDB(t)
+			if err := db.AutoMigrate(&paletteRow{}); err != nil {
+				t.Fatal(err)
+			}
+			app, err := steward.New(steward.Config{
+				DB: db, SecretKey: []byte("filter-layout-test-secret-key"),
+				AuthExcept: []string{"/palette_rows*"},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			steward.Register[paletteRow](app).Grid(func(g *steward.Grid[paletteRow]) {
+				g.Column("Title")
+				if tc.layout != "" {
+					g.FilterLayout(tc.layout)
+				}
+				g.Filter(func(f *steward.Filters[paletteRow]) {
+					f.Like("Title", "Judul")
+					f.DateRange("PostDate", "Posted")
+				})
+			})
+			if err := app.Build(); err != nil {
+				t.Fatal(err)
+			}
+			if err := app.Verify(); err != nil {
+				t.Fatal(err)
+			}
+			srv := httptest.NewServer(app)
+			t.Cleanup(srv.Close)
+
+			html := fetchOK(t, srv.URL+"/admin/palette_rows")
+			isDrawer := strings.Contains(html, `<dialog id="grid-filters" class="drawer"`)
+			if isDrawer != tc.wantDrawer {
+				t.Errorf("drawer = %v, want %v", isDrawer, tc.wantDrawer)
+			}
+			// The controls are the same either way, and the button still points
+			// at the panel.
+			for _, want := range []string{
+				"steward-filter-grid", "data-steward-daterange", `name="f_Title"`,
+				`data-steward-toggle="#grid-filters"`,
+			} {
+				if !strings.Contains(html, want) {
+					t.Errorf("%s layout is missing %q", tc.name, want)
+				}
+			}
+			if tc.wantDrawer && !strings.Contains(html, `data-side="right"`) {
+				t.Error("the drawer should come from the right")
+			}
+		})
+	}
+}
+
+// TestFilterLayoutIsVerified keeps a typo from silently falling back.
+func TestFilterLayoutIsVerified(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&paletteRow{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("filter-layout-bad-secret-key")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[paletteRow](app).Grid(func(g *steward.Grid[paletteRow]) {
+		g.Column("Title")
+		g.FilterLayout("sidebar")
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	err = app.Verify()
+	if err == nil || !strings.Contains(err.Error(), "unknown filter layout") {
+		t.Errorf("an unknown layout should be a boot error, got: %v", err)
+	}
+}

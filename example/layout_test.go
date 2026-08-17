@@ -356,7 +356,10 @@ func TestGridHeaderPinning(t *testing.T) {
 		{"the shell is the viewport", `<main class="h-dvh flex flex-col">`},
 		{"the content pane fills it and can shrink", `id="page-content" class="flex-1 min-h-0 flex flex-col overflow-y-auto"`},
 		{"the page fills the pane, card row taking the leftover", `grid-rows-[auto_minmax(0,1fr)] gap-4 flex-1 min-h-0`},
-		{"the card is capped by the page rather than stretched", `self-start max-h-full min-h-0`},
+		// The cap starts at the small breakpoint: below it the toolbar, an open
+		// filter panel and the pager already exceed a phone's viewport, and the
+		// card's content spilled past its own bottom edge.
+		{"the card is capped by the page rather than stretched", `self-start sm:max-h-full min-h-0`},
 		{"the table's section takes the card's leftover", `px-0 min-w-0 flex flex-col flex-auto min-h-0`},
 		{"the container takes the section's, on a content basis", `table-container flex-auto min-h-0`},
 	} {
