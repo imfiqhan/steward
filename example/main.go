@@ -89,7 +89,7 @@ func registerResources(app *steward.Admin) {
 			g.Filter(func(f *steward.Filters[models.Post]) {
 				f.Equal("Status").Select(steward.Options{"draft": "Draft", "published": "Published"})
 				f.Like("Title")
-				f.Between("CreatedAt", "Created").Datetime()
+				f.DateRange("CreatedAt", "Created")
 			})
 			publish := func(c *steward.Context, ids []string) (*steward.Envelope, error) {
 				if len(ids) == 0 {
