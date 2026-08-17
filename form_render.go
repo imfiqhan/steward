@@ -779,7 +779,8 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	if creating {
 		verb = "created"
 	}
-	c.Flash("success", t.res.m.title+" "+verb+".")
+	// The envelope's toast carries this; a flash as well would show the same
+	// sentence twice, once as a banner on the page redirected to.
 	return c.Envelope(Success(t.res.m.title + " " + verb + ".").Redirect(c.URL(t.res.m.slug)))
 }
 

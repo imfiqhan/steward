@@ -50,7 +50,11 @@
         {{else if eq .Label "gap"}}
           <span class="flex size-9 items-center justify-center text-muted-foreground" aria-hidden="true">…</span>
         {{else}}
-          <a href="{{.URL}}" class="btn" data-variant="{{if .Active}}outline{{else}}ghost{{end}}" data-size="icon"
+          {{/* Not data-size="icon": that is a fixed 36px square, and a table of
+               100k rows has five-digit page numbers, which overflowed it and ran
+               into the button beside them. min-w-9 keeps a single digit square
+               and lets a longer label grow. */}}
+          <a href="{{.URL}}" class="btn min-w-9 px-2" data-variant="{{if .Active}}outline{{else}}ghost{{end}}"
              {{if .Active}}aria-current="page"{{end}}
              hx-get="{{.URL}}" hx-target="#page-content" hx-push-url="true">{{.Label}}</a>
         {{end}}
