@@ -548,7 +548,37 @@ type FilterItem[T any] struct {
 	options     Options
 	optionsFn   func(*Context) Options
 	placeholder string
+	span        int
 	info        *fieldInfo
+}
+
+// Span sets how many of the filter panel's twelve columns the control takes,
+// the same twelve a form divides into. Values outside 1..12 are clamped.
+//
+//	f.Equal("Status").Span(3)
+//	f.Between("PostDate").Datetime().Span(6)
+//
+// Unset, each kind takes a width that suits it: a range needs room for two
+// controls, a switch needs almost none.
+func (fi *FilterItem[T]) Span(n int) *FilterItem[T] {
+	fi.span = min(max(n, 1), layoutColumns)
+	return fi
+}
+
+// spanOr returns the declared span, or what the input kind is worth.
+func (fi *FilterItem[T]) spanOr() int {
+	if fi.span > 0 {
+		return fi.span
+	}
+	switch fi.input {
+	case inputBetween, inputDateBetween, inputDateRange:
+		// Two controls, or a range picker with a written-out label.
+		return 6
+	case inputDate, inputDatetime:
+		return 4
+	default:
+		return 3
+	}
 }
 
 // dateLike reports whether the filter's values are dates, which decides how an

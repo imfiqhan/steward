@@ -231,6 +231,55 @@ tr.steward-dragging { opacity: 0.5; }
   .steward-form-grid > .steward-span-12 { grid-column: span 12; }
 }
 
+/* ---- Filter panel --------------------------------------------------------- */
+
+/* Twelve columns, like a form and like a page. Below the small breakpoint each
+   control takes the row: two filters side by side on a phone are two filters
+   too narrow to use. min-width:0 at both levels because a grid item's default
+   lets a combobox push its column past the track it was given. */
+.steward-filter-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.steward-filter-grid > [class*="steward-span-"] {
+  grid-column: span 12;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .steward-filter-grid > .steward-span-1 { grid-column: span 2; }
+  .steward-filter-grid > .steward-span-2 { grid-column: span 3; }
+  .steward-filter-grid > .steward-span-3 { grid-column: span 4; }
+  .steward-filter-grid > .steward-span-4 { grid-column: span 6; }
+  .steward-filter-grid > .steward-span-5 { grid-column: span 6; }
+  .steward-filter-grid > .steward-span-6 { grid-column: span 6; }
+  /* Written out rather than as one [class*=] rule, which would come after
+     these and take every span with it. */
+  .steward-filter-grid > .steward-span-7,
+  .steward-filter-grid > .steward-span-8,
+  .steward-filter-grid > .steward-span-9,
+  .steward-filter-grid > .steward-span-10,
+  .steward-filter-grid > .steward-span-11,
+  .steward-filter-grid > .steward-span-12 { grid-column: span 12; }
+}
+
+@media (min-width: 1024px) {
+  .steward-filter-grid > .steward-span-1 { grid-column: span 1; }
+  .steward-filter-grid > .steward-span-2 { grid-column: span 2; }
+  .steward-filter-grid > .steward-span-3 { grid-column: span 3; }
+  .steward-filter-grid > .steward-span-4 { grid-column: span 4; }
+  .steward-filter-grid > .steward-span-5 { grid-column: span 5; }
+  .steward-filter-grid > .steward-span-6 { grid-column: span 6; }
+  .steward-filter-grid > .steward-span-7 { grid-column: span 7; }
+  .steward-filter-grid > .steward-span-8 { grid-column: span 8; }
+  .steward-filter-grid > .steward-span-9 { grid-column: span 9; }
+  .steward-filter-grid > .steward-span-10 { grid-column: span 10; }
+  .steward-filter-grid > .steward-span-11 { grid-column: span 11; }
+  .steward-filter-grid > .steward-span-12 { grid-column: span 12; }
+}
+
 /* ---- Page layout (steward.Row / steward.Col) ------------------------------ */
 
 /* The same twelve columns a form divides into, so a span means one thing across

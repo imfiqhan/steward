@@ -727,3 +727,90 @@ func (w *windowSearcher) Query(_ context.Context, _, _ string, limit int) ([]ste
 	}
 	return out, nil
 }
+
+// The filter panel divides into the same twelve columns a form does. Flowed
+// instead, a range — which needs room for two controls — came out the
+// narrowest thing in the row.
+func TestFilterSpans(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&paletteRow{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("filter-span-test-secret-key"),
+		AuthExcept: []string{"/palette_rows*"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[paletteRow](app).Grid(func(g *steward.Grid[paletteRow]) {
+		g.Column("Title")
+		g.Filter(func(f *steward.Filters[paletteRow]) {
+			f.Equal("Title", "Exact").Span(2)
+			f.Like("Slug", "Slug")            // default for a text filter
+			f.DateRange("PostDate", "Posted") // default for a range
+			f.Like("Title", "Wide").Span(12)
+		})
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Verify(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+
+	html := fetchOK(t, srv.URL+"/admin/palette_rows")
+	if !strings.Contains(html, "steward-filter-grid") {
+		t.Error("the panel should lay out on the grid")
+	}
+	for _, want := range []string{
+		"steward-span-2",  // what Span asked for
+		"steward-span-3",  // a text filter's default
+		"steward-span-6",  // a range's default: room for two controls
+		"steward-span-12", // clamped to the row
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("the panel should contain %q", want)
+		}
+	}
+}
+
+// TestFilterSpanIsClamped keeps a nonsense value from producing a class no
+// stylesheet has a rule for, which would silently take the full width.
+func TestFilterSpanIsClamped(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&paletteRow{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("filter-clamp-test-secret-key"),
+		AuthExcept: []string{"/palette_rows*"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[paletteRow](app).Grid(func(g *steward.Grid[paletteRow]) {
+		g.Column("Title")
+		g.Filter(func(f *steward.Filters[paletteRow]) {
+			f.Like("Title", "Too wide").Span(99)
+			f.Like("Slug", "Too narrow").Span(-3)
+		})
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+
+	html := fetchOK(t, srv.URL+"/admin/palette_rows")
+	for _, bad := range []string{"steward-span-99", "steward-span--3", "steward-span-0"} {
+		if strings.Contains(html, bad) {
+			t.Errorf("%q should have been clamped", bad)
+		}
+	}
+	if !strings.Contains(html, "steward-span-12") || !strings.Contains(html, "steward-span-1") {
+		t.Error("the clamped values should be 12 and 1")
+	}
+}

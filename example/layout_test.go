@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -366,5 +367,24 @@ func TestGridHeaderPinning(t *testing.T) {
 	// The window cannot scroll, so navigation resets the pane instead.
 	if !strings.Contains(html, `hx-swap="innerHTML scroll:#page-content:top"`) {
 		t.Error("sidebar navigation still scrolls the window, which no longer scrolls")
+	}
+}
+
+// TestFilterGridStylesheetRules covers what the panel needs to divide into
+// twelve columns, and the thing that broke it while it was being written: a
+// [class*=] rule written after the per-span ones takes every span with it,
+// because they match at the same specificity and the later one wins.
+func TestFilterGridStylesheetRules(t *testing.T) {
+	css := builtStylesheet(t)
+
+	if !strings.Contains(css, ".steward-filter-grid") {
+		t.Fatal("the built stylesheet has no filter grid")
+	}
+	// Inside the desktop breakpoint every span must resolve to its own width.
+	for n := 1; n <= 12; n++ {
+		rule := fmt.Sprintf(".steward-filter-grid>.steward-span-%d{grid-column:span %d}", n, n)
+		if !strings.Contains(css, rule) {
+			t.Errorf("missing %s", rule)
+		}
 	}
 }

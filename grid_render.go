@@ -305,6 +305,8 @@ func pageWindow(cur, last int) []int {
 type filterVM struct {
 	Param       string
 	Label       string
+	// Span is how many of the panel's twelve columns the control takes.
+	Span        int
 	Input       string // text | select | date | datetime | between | datebetween
 	Value       string
 	Value2      string
@@ -491,6 +493,7 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		fv := filterVM{
 			Param:       param,
 			Label:       fi.label,
+			Span:        fi.spanOr(),
 			Value:       st.filterVals[param],
 			Value2:      st.filterVals[param+"_to"],
 			Placeholder: fi.placeholder,

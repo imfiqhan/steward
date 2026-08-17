@@ -5,9 +5,12 @@
 <div id="grid-filters" class="{{if not .Data.ActiveFilters}}hidden{{end}} border-y bg-muted/40 px-4 py-4">
   <form method="get" action="{{.Data.BaseURL}}"
         hx-get="{{.Data.BaseURL}}" hx-target="#page-content" hx-push-url="true">
-    <div class="flex flex-wrap items-end gap-4">
+    {{/* The same twelve columns a form divides into, so a span means one thing
+         across the panel. Flowed instead, a date range — which needs room for
+         two controls — ended up the narrowest thing in the row. */}}
+    <div class="steward-filter-grid items-end">
       {{range .Data.Filters}}
-      <div class="grid gap-2 min-w-40">
+      <div class="steward-span-{{.Span}} grid gap-2 min-w-0">
         <label class="label" for="filter-{{.Param}}">{{.Label}}</label>
         {{if eq .Input "select"}}
           {{/* The same combobox the form uses. A <select> has to carry every
@@ -90,7 +93,9 @@
         {{end}}
       </div>
       {{end}}
-      <div class="flex gap-2">
+      {{/* The buttons are a grid item too, or they take one implicit column and
+           come out narrower than the label above them. */}}
+      <div class="steward-span-3 flex gap-2">
         <button type="submit" class="btn">{{icon "filter"}} Apply</button>
         <a class="btn" data-variant="ghost" href="{{.Data.ResetURL}}"
            hx-get="{{.Data.ResetURL}}" hx-target="#page-content" hx-push-url="true">Reset</a>
