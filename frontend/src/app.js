@@ -75,6 +75,52 @@ window.htmx = htmx;
     }
   });
 
+  /* ---- Export --------------------------------------------------------------
+   *
+   * The same URL answers two ways: a CSV when the match is small enough to
+   * write inside the request, and an envelope when it was queued as a job
+   * instead. A plain link would show the second one as raw JSON, so the request
+   * is made here and the answer read before anything is done with it. */
+
+  function filenameFrom(disposition, fallback) {
+    var m = disposition && disposition.match(/filename="?([^";]+)"?/);
+    return m ? m[1] : fallback;
+  }
+
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest("[data-steward-export]");
+    if (!a) return;
+    e.preventDefault();
+    var url = a.getAttribute("href");
+    a.setAttribute("aria-busy", "true");
+    fetch(url, { headers: { Accept: "text/csv, application/json" }, credentials: "same-origin" })
+      .then(function (res) {
+        var type = res.headers.get("content-type") || "";
+        if (type.indexOf("csv") !== -1) {
+          var name = filenameFrom(res.headers.get("content-disposition"), "export.csv");
+          return res.blob().then(function (blob) {
+            var href = URL.createObjectURL(blob);
+            var link = document.createElement("a");
+            link.href = href;
+            link.download = name;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            // Revoked on the next turn: Safari has not started reading the blob
+            // by the time click() returns.
+            setTimeout(function () { URL.revokeObjectURL(href); }, 0);
+          });
+        }
+        return res.json().then(handleEnvelope);
+      })
+      .catch(function () {
+        toast("error", "Export failed — check your connection and retry.");
+      })
+      .finally(function () {
+        a.removeAttribute("aria-busy");
+      });
+  });
+
   /* ---- Envelope handling (mutations) -------------------------------------- */
 
   function handleEnvelope(env) {

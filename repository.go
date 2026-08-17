@@ -63,6 +63,15 @@ type ListQuery struct {
 	IDOrder []string
 	Page    int
 	PerPage int
+
+	// After pages by primary key rather than by OFFSET: rows come back ordered
+	// by key ascending, starting past this value, and Sorts and Page are
+	// ignored. It exists for walking a whole table — OFFSET re-reads every row
+	// it has already skipped, so the last page of a large export costs as much
+	// as all of the ones before it.
+	//
+	// Nil means offset paging. A caller walks with the last key it saw.
+	After any
 	Scopes  []any
 }
 

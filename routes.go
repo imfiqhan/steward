@@ -98,6 +98,10 @@ func (a *Admin) buildRoutes() *http.ServeMux {
 		mux.HandleFunc("POST "+p+"/auth/notifications", a.h(a.notificationsPageAction))
 	}
 
+	// A finished export downloads through the panel rather than a public URL:
+	// the file holds whatever rows that account was allowed to read.
+	mux.HandleFunc("GET "+p+"/_exports/{id}/download", a.h(a.downloadExport))
+
 	mux.HandleFunc("GET "+p+"/_assets/", a.serveAsset)
 	mux.HandleFunc("GET "+p+"/_command", a.h(a.commandSearch))
 

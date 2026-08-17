@@ -151,6 +151,11 @@ func (a *Admin) permissionSkip(rel string) bool {
 		rel == "/auth/notifications" {
 		return true
 	}
+	// An export belongs to the account that asked for it, and the rows in it
+	// are the ones that account could already read.
+	if strings.HasPrefix(rel, "/_exports/") {
+		return true
+	}
 	return strings.HasPrefix(rel, "/_assets/") ||
 		strings.HasPrefix(rel, "/_uploads/") ||
 		strings.HasPrefix(rel, "/_widget/") ||

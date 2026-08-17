@@ -1,9 +1,11 @@
 package steward
 
 import (
+	"bytes"
 	"encoding/csv"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -868,43 +870,77 @@ func (t *typedResource[T]) destroy(c *Context) error {
 
 // exportCSV streams the current view (all pages, current page, or a
 // selection) honoring active filters, search, and sort.
+//
+// A whole-table export is handed to a background job instead when the match is
+// larger than the panel is willing to hold a request open for; see
+// backgroundExport.
 func (t *typedResource[T]) exportCSV(c *Context, st *gridState) error {
+	if st.export == "selected" && len(st.ids) == 0 {
+		return c.Envelope(Error("Nothing selected.").Code(http.StatusBadRequest))
+	}
+	if st.export != "page" {
+		queued, err := c.Admin.maybeQueueExport(c, t.res.m.slug, st)
+		if err != nil {
+			return err
+		}
+		if queued != nil {
+			return c.Envelope(Success(queued.Message))
+		}
+	}
+
+	c.W.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	c.W.Header().Set("Content-Disposition", `attachment; filename="`+t.res.m.slug+`.csv"`)
+	if _, err := t.writeCSV(c, c.W, st); err != nil {
+		return err
+	}
+	return nil
+}
+
+// exportQuery narrows the grid's query to what the chosen export covers.
+func (t *typedResource[T]) exportQuery(st *gridState) ListQuery {
 	q := *st.query
 	switch st.export {
 	case "page":
 		// keep pagination as-is
 	case "selected":
-		if len(st.ids) == 0 {
-			return c.Envelope(Error("Nothing selected.").Code(http.StatusBadRequest))
-		}
 		q.Conds = append(q.Conds, Cond{Path: t.ft.pk.Path, Op: OpIn, Val: st.ids})
 		q.Page, q.PerPage = 0, 0
 	default: // "all"
 		q.Page, q.PerPage = 0, 0
 	}
+	return q
+}
 
-	c.W.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	c.W.Header().Set("Content-Disposition", `attachment; filename="`+t.res.m.slug+`.csv"`)
-	w := csv.NewWriter(c.W)
+// writeCSV renders the export to any writer and reports the rows written, so
+// the same code serves a request and a background job.
+//
+// Everything but a single page walks by primary key rather than by OFFSET: the
+// last batch of a hundred-thousand-row export otherwise costs as much as every
+// batch before it, which is most of why a full export took over a minute.
+func (t *typedResource[T]) writeCSV(c *Context, out io.Writer, st *gridState) (int64, error) {
+	q := t.exportQuery(st)
+	keyset := q.PerPage == 0
 
+	w := csv.NewWriter(out)
 	var header []string
 	for _, col := range t.grid.columns {
 		header = append(header, col.label)
 	}
 	if err := w.Write(header); err != nil {
-		return err
+		return 0, err
 	}
 
 	const batch = 1000
-	page := 1
+	var rows int64
+	var cursor any = uint(0)
 	for {
 		bq := q
-		if bq.PerPage == 0 {
-			bq.Page, bq.PerPage = page, batch
+		if keyset {
+			bq.PerPage, bq.After = batch, cursor
 		}
 		items, _, err := t.repo.List(c.Ctx(), &bq)
 		if err != nil {
-			return err
+			return rows, err
 		}
 		for i := range items {
 			row := &items[i]
@@ -913,16 +949,26 @@ func (t *typedResource[T]) exportCSV(c *Context, st *gridState) error {
 				rec = append(rec, t.rawCell(col, row))
 			}
 			if err := w.Write(rec); err != nil {
-				return err
+				return rows, err
 			}
+			rows++
 		}
-		if q.PerPage != 0 || len(items) < batch {
+		// Flushed per batch so a long export reaches the client as it is built
+		// rather than sitting in the writer's buffer.
+		w.Flush()
+		if err := w.Error(); err != nil {
+			return rows, err
+		}
+		if !keyset || len(items) < batch {
 			break
 		}
-		page++
+		if last, ok := t.ft.pk.value(reflect.ValueOf(&items[len(items)-1])); ok {
+			cursor = last
+		} else {
+			break
+		}
 	}
-	w.Flush()
-	return w.Error()
+	return rows, nil
 }
 
 // rawCell is the CSV/text form of a cell: transforms applied, no HTML.
@@ -953,4 +999,26 @@ func (t *typedResource[T]) rawCell(col *Column[T], row *T) string {
 	default:
 		return fmt.Sprint(val)
 	}
+}
+
+// exportRows implements csvExporter: the whole match, written from a query
+// string rather than from a live request, for the background job.
+func (t *typedResource[T]) exportRows(c *Context, out *bytes.Buffer, query url.Values) (int64, error) {
+	st := t.parseState(c)
+	t.applyRowScope(c, st.query)
+	if st.export == "" {
+		st.export = "all"
+	}
+	return t.writeCSV(c, out, st)
+}
+
+// countExport implements csvExporter: how many rows the export would carry,
+// which is what decides whether it is a download or a job.
+func (t *typedResource[T]) countExport(c *Context, query url.Values) (int64, error) {
+	st := t.parseState(c)
+	t.applyRowScope(c, st.query)
+	q := t.exportQuery(st)
+	q.Page, q.PerPage = 1, 1
+	_, total, err := t.repo.List(c.Ctx(), &q)
+	return total, err
 }

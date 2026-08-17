@@ -21,6 +21,8 @@ type Tables struct {
 	// NotificationModel is created by 0005, apart from Models for the same
 	// reason as TokenModel.
 	NotificationModel any
+	// ExportModel is created by 0006. Same reasoning.
+	ExportModel any
 	// UserModel is the account table, altered by 0004 to add the two-factor
 	// columns. Same reasoning as TokenModel: installations already past 0001
 	// need the change applied, not just present in the model.
@@ -88,6 +90,15 @@ func Core(t Tables) []migrate.Migration {
 			},
 			Down: func(tx *gorm.DB) error {
 				return tx.Migrator().DropTable(t.NotificationModel)
+			},
+		},
+		{
+			Name: "0006_create_admin_exports",
+			Up: func(tx *gorm.DB) error {
+				return tx.Migrator().AutoMigrate(t.ExportModel)
+			},
+			Down: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable(t.ExportModel)
 			},
 		},
 	}

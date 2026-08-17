@@ -8,7 +8,9 @@
     </div>
     <div class="ms-auto flex items-center gap-2">
       {{if .Data.Features.export}}
-      <a href="{{.Data.ExportURL}}" class="btn" data-variant="outline">
+      {{/* data-steward-export: the answer is a CSV or an envelope depending on
+           how much matched, and a plain navigation cannot tell them apart. */}}
+      <a href="{{.Data.ExportURL}}" class="btn" data-variant="outline" data-steward-export>
         {{icon "download"}} Export
       </a>
       {{end}}

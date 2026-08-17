@@ -278,7 +278,8 @@ func TestEveryConfigFieldIsDocumented(t *testing.T) {
 		"PublicUploads": true, "SignedURLTTL": true,
 		"TablePrefix": true, "DisableAutoMigrate": true,
 		"DisableNotifications": true,
-		"Require2FA":           true, "LoginCheck": true, "AuthExcept": true,
+		"BackgroundExportRows": true, "DisableExportWorker": true,
+		"Require2FA": true, "LoginCheck": true, "AuthExcept": true,
 		"EnableTokenAuth": true, "TokenTTL": true,
 		"TokenRateLimit": true, "TokenRateWindow": true,
 		"Cache": true, "Searcher": true, "Mailer": true, "Logger": true,
@@ -523,4 +524,54 @@ type hookPost struct {
 	ID     uint `gorm:"primaryKey"`
 	Title  string
 	Status int16
+}
+
+// The grid page shows how to move queued exports into a worker and how to trim
+// old ones. Both are compiled here so the page cannot drift past the API.
+//
+// steward-site/content/docs/grid.md#background-export
+func TestDocumentedExportJobCalls(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:docsexport?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&hookPost{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB:        db,
+		SecretKey: []byte("documented-export-test-secret"),
+		// The two knobs the page names, spelled the way it spells them.
+		BackgroundExportRows: 50000,
+		DisableExportWorker:  false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[hookPost](app)
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+
+	// The worker snippet.
+	jobs := func(a *steward.Admin, s steward.Scheduler) error {
+		return s.Add("@every 30s", "exports", func(ctx context.Context) error {
+			_, err := a.RunPendingExports(ctx)
+			return err
+		})
+	}
+	if err := jobs(app, steward.NewIntervalScheduler()); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	if _, err := app.RunPendingExports(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.PruneExports(ctx, 7*24*time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.Exports(ctx, 1, 0); err != nil {
+		t.Fatal(err)
+	}
 }

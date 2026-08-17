@@ -68,6 +68,16 @@ type Config struct {
 	// Changing it invalidates all sessions. Minimum 16 bytes.
 	SecretKey []byte
 
+	// BackgroundExportRows is the match size past which a whole-table export
+	// becomes a job rather than a download. Zero means the default (10,000);
+	// negative always streams, whatever the size.
+	BackgroundExportRows int
+
+	// DisableExportWorker stops the panel process from building queued
+	// exports. Something else then has to call RunPendingExports — a worker's
+	// scheduler — or nothing does and they stay pending.
+	DisableExportWorker bool
+
 	// DisableNotifications hides the bell in the header and unmounts its
 	// endpoints. The table is still created, so turning it back on later
 	// needs no migration.
@@ -178,6 +188,10 @@ type Admin struct {
 	renderer *renderer
 
 	registry []resourceEntry
+
+	// exportWake nudges the queued-export worker; nil when the panel is not
+	// running one.
+	exportWake chan struct{}
 	bySlug   map[string]resourceEntry
 	byType   map[reflect.Type]resourceEntry
 
@@ -289,7 +303,12 @@ func (a *Admin) url(parts ...string) string {
 // route table. Calling it more than once is a no-op returning the first
 // result; ServeHTTP calls it lazily.
 func (a *Admin) Build() error {
-	a.buildOnce.Do(func() { a.buildErr = a.build() })
+	a.buildOnce.Do(func() {
+		a.buildErr = a.build()
+		if a.buildErr == nil {
+			a.startExportWorker()
+		}
+	})
 	return a.buildErr
 }
 
@@ -413,6 +432,7 @@ func (a *Admin) coreTables() migrations.Tables {
 		},
 		TokenModel:          &AdminToken{},
 		NotificationModel:   &Notification{},
+		ExportModel:         &ExportJob{},
 		UserModel:           &AdminUser{},
 		AddTwoFactorColumns: twoFactorColumns,
 		SeedFn:              seedDefaults,

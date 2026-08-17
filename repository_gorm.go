@@ -197,15 +197,27 @@ func (r *GormRepository[T]) List(ctx context.Context, q *ListQuery) ([]T, int64,
 			order.WriteString(" ASC")
 		}
 	}
-	if order.Len() > 0 {
-		db = db.Order(clause.OrderBy{
-			Expression: clause.Expr{SQL: order.String(), Vars: orderArgs},
-		})
-	}
-
-	if q.PerPage > 0 {
-		page := max(q.Page, 1)
-		db = db.Limit(q.PerPage).Offset((page - 1) * q.PerPage)
+	// Keyset paging replaces both the ordering and the offset: the key has to
+	// be the sort for "everything past this one" to mean anything.
+	if q.After != nil {
+		pk := quoteColumn(r.db, r.ft.pk.DBName)
+		if !isZeroKey(q.After) {
+			db = db.Where(pk+" > ?", q.After)
+		}
+		db = db.Order(pk + " ASC")
+		if q.PerPage > 0 {
+			db = db.Limit(q.PerPage)
+		}
+	} else {
+		if order.Len() > 0 {
+			db = db.Order(clause.OrderBy{
+				Expression: clause.Expr{SQL: order.String(), Vars: orderArgs},
+			})
+		}
+		if q.PerPage > 0 {
+			page := max(q.Page, 1)
+			db = db.Limit(q.PerPage).Offset((page - 1) * q.PerPage)
+		}
 	}
 
 	var items []T
@@ -256,4 +268,15 @@ func (r *GormRepository[T]) Delete(ctx context.Context, ids []string) error {
 	}
 	var zero T
 	return r.base(ctx).Where(quoteColumn(r.db, r.ft.pk.DBName)+" IN ?", ids).Delete(&zero).Error
+}
+
+// isZeroKey reports whether a keyset cursor is the "start from the beginning"
+// value, so the first batch needs no WHERE at all. A typed zero — uint(0),
+// "", nil — all mean the same thing to a caller walking a table.
+func isZeroKey(v any) bool {
+	if v == nil {
+		return true
+	}
+	rv := reflect.ValueOf(v)
+	return rv.IsValid() && rv.IsZero()
 }
