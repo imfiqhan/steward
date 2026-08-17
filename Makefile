@@ -1,4 +1,6 @@
 GO ?= go
+# One address for both the example server and the checks that drive it.
+EXAMPLE_ADDR ?= :8321
 TAILWIND_VERSION ?= v4.3.3
 CHARTJS_VERSION ?= 4.5.0
 LUCIDE_VERSION ?= 0.545.0
@@ -92,7 +94,7 @@ lint:
 	cd example && golangci-lint run ./...
 
 run:
-	cd example && $(GO) run . serve
+	cd example && $(GO) run . -addr $(EXAMPLE_ADDR)
 
 e2e:
 	./scripts/e2e.sh
@@ -100,7 +102,7 @@ e2e:
 # Requires: npm i && npx playwright install webkit,
 # plus a running example server (make run).
 visual:
-	node scripts/visual.mjs
+	node scripts/visual.mjs http://localhost$(EXAMPLE_ADDR)
 
 tidy:
 	$(GO) mod tidy

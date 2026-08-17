@@ -193,7 +193,7 @@ func TestBoolRejectsOneLabel(t *testing.T) {
 	if err := db.AutoMigrate(&badgeRow{}); err != nil {
 		t.Fatal(err)
 	}
-	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("bool-arity-test-secret-key")})
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("bool-arity-test-secret-key"), Prefix: "/admin"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,7 +329,7 @@ func TestDetailPreloadsItsOwnRelations(t *testing.T) {
 // answering the question.
 func TestRBACDetailPagesShowTheirGrants(t *testing.T) {
 	db := testDB(t)
-	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("rbac-detail-test-secret-key")})
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("rbac-detail-test-secret-key"), Prefix: "/admin"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -395,7 +395,7 @@ func TestCommandDisplayNamesWhatARowShows(t *testing.T) {
 	if err := db.Create(&paletteRow{Title: "A headline", Slug: "a-headline", CategoryID: &cat.ID, PostDate: when}).Error; err != nil {
 		t.Fatal(err)
 	}
-	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("command-display-test-secret")})
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("command-display-test-secret"), Prefix: "/admin"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -434,7 +434,7 @@ func TestCommandDisplayRejectsAnUnknownPath(t *testing.T) {
 	if err := db.AutoMigrate(&paletteCategory{}, &paletteRow{}); err != nil {
 		t.Fatal(err)
 	}
-	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("command-display-bad-secret")})
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("command-display-bad-secret"), Prefix: "/admin"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -458,7 +458,7 @@ func TestCommandSearchReportsBeingCutShort(t *testing.T) {
 	if err := db.Create(&paletteRow{Title: "A headline"}).Error; err != nil {
 		t.Fatal(err)
 	}
-	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("command-partial-test-secret")})
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("command-partial-test-secret"), Prefix: "/admin"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -502,7 +502,7 @@ func TestCommandSearchSkipsTheCount(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("command-count-test-secret")})
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("command-count-test-secret"), Prefix: "/admin"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -574,7 +574,7 @@ func TestPreviewSkipsWhatItCannotShow(t *testing.T) {
 func TestAssetURLChangesWithTheAssets(t *testing.T) {
 	url := func(dev bool, extra fstest.MapFS) string {
 		db := testDB(t)
-		cfg := steward.Config{DB: db, SecretKey: []byte("asset-version-test-secret"), Dev: dev}
+		cfg := steward.Config{DB: db, SecretKey: []byte("asset-version-test-secret"), Prefix: "/admin", Dev: dev}
 		if extra != nil {
 			cfg.AssetsFS = extra
 		}
@@ -1043,7 +1043,7 @@ func TestFilterLayoutIsVerified(t *testing.T) {
 	if err := db.AutoMigrate(&paletteRow{}); err != nil {
 		t.Fatal(err)
 	}
-	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("filter-layout-bad-secret-key")})
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("filter-layout-bad-secret-key"), Prefix: "/admin"})
 	if err != nil {
 		t.Fatal(err)
 	}
