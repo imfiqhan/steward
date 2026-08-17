@@ -93,12 +93,8 @@ func runCLI(app App, args []string) error {
 		if app.Serve != nil {
 			return app.Serve(a)
 		}
-		mux := http.NewServeMux()
-		mux.Handle(a.Prefix()+"/", a)
-		mux.Handle(a.Prefix(), a)
-		mux.Handle("/", http.RedirectHandler(a.Prefix()+"/", http.StatusFound))
-		a.log.Info("steward: serving", "addr", *addr, "panel", a.Prefix())
-		return http.ListenAndServe(*addr, mux)
+		a.log.Info("steward: serving", "addr", *addr, "panel", a.url("/"))
+		return http.ListenAndServe(*addr, ServeMux(a))
 
 	case "worker":
 		if app.Jobs == nil {
@@ -240,4 +236,22 @@ func defaultAddr(app App) string {
 		return app.Addr
 	}
 	return ":8080"
+}
+
+// ServeMux is the routing `serve` puts in front of a panel: the panel itself,
+// and — when it is mounted under a prefix — a redirect from the root to it.
+//
+// At the root the panel is the whole mux. The bare-prefix and catch-all
+// patterns needed otherwise are then either a second registration of "/",
+// which panics, or, built from an empty prefix, not valid patterns at all.
+func ServeMux(a *Admin) *http.ServeMux {
+	mux := http.NewServeMux()
+	if p := a.Prefix(); p != "" {
+		mux.Handle(p+"/", a)
+		mux.Handle(p, a)
+		mux.Handle("/", http.RedirectHandler(p+"/", http.StatusFound))
+		return mux
+	}
+	mux.Handle("/", a)
+	return mux
 }

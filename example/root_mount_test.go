@@ -175,3 +175,68 @@ func TestRootSessionCookieIsScopedToTheRoot(t *testing.T) {
 		t.Skip("login page issued no session cookie")
 	}
 }
+
+// What `serve` puts in front of the panel. Registering the bare-prefix and
+// catch-all patterns unconditionally panicked at the root, where the prefix is
+// empty and "" is not a pattern — and the panel never reached a request.
+func TestServeMuxRoutesBothMounts(t *testing.T) {
+	for _, prefix := range []string{"", "/admin"} {
+		name := prefix
+		if name == "" {
+			name = "root"
+		}
+		t.Run(name, func(t *testing.T) {
+			db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := db.AutoMigrate(&Memo{}); err != nil {
+				t.Fatal(err)
+			}
+			app, err := steward.New(steward.Config{
+				DB:         db,
+				SecretKey:  []byte("serve-mux-test-secret-key"),
+				Prefix:     prefix,
+				AuthExcept: []string{"/memos*"},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			steward.Register[Memo](app)
+			if err := app.Build(); err != nil {
+				t.Fatal(err)
+			}
+
+			srv := httptest.NewServer(steward.ServeMux(app))
+			t.Cleanup(srv.Close)
+			client := &http.Client{
+				CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+			}
+
+			// The grid answers through the mux the command builds.
+			resp, err := client.Get(srv.URL + prefix + "/memos")
+			if err != nil {
+				t.Fatal(err)
+			}
+			_ = resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("GET %s/memos = %d, want 200", prefix, resp.StatusCode)
+			}
+
+			// Under a prefix, the root redirects to the panel; at the root it
+			// is the panel.
+			resp, err = client.Get(srv.URL + "/")
+			if err != nil {
+				t.Fatal(err)
+			}
+			_ = resp.Body.Close()
+			if prefix == "" {
+				if resp.StatusCode == http.StatusNotFound {
+					t.Fatal("the root is not served by the panel mounted there")
+				}
+			} else if loc := resp.Header.Get("Location"); loc != prefix+"/" {
+				t.Fatalf("the root redirected to %q, want %q", loc, prefix+"/")
+			}
+		})
+	}
+}
