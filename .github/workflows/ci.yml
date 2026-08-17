@@ -66,16 +66,18 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      # v7 or newer: v6 refuses a golangci-lint v2 version outright.
-      - uses: golangci/golangci-lint-action@v7
-        with:
-          version: v2.1.6
-          # The action lints one module; the others are walked here so a
-          # contrib package cannot rot unnoticed.
-          args: ./...
-      - name: lint the other modules
+
+      # Built from source rather than taken prebuilt: the released binaries are
+      # compiled with an older Go than this module targets, and golangci-lint
+      # refuses to load a config in that case. Building it here also means the
+      # version is the one pinned below and nothing else.
+      - name: install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6
+
+      # Every module, so a contrib package cannot rot unnoticed.
+      - name: lint
         run: |
-          for dir in example cmd/steward contrib/*; do
+          for dir in . example cmd/steward tools/assets contrib/*; do
             echo "== $dir"
             (cd "$dir" && golangci-lint run ./...)
           done
