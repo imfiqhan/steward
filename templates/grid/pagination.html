@@ -1,7 +1,7 @@
 {{if .Data.Features.pagination}}
 <footer class="flex flex-wrap items-center gap-3">
   <p class="text-sm text-muted-foreground">
-    {{if .Data.Rows}}Showing {{.Data.From}}–{{.Data.To}} of {{.Data.Total}}{{else}}No entries{{end}}
+    {{if .Data.Rows}}Showing {{.Data.From}}–{{.Data.To}} of {{.Data.Total}}{{if .Data.TotalCapped}}+{{end}}{{else}}No entries{{end}}
   </p>
   {{$per := .Data.PerPage}}
   <form method="get" action="{{.Data.BaseURL}}"

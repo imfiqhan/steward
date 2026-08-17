@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"html/template"
 	"net/http/httptest"
 	"regexp"
@@ -623,4 +624,106 @@ func TestLinksAndFilesAreMarked(t *testing.T) {
 	if strings.Contains(out, "m16 6-8.414") {
 		t.Error("an absolute URL is not a stored file")
 	}
+}
+
+// A search served by the engine is bounded by a window, so its total is the
+// number of hits taken rather than the number of matches. Reported flat it is
+// a figure the reader has no reason to doubt.
+func TestSearchTotalSaysWhenItIsAFloor(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&paletteRow{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("capped-total-test-secret-key"),
+		AuthExcept: []string{"/palette_rows*"},
+		Searcher:   &windowSearcher{n: 1000},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := steward.Register[paletteRow](app).Searchable("Title")
+	res.Grid(func(g *steward.Grid[paletteRow]) {
+		g.Column("Title")
+		g.QuickSearch("Title")
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		if err := db.Create(&paletteRow{Title: "A headline"}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+
+	full := fetchOK(t, srv.URL+"/admin/palette_rows?q=headline")
+	if !strings.Contains(full, "of 3+") {
+		t.Errorf("a full window should be reported as a floor, got: %s", pagerLine(full))
+	}
+}
+
+// TestSearchTotalIsExactWhenItFits keeps the ordinary case honest too.
+func TestSearchTotalIsExactWhenItFits(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&paletteRow{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("exact-total-test-secret-key"),
+		AuthExcept: []string{"/palette_rows*"},
+		Searcher:   &windowSearcher{n: 3}, // fewer matches than the window
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := steward.Register[paletteRow](app).Searchable("Title")
+	res.Grid(func(g *steward.Grid[paletteRow]) {
+		g.Column("Title")
+		g.QuickSearch("Title")
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		if err := db.Create(&paletteRow{Title: "A headline"}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+
+	out := fetchOK(t, srv.URL+"/admin/palette_rows?q=headline")
+	if strings.Contains(out, "of 3+") {
+		t.Errorf("a total below the window is exact, got: %s", pagerLine(out))
+	}
+}
+
+// pagerLine pulls the "Showing …" line out for readable failures.
+func pagerLine(html string) string {
+	i := strings.Index(html, "Showing")
+	if i < 0 {
+		return "(no pager)"
+	}
+	return strings.Join(strings.Fields(html[i:min(len(html), i+60)]), " ")
+}
+
+// windowSearcher answers with the ids of rows the test created, repeated until
+// the window is full, which is what an engine holding more matches than the
+// window does. It does not depend on Index: a test that writes with GORM never
+// goes through the repository that indexes.
+type windowSearcher struct{ n int }
+
+func (w *windowSearcher) Index(_ context.Context, _ ...steward.SearchDoc) error { return nil }
+
+func (w *windowSearcher) Delete(_ context.Context, _ string, _ ...string) error { return nil }
+
+func (w *windowSearcher) Query(_ context.Context, _, _ string, limit int) ([]steward.SearchHit, error) {
+	want := min(limit, w.n)
+	out := make([]steward.SearchHit, 0, want)
+	for i := 0; i < want; i++ {
+		out = append(out, steward.SearchHit{ID: itoa(uint(i%3 + 1))})
+	}
+	return out, nil
 }

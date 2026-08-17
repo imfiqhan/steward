@@ -23,8 +23,11 @@ type gridState struct {
 	per    int
 	sort   *Sort
 	search string
-	export string
-	ids    []string
+	// searchCapped marks a search whose result set is the engine's window
+	// rather than every match, so the total is a floor.
+	searchCapped bool
+	export       string
+	ids          []string
 	// raw filter input values by param name, echoed back into the panel
 	filterVals map[string]string
 }
@@ -149,6 +152,10 @@ func (t *typedResource[T]) parseState(c *Context) *gridState {
 			// to index. It ranks; the rows are still read through the repository
 			// so filters, sorts, and the row scope hold.
 			if ids, ok := t.searchIDs(c.Ctx(), phrase, searchWindow); ok {
+				// The engine was asked for a window, not for everything, so a
+				// full one means "at least this many" — the count that follows
+				// counts the window, not the matches.
+				st.searchCapped = len(ids) >= searchWindow
 				if len(ids) == 0 {
 					// Nothing matched. Without this the ID condition is dropped
 					// and every row comes back, which reads as "search ignored".
@@ -319,11 +326,15 @@ type optionVM struct {
 }
 
 type gridVM struct {
-	Slug, Title    string
-	BaseURL        string
-	Columns        []gridColVM
-	Rows           []gridRowVM
-	Total          int64
+	Slug, Title string
+	BaseURL     string
+	Columns     []gridColVM
+	Rows        []gridRowVM
+	Total       int64
+	// TotalCapped marks a total that is the search window rather than the
+	// number of matches, so the pager can say so instead of stating a figure
+	// that is only a floor.
+	TotalCapped    bool
 	Page, Pages    int
 	From, To       int
 	PerPage        int
@@ -385,6 +396,7 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		Title:          m.title,
 		BaseURL:        c.URL(m.slug),
 		Total:          total,
+		TotalCapped:    st.searchCapped,
 		Page:           st.page,
 		PerPage:        st.per,
 		PerPageOptions: perPageOptions(g.perPageOptions, st.per),
