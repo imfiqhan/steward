@@ -1,3 +1,5 @@
+github.com/imfiqhan/steward v0.1.0 h1:zpvX4Na/j+iyTZKUK6XX054ZEZjr6e0DGRzjsi1V7j0=
+github.com/imfiqhan/steward v0.1.0/go.mod h1:wOifCw0NHRfICDaSSizs1IZcl28b+R9etxwL0DGHiTM=
 github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=
 github.com/jinzhu/inflection v1.0.0/go.mod h1:h+uFLlag+Qp1Va5pdKtLDYj+kHp5pxUVkryuEj+Srlc=
 github.com/jinzhu/now v1.1.5 h1:/o9tlHleP7gOFmsnYNz3RGnqzefHA47wQpKrrdTIwXQ=

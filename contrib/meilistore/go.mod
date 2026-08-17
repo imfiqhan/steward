@@ -2,7 +2,7 @@ module github.com/imfiqhan/steward/contrib/meilistore
 
 go 1.26.3
 
-require github.com/imfiqhan/steward v0.0.0
+require github.com/imfiqhan/steward v0.1.0
 
 require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
@@ -15,5 +15,3 @@ require (
 	golang.org/x/text v0.40.0 // indirect
 	gorm.io/gorm v1.31.2 // indirect
 )
-
-replace github.com/imfiqhan/steward => ../../
