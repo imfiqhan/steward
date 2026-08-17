@@ -600,3 +600,27 @@ func TestAssetURLChangesWithTheAssets(t *testing.T) {
 		t.Error("the same assets should hash the same either way")
 	}
 }
+
+// A link and a file look like any other cell until they are hovered. The glyph
+// says which one it is before that: something to open, or somewhere to go.
+func TestLinksAndFilesAreMarked(t *testing.T) {
+	srv := newMediaServer(t, mediaRow{Cover: "images/cover.jpg", Doc: "files/report.pdf"})
+	detail := fetchOK(t, srv.URL+"/admin/media_rows/1")
+	// The paperclip marks a stored file.
+	if !strings.Contains(detail, "M16 6-8.414") && !strings.Contains(detail, "m16 6-8.414") {
+		t.Error("a stored file should carry the file glyph")
+	}
+	if !strings.Contains(detail, "files/report.pdf") {
+		t.Error("the value should still read as the stored path")
+	}
+
+	external := newMediaServer(t, mediaRow{Doc: "https://example.com/a.pdf"})
+	out := fetchOK(t, external.URL+"/admin/media_rows/1")
+	// An absolute URL leaves the panel, so it carries the external-link glyph.
+	if !strings.Contains(out, "M15 3h6v6") {
+		t.Error("an absolute URL should carry the link glyph")
+	}
+	if strings.Contains(out, "m16 6-8.414") {
+		t.Error("an absolute URL is not a stored file")
+	}
+}

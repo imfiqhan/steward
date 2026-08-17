@@ -151,14 +151,21 @@ for (const idx of [...new Set([0, trigs.length - 1])]) {
     const pop = wrap.querySelector("[data-popover]");
     const t = wrap.querySelector("button").getBoundingClientRect();
     const p = pop.getBoundingClientRect();
-    const hit = document.elementFromPoint(p.left + p.width / 2, p.top + 8);
+    const at = (y) => {
+      const el = document.elementFromPoint(p.left + p.width / 2, y);
+      return !!el && (pop.contains(el) || pop === el);
+    };
     return {
       gap: p.top >= t.bottom ? p.top - t.bottom : t.top - p.bottom,
       edge: Math.abs(p.right - t.right),
       inView: p.top >= 0 && p.bottom <= window.innerHeight &&
         p.left >= 0 && p.right <= window.innerWidth,
       width: p.width,
-      onTop: pop.contains(hit) || pop === hit,
+      onTop: at(p.top + 8),
+      // The last item is the half that gets lost: a menu positioned inside the
+      // scrolling table rather than against the viewport is clipped at the
+      // container's bottom edge, which is exactly where the pager begins.
+      lastItemVisible: at(p.bottom - 8),
     };
   });
   if (!m) { check(false, `row ${idx} menu opens`); continue; }
@@ -167,6 +174,7 @@ for (const idx of [...new Set([0, trigs.length - 1])]) {
   check(m.inView, `row ${idx} menu stays inside the viewport`);
   check(m.width > 100 && m.width < 400, `row ${idx} menu is not stretched (${m.width.toFixed(0)}px)`);
   check(m.onTop, `row ${idx} menu paints above the rows below it`);
+  check(m.lastItemVisible, `row ${idx} menu's last item is not clipped by the pager`);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(150);
 }

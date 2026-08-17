@@ -145,7 +145,9 @@ func TestStorageRefResolvesStoredPaths(t *testing.T) {
 			if text == "" {
 				text = tc.stored
 			}
-			if !strings.Contains(detail, `>`+text+`</a>`) {
+			// The value sits in a span beside the glyph marking what the link
+			// opens, so the anchor is matched rather than its closing tag.
+			if !strings.Contains(detail, `>`+text+`</span></a>`) {
 				t.Errorf("detail Link should show %q", text)
 			}
 		})

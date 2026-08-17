@@ -384,8 +384,13 @@ func boolWords(labels []string) (string, string) {
 // Link renders the value as an anchor; href receives the typed row.
 func (c *Column[T]) Link(href func(row *T) string) *Column[T] {
 	c.present = func(v any, row *T) template.HTML {
-		return template.HTML(fmt.Sprintf(`<a href="%s" target="_blank" rel="noopener">%s</a>`,
-			template.HTMLEscapeString(href(row)), template.HTMLEscapeString(fmt.Sprint(v))))
+		target := href(row)
+		glyph := linkGlyph
+		// A stored path opens a file; anything absolute goes somewhere else.
+		if !absoluteRef(target) {
+			glyph = fileGlyph
+		}
+		return template.HTML(markedLink(target, fmt.Sprint(v), glyph, true)) //nolint:gosec // markedLink escapes both
 	}
 	return c
 }
@@ -444,6 +449,34 @@ const copyGlyph = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24
 	`stroke-linecap="round" stroke-linejoin="round" class="size-3">` +
 	`<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>` +
 	`<path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`
+
+// linkGlyph and fileGlyph mark a value as somewhere to go or something to open,
+// so a link is recognisable before it is hovered and a file is not mistaken for
+// text. Inlined for the same reason copyGlyph is — a cell is rendered in Go and
+// has no {{icon}} to call — and they must stay in step with the sprite.
+const glyphOpen = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" ` +
+	`viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ` +
+	`stroke-linecap="round" stroke-linejoin="round" class="size-3 shrink-0 opacity-70" aria-hidden="true">`
+
+const linkGlyph = glyphOpen +
+	`<path d="M15 3h6v6"/><path d="M10 14 21 3"/>` +
+	`<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>`
+
+const fileGlyph = glyphOpen +
+	`<path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657` +
+	`l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/></svg>`
+
+// markedLink wraps an anchor's contents with the glyph that says what following
+// it does.
+func markedLink(href, text, glyph string, newTab bool) string {
+	target := ""
+	if newTab {
+		target = ` target="_blank" rel="noopener"`
+	}
+	return `<a href="` + template.HTMLEscapeString(href) + `"` + target +
+		` class="inline-flex items-center gap-1.5">` + glyph +
+		`<span class="truncate">` + template.HTMLEscapeString(text) + `</span></a>`
+}
 
 // Disk names which storage disk this column's stored paths live on, for the
 // helpers that resolve one into a URL. Unset, the default disk is used.

@@ -182,8 +182,13 @@ func (df *DetailField[T]) Link() *DetailField[T] {
 		if raw == "" {
 			return `<span class="text-muted-foreground">—</span>`
 		}
-		anchor := `<a href="` + template.HTMLEscapeString(href) +
-			`" target="_blank" rel="noopener">` + template.HTMLEscapeString(raw) + `</a>`
+		// The glyph says what following the link does: open a file, or leave for
+		// another site.
+		glyph := fileGlyph
+		if absoluteRef(raw) {
+			glyph = linkGlyph
+		}
+		anchor := markedLink(href, raw, glyph, true)
 		// A stored file previews in place; anything already absolute belongs to
 		// another site and is left to navigate.
 		if previewableRef(raw, href) {
