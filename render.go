@@ -60,11 +60,12 @@ func newRenderer(a *Admin) (*renderer, error) {
 	r.assetLayers = append(r.assetLayers, embAssets)
 	r.iconSet = loadIconSet(r.assetLayers)
 
-	if a.cfg.Dev {
-		r.assetVersion = "dev"
-	} else {
-		r.assetVersion = hashLayers(r.assetLayers)
-	}
+	// Hashed in development too. A fixed "dev" segment never changes, so a
+	// browser can pair markup from this build with a stylesheet it cached from
+	// an earlier one — new class names against rules that do not exist yet,
+	// which renders as a layout silently losing its gaps. Cache-Control still
+	// comes from Dev; this only decides the URL.
+	r.assetVersion = hashLayers(r.assetLayers)
 	if err := r.parse(); err != nil {
 		return nil, err
 	}

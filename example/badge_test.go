@@ -3,8 +3,10 @@ package main
 import (
 	"html/template"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	steward "github.com/imfiqhan/steward"
@@ -554,5 +556,47 @@ func TestPreviewSkipsWhatItCannotShow(t *testing.T) {
 				t.Errorf("%s should not offer a preview", tc.name)
 			}
 		})
+	}
+}
+
+// The asset URL carries a content hash in development as well. A fixed segment
+// lets a browser pair this build's markup with a stylesheet cached from an
+// earlier one, which is how a layout loses its gaps while the CSS on disk is
+// correct.
+func TestAssetURLChangesWithTheAssets(t *testing.T) {
+	url := func(dev bool, extra fstest.MapFS) string {
+		db := testDB(t)
+		cfg := steward.Config{DB: db, SecretKey: []byte("asset-version-test-secret"), Dev: dev}
+		if extra != nil {
+			cfg.AssetsFS = extra
+		}
+		app, err := steward.New(cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := app.Build(); err != nil {
+			t.Fatal(err)
+		}
+		srv := httptest.NewServer(app)
+		t.Cleanup(srv.Close)
+		m := regexp.MustCompile(`/admin/_assets/([^/]+)/`).FindStringSubmatch(fetchOK(t, srv.URL+"/admin/login"))
+		if m == nil {
+			t.Fatal("no asset URL on the page")
+		}
+		return m[1]
+	}
+
+	base := url(true, nil)
+	if base == "dev" {
+		t.Error("a development asset URL should still change when the assets do")
+	}
+	changed := url(true, fstest.MapFS{
+		"dist/app.css": &fstest.MapFile{Data: []byte("/* an overlay */")},
+	})
+	if changed == base {
+		t.Error("overlaying an asset should change the URL")
+	}
+	if url(false, nil) != base {
+		t.Error("the same assets should hash the same either way")
 	}
 }
