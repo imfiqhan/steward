@@ -20,6 +20,13 @@ func Mount(r gin.IRouter, a *steward.Admin) error {
 	}
 	h := gin.WrapH(a)
 	prefix := a.Prefix()
+	if prefix == "" {
+		// A panel mounted at the root is the whole router. Gin rejects an empty
+		// pattern outright, and its catch-all already answers "/", so the bare
+		// route registered for a prefixed mount would only conflict with it.
+		r.Any("/*path", h)
+		return nil
+	}
 	r.Any(prefix, h)
 	r.Any(prefix+"/*path", h)
 	return nil

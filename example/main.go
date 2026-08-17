@@ -65,7 +65,7 @@ func run(addr, dbPath string) error {
 		return err
 	}
 
-	slog.Info("steward example listening", "addr", addr, "panel", "http://localhost"+addr+"/admin")
+	slog.Info("steward example listening", "addr", addr, "panel", "http://localhost"+addr+app.Prefix()+"/")
 	return r.Run(addr)
 }
 
