@@ -1,0 +1,54 @@
+{{/* Draws every chart on the page. Included by the dashboard and by any
+     layout built with steward.Chart. */}}
+{{/* Chart.js only: it is larger than the whole UI bundle and most pages have
+     no chart. Basecoat's Chart component rides in app.js instead, because it
+     attaches to window.basecoat and a tag here would run before app.js has
+     made one. */}}
+<script src="{{asset "dist/chart.umd.min.js"}}"></script>
+<script>
+  (function () {
+    function draw(root) {
+      if (!window.Chart || !window.basecoat || !window.basecoat.chart) return;
+      root.querySelectorAll("[data-steward-chart]").forEach(function (box) {
+        if (box.dataset.stewardChartDone) return;
+        var payload = box.querySelector("[data-steward-chart-data]");
+        var canvas = box.querySelector("canvas");
+        if (!payload || !canvas) return;
+        var opts;
+        try {
+          opts = JSON.parse(payload.textContent);
+        } catch (e) {
+          return; // leave the note in place; it explains the failure
+        }
+        if (!canvas.id) {
+          canvas.id = "steward-chart-" + Math.random().toString(36).slice(2);
+        }
+        var note = box.querySelector("[data-steward-chart-note]");
+        // An empty series draws axes and nothing else, which reads as a broken
+        // tile rather than as a quiet month. Say so instead of drawing it.
+        // The payload is the component's own shape — data is the array of rows,
+        // not Chart.js's {datasets: […]}.
+        if (!Array.isArray(opts.data) || opts.data.length === 0) {
+          canvas.remove();
+          if (note) note.textContent = "No data for this period.";
+          box.dataset.stewardChartDone = "1";
+          box.style.height = "auto";
+          return;
+        }
+        window.basecoat.chart("#" + canvas.id, opts);
+        if (note) note.remove();
+        box.dataset.stewardChartDone = "1";
+      });
+    }
+    function run() { draw(document); }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run);
+    } else {
+      run();
+    }
+    // Lazy tiles and HTMX navigation swap in new canvases.
+    document.body.addEventListener("htmx:load", function (e) {
+      draw(e.detail && e.detail.elt ? e.detail.elt : document);
+    });
+  })();
+</script>

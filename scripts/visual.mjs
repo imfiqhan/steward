@@ -192,6 +192,55 @@ await page.keyboard.press("Enter");
 await page.waitForTimeout(700);
 check(/\/authors\/\d/.test(page.url()), `Enter activates the highlighted item (${page.url()})`);
 
+// --- composed page (steward.Row / steward.Col) --------------------------------
+// A column is a grid item, and a grid item's default min-width lets its content
+// push it past the track it was given: a chart's canvas did exactly that, so a
+// card in a four-column slot measured 528px against a 355px column. Widths are
+// the check, plus that the page itself never scrolls sideways.
+await page.goto(BASE + "/posts/report");
+await page.waitForTimeout(900);
+const composed = await page.evaluate(() => {
+  const rows = [...document.querySelectorAll(".steward-layout-row")];
+  const cols = rows.flatMap((r) => [...r.children].map((c) => {
+    const cr = c.getBoundingClientRect();
+    const card = c.querySelector(".card");
+    const kr = card ? card.getBoundingClientRect() : null;
+    return {
+      span: (c.className.match(/steward-span-(\d+)/) || [])[1],
+      width: Math.round(cr.width),
+      overflow: kr ? Math.round(kr.right - cr.right) : 0,
+    };
+  }));
+  return {
+    rows: rows.length,
+    cols,
+    wide: cols.length ? Math.max(...cols.map((c) => c.width)) : 0,
+    narrow: cols.length ? Math.min(...cols.map((c) => c.width)) : 0,
+    sideways: document.documentElement.scrollWidth > window.innerWidth,
+    hasTable: !!document.querySelector(".steward-layout-row table"),
+    hasMetric: /Published/.test(document.body.textContent),
+  };
+});
+check(composed.rows === 2, `the page renders its rows (${composed.rows})`);
+check(composed.cols.every((c) => c.overflow <= 1),
+  `every card stays inside its column (${composed.cols.map((c) => c.overflow).join(",")})`);
+check(composed.wide > composed.narrow,
+  `an eight-column slot is wider than a four (${composed.wide} vs ${composed.narrow})`);
+check(!composed.sideways, "a composed page does not scroll sideways");
+check(composed.hasTable && composed.hasMetric, "the table and metric widgets render");
+
+// Below the breakpoint a column takes the whole row: two columns on a phone are
+// two columns too narrow to read.
+await page.setViewportSize({ width: 480, height: 800 });
+await page.waitForTimeout(300);
+const stacked = await page.evaluate(() => {
+  const cols = [...document.querySelectorAll(".steward-layout-row")[0].children];
+  const widths = cols.map((c) => Math.round(c.getBoundingClientRect().width));
+  return { widths, same: new Set(widths).size === 1 };
+});
+check(stacked.same, `on a narrow screen the columns stack (${stacked.widths.join(",")})`);
+await page.setViewportSize({ width: 1400, height: 900 });
+
 // --- preview viewer -----------------------------------------------------------
 // A thumbnail is too small to read and a stored file is only a path, so both
 // open in place. What matters is that the trigger carries no button chrome, the

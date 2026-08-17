@@ -1,0 +1,23 @@
+{{/* One layout node. Recursive: a column holds nodes, which may be rows. */}}
+{{define "layout-node"}}
+  {{if eq .Kind "row"}}
+  <div class="steward-layout-row">
+    {{range .Children}}{{template "layout-node" .}}{{end}}
+  </div>
+  {{else if eq .Kind "col"}}
+  <div class="steward-layout-col steward-span-{{.Span}}">
+    {{range .Children}}{{template "layout-node" .}}{{end}}
+  </div>
+  {{else if eq .Kind "card"}}
+  <div class="card">
+    {{with .Title}}<header><h2>{{.}}</h2></header>{{end}}
+    <section class="grid gap-4">
+      {{range .Children}}{{template "layout-node" .}}{{end}}
+    </section>
+  </div>
+  {{else if eq .Kind "tile"}}
+  {{with .Tile}}{{template "widgets/tile.html" .}}{{end}}
+  {{else}}
+  {{.Body}}
+  {{end}}
+{{end}}

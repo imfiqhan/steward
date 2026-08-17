@@ -152,6 +152,43 @@ func registerResources(app *steward.Admin) {
 			})
 		})
 
+	// A page composed in Go rather than in a template: rows, columns, and the
+	// widgets that sit in them.
+	posts.Page("GET", "report", func(c *steward.Context) error {
+		gdb := c.Admin.DB().WithContext(c.Ctx())
+		var published, drafts int64
+		gdb.Model(&models.Post{}).Where("status = ?", "published").Count(&published)
+		gdb.Model(&models.Post{}).Where("status = ?", "draft").Count(&drafts)
+
+		var recent []models.Post
+		gdb.Order("id desc").Limit(5).Find(&recent)
+		rows := make([][]any, 0, len(recent))
+		for _, p := range recent {
+			rows = append(rows, []any{p.Title, p.Status})
+		}
+
+		return c.Layout("Post report",
+			steward.Row(
+				steward.Col(8, steward.Card("Published over time", steward.Chart(&steward.ChartData{
+					Type:   steward.ChartBar,
+					Labels: []string{"Published", "Drafts"},
+					Series: []steward.ChartSeries{{
+						Label:  "Posts",
+						Values: []float64{float64(published), float64(drafts)},
+					}},
+				}))),
+				steward.Col(4,
+					steward.Metric("Published", published, "live on the site"),
+					steward.Metric("Drafts", drafts),
+				),
+			),
+			steward.Row(
+				steward.Col(12, steward.Card("Most recent",
+					steward.Table([]string{"Title", "Status"}, rows))),
+			),
+		)
+	})
+
 	posts.Detail(func(d *steward.Detail[models.Post]) {
 		d.Field("ID")
 		d.Field("Title")

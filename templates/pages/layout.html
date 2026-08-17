@@ -1,0 +1,11 @@
+{{/* A page composed of rows and columns. The node template calls itself, so a
+     column may hold rows again. */}}
+<div class="p-6 grid grid-cols-1 gap-4">
+  <div>
+    <h2 class="text-2xl font-semibold">{{.Page.Title}}</h2>
+  </div>
+  {{range .Data.Nodes}}{{template "layout-node" .}}{{end}}
+</div>
+{{if .Data.HasChart}}
+{{template "widgets/chart_runtime.html" .}}
+{{end}}

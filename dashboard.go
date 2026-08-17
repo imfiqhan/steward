@@ -3,10 +3,9 @@ package steward
 // The dashboard builder: widgets declared in Go, each with a typed data
 // callback, replacing a hand-written home page.
 //
-// Composition stops here deliberately. There is no Row/Column/Layout object
-// graph — a widget declares what it shows and how wide it is, and the template
-// arranges them. Anything more elaborate is a template override, where Tailwind
-// and the overlay already do the job.
+// Tiles declared one after another flow into the dashboard's own grid, three
+// columns wide. Row places them explicitly instead, taking the same Col that
+// composes a custom page — a tile is a Node, so the two vocabularies are one.
 
 import (
 	"bytes"
@@ -24,7 +23,7 @@ var chartRuntimeAssets = []string{"dist/chart.umd.min.js"}
 
 // hasChartWidget reports whether any tile needs that runtime.
 func (d *Dashboard) hasChartWidget() bool {
-	for _, w := range d.widgets {
+	for _, w := range d.allWidgets() {
 		if w.kind == widgetChart {
 			return true
 		}
@@ -78,29 +77,89 @@ func (w *Widget) Lazy() *Widget { w.lazy = true; return w }
 func (d *Dashboard) Chart(title string, load func(*Context) (*ChartData, error)) *Widget {
 	w := &Widget{kind: widgetChart, title: title, span: 2}
 	w.load = func(c *Context) (any, error) { return load(c) }
-	d.widgets = append(d.widgets, w)
-	return w
+	return d.add(w)
 }
 
 // Dashboard collects the widgets shown on the panel's home page.
 type Dashboard struct {
-	widgets []*Widget
+	// nodes holds tiles and rows in the order they were declared. A run of
+	// tiles renders as the dashboard's own grid; a row renders as itself, so
+	// where a row sits among the tiles is where it appears.
+	nodes []Node
+}
+
+// add appends a tile in declaration order.
+func (d *Dashboard) add(w *Widget) *Widget {
+	d.nodes = append(d.nodes, w)
+	return w
+}
+
+// widgets lists the tiles that were not placed in a row.
+func (d *Dashboard) flowed() []*Widget {
+	var out []*Widget
+	for _, n := range d.nodes {
+		if s := n.spec(); s.kind == "tile" && s.tile != nil {
+			out = append(out, s.tile)
+		}
+	}
+	return out
+}
+
+// Row arranges tiles explicitly rather than letting them flow into the
+// dashboard's three-column grid, and is the same Row a custom page uses:
+//
+//	app.Dashboard(func(d *steward.Dashboard) {
+//	    d.Row(
+//	        steward.Col(8, d.Chart("Trend", trend)),
+//	        steward.Col(4,
+//	            d.Metric("This year", countThisYear),
+//	            d.Metric("This month", countThisMonth),
+//	        ),
+//	    )
+//	})
+//
+// A tile placed in a row is not also flowed into the grid.
+func (d *Dashboard) Row(cols ...Node) *Dashboard {
+	row := Row(cols...)
+	// A tile constructor appends as it is called, so one placed in a row was
+	// already in the flow — it is taken out and the row stands where the first
+	// of them was declared.
+	placed := map[*Widget]bool{}
+	for _, w := range tiles([]Node{row}) {
+		placed[w] = true
+	}
+	kept := d.nodes[:0]
+	inserted := false
+	for _, n := range d.nodes {
+		sp := n.spec()
+		if sp.kind == "tile" && sp.tile != nil && placed[sp.tile] {
+			if !inserted {
+				kept = append(kept, row)
+				inserted = true
+			}
+			continue
+		}
+		kept = append(kept, n)
+	}
+	if !inserted {
+		kept = append(kept, row)
+	}
+	d.nodes = kept
+	return d
 }
 
 // Metric adds a KPI tile. load runs per request and its result is stringified
 // by the template, so returning an int, string, or fmt.Stringer all work.
 func (d *Dashboard) Metric(label string, load func(*Context) (any, error)) *Widget {
 	w := &Widget{kind: widgetMetric, title: label, span: 1, load: load}
-	d.widgets = append(d.widgets, w)
-	return w
+	return d.add(w)
 }
 
 // Template adds a tile rendered from a template of your own, receiving
 // whatever load returns as its data. Pass a nil load for a static tile.
 func (d *Dashboard) Template(title, tmpl string, load func(*Context) (any, error)) *Widget {
 	w := &Widget{kind: widgetTemplate, title: title, tmpl: tmpl, span: maxWidgetSpan, load: load}
-	d.widgets = append(d.widgets, w)
-	return w
+	return d.add(w)
 }
 
 // Dashboard replaces the default home page with widgets declared in Go:
@@ -117,6 +176,10 @@ func (a *Admin) Dashboard(fn func(*Dashboard)) *Admin {
 	a.dash = d
 	return a
 }
+
+// allWidgets lists every tile the dashboard holds, flowed or placed, in a
+// stable order: a lazy tile is fetched by its position in this list.
+func (d *Dashboard) allWidgets() []*Widget { return tiles(d.nodes) }
 
 // ---- rendering --------------------------------------------------------------
 
@@ -202,8 +265,15 @@ func (a *Admin) resolve(c *Context, w *Widget, i int) widgetVM {
 }
 
 // dashboardVM is the page payload.
+// dashBlock is one stretch of the page: either a run of flowed tiles or one
+// explicitly placed row.
+type dashBlock struct {
+	Tiles []widgetVM
+	Row   []layoutNodeVM
+}
+
 type dashboardVM struct {
-	Widgets []widgetVM
+	Blocks []dashBlock
 	// HasChart pulls the chart runtime into the page, once, only when needed.
 	HasChart bool
 	// ResourceCount keeps the built-in overview page working unchanged.
@@ -218,23 +288,43 @@ func (a *Admin) dashboard(c *Context) error {
 			ResourceCount: len(a.registry),
 		})
 	}
-	vm := dashboardVM{Widgets: make([]widgetVM, 0, len(a.dash.widgets))}
-	for _, w := range a.dash.widgets {
-		if w.kind == widgetChart {
-			vm.HasChart = true // the page pulls in the chart scripts once
-			break
-		}
+	vm := dashboardVM{HasChart: a.dash.hasChartWidget()}
+	// The index is what a lazy tile fetches itself by, so it has to identify the
+	// widget wherever it sits — in the flow or in a row.
+	index := map[*Widget]int{}
+	for i, w := range a.dash.allWidgets() {
+		index[w] = i
 	}
-	for i, w := range a.dash.widgets {
+	tile := func(w *Widget) *widgetVM {
+		i := index[w]
 		if w.lazy {
-			vm.Widgets = append(vm.Widgets, widgetVM{
+			return &widgetVM{
 				Index: i, Kind: "lazy", Title: w.title, Span: w.span,
 				LazyURL: a.url("_widget", strconv.Itoa(i)),
-			})
+			}
+		}
+		vm := a.resolve(c, w, i)
+		return &vm
+	}
+	// Runs of tiles keep the dashboard's own grid; a row breaks the run, so
+	// what was declared between two rows stays between them.
+	var group []widgetVM
+	flush := func() {
+		if len(group) > 0 {
+			vm.Blocks = append(vm.Blocks, dashBlock{Tiles: group})
+			group = nil
+		}
+	}
+	for _, n := range a.dash.nodes {
+		sp := n.spec()
+		if sp.kind == "tile" && sp.tile != nil {
+			group = append(group, *tile(sp.tile))
 			continue
 		}
-		vm.Widgets = append(vm.Widgets, a.resolve(c, w, i))
+		flush()
+		vm.Blocks = append(vm.Blocks, dashBlock{Row: viewNodes([]Node{n}, tile)})
 	}
+	flush()
 	return a.render(c, "pages/widgets.html", "Dashboard", vm)
 }
 
@@ -244,11 +334,14 @@ func (a *Admin) widgetFragment(c *Context) error {
 	if a.dash == nil {
 		return c.JSON(http.StatusNotFound, Error("No dashboard widgets are declared."))
 	}
+	// Numbered over every tile, flowed or placed in a row, which is the order
+	// the page hands out.
+	all := a.dash.allWidgets()
 	i, err := strconv.Atoi(c.R.PathValue("index"))
-	if err != nil || i < 0 || i >= len(a.dash.widgets) {
+	if err != nil || i < 0 || i >= len(all) {
 		return c.JSON(http.StatusNotFound, Error("Unknown widget."))
 	}
-	w := a.dash.widgets[i]
+	w := all[i]
 	c.W.Header().Set("Content-Type", "text/html; charset=utf-8")
 	c.W.Header().Set("Cache-Control", "no-store")
 	return a.renderer.execute(c.W, "widgets/tile_fragment.html", a.pageMetaFor(c, w.title), a.resolve(c, w, i))

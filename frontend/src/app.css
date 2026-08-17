@@ -231,6 +231,46 @@ tr.steward-dragging { opacity: 0.5; }
   .steward-form-grid > .steward-span-12 { grid-column: span 12; }
 }
 
+/* ---- Page layout (steward.Row / steward.Col) ------------------------------ */
+
+/* The same twelve columns a form divides into, so a span means one thing across
+   the panel. Below the small breakpoint a column takes the whole row: two
+   columns on a phone are two columns too narrow to read. */
+.steward-layout-row {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.steward-layout-row > [class*="steward-span-"] { grid-column: span 12; }
+
+/* Both min-width:0 and an explicit track, because a grid item defaults to
+   min-width:auto at every level: the column would be pushed past its track by
+   a chart's canvas, and so would the card inside the column. A card in a
+   four-column slot measured 528px against a 355px column before this. */
+.steward-layout-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 1rem;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .steward-layout-row > .steward-span-1 { grid-column: span 1; }
+  .steward-layout-row > .steward-span-2 { grid-column: span 2; }
+  .steward-layout-row > .steward-span-3 { grid-column: span 3; }
+  .steward-layout-row > .steward-span-4 { grid-column: span 4; }
+  .steward-layout-row > .steward-span-5 { grid-column: span 5; }
+  .steward-layout-row > .steward-span-6 { grid-column: span 6; }
+  .steward-layout-row > .steward-span-7 { grid-column: span 7; }
+  .steward-layout-row > .steward-span-8 { grid-column: span 8; }
+  .steward-layout-row > .steward-span-9 { grid-column: span 9; }
+  .steward-layout-row > .steward-span-10 { grid-column: span 10; }
+  .steward-layout-row > .steward-span-11 { grid-column: span 11; }
+  .steward-layout-row > .steward-span-12 { grid-column: span 12; }
+}
+
 .steward-fieldset {
   display: grid;
   gap: 1rem;
