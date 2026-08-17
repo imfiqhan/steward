@@ -275,6 +275,7 @@ func TestEveryConfigFieldIsDocumented(t *testing.T) {
 		"Prefix": true, "Brand": true, "CurrencySymbol": true, "GridActions": true,
 		"FilterLayout": true,
 		"UploadDir":    true, "Storage": true, "Disks": true, "DefaultDisk": true,
+		"ExportDisk":    true,
 		"PublicUploads": true, "SignedURLTTL": true,
 		"TablePrefix": true, "DisableAutoMigrate": true,
 		"DisableNotifications": true,
@@ -572,6 +573,32 @@ func TestDocumentedExportJobCalls(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := app.Exports(ctx, 1, 0); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The grid page shows a two-disk arrangement that keeps exports out of the
+// directory a web server reads. Compiled here so the spelling stays real.
+//
+// steward-site/content/docs/grid.md#background-export
+func TestDocumentedExportDiskArrangement(t *testing.T) {
+	app, err := steward.New(steward.Config{
+		DB:        testDB(t),
+		SecretKey: []byte("documented-export-disk-secret"),
+		Disks: map[string]steward.Disk{
+			"media":   {Storage: &steward.LocalStorage{Dir: t.TempDir()}},
+			"exports": {Storage: &steward.LocalStorage{Dir: t.TempDir()}},
+		},
+		DefaultDisk: "media",
+		ExportDisk:  "exports",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Verify(); err != nil {
 		t.Fatal(err)
 	}
 }

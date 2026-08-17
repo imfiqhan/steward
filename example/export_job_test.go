@@ -382,3 +382,100 @@ func TestPruneExportsRemovesTheFileToo(t *testing.T) {
 		t.Fatal("the file outlived the job that owned it")
 	}
 }
+
+// A finished export goes where ExportDisk says, not to whatever the default
+// disk is: that directory may be served by something other than the panel, and
+// an export carries whatever rows its owner could read.
+func TestExportGoesToItsOwnDisk(t *testing.T) {
+	media := t.TempDir()
+	private := t.TempDir()
+	db := testDB(t)
+	if err := db.AutoMigrate(&Record{}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 1; i <= 20; i++ {
+		if err := db.Create(&Record{Title: fmt.Sprintf("row %02d", i)}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	app, err := steward.New(steward.Config{
+		DB:        db,
+		SecretKey: []byte("export-disk-test-secret-key"),
+		Prefix:    "/admin",
+		Disks: map[string]steward.Disk{
+			"media":   {Storage: &steward.LocalStorage{Dir: media}},
+			"reports": {Storage: &steward.LocalStorage{Dir: private}},
+		},
+		DefaultDisk:          "media",
+		ExportDisk:           "reports",
+		BackgroundExportRows: 5,
+		DisableExportWorker:  true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[Record](app).Grid(func(g *steward.Grid[Record]) { g.Column("Title") })
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Verify(); err != nil {
+		t.Fatal(err)
+	}
+
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+	client := exportClient(t, srv)
+	ctx := context.Background()
+
+	resp, err := client.Get(srv.URL + "/admin/records?export=all")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = readBody(t, resp)
+	if _, err := app.RunPendingExports(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	jobs, _ := app.Exports(ctx, 1, 0)
+	if len(jobs) != 1 || jobs[0].Status != steward.ExportDone {
+		t.Fatalf("job did not finish: %+v", jobs)
+	}
+	if jobs[0].Disk != "reports" {
+		t.Errorf("export recorded disk %q, want reports", jobs[0].Disk)
+	}
+	if _, err := os.Stat(filepath.Join(private, filepath.FromSlash(jobs[0].Path))); err != nil {
+		t.Errorf("nothing on the export disk: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(media, "exports")); !os.IsNotExist(err) {
+		t.Error("an export was written to the default disk as well")
+	}
+
+	// And it still downloads, from the disk it was written to.
+	dl, err := client.Get(srv.URL + fmt.Sprintf("/admin/_exports/%d/download", jobs[0].ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = dl.Body.Close() }()
+	if dl.StatusCode != http.StatusOK {
+		t.Fatalf("downloading from the export disk = %d, want 200", dl.StatusCode)
+	}
+}
+
+// A misspelled ExportDisk must fail at boot, not silently write somewhere else.
+func TestUnknownExportDiskIsRefusedAtBoot(t *testing.T) {
+	_, err := steward.New(steward.Config{
+		DB:        testDB(t),
+		SecretKey: []byte("export-disk-refusal-test-key"),
+		Disks: map[string]steward.Disk{
+			"media": {Storage: &steward.LocalStorage{Dir: t.TempDir()}},
+		},
+		DefaultDisk: "media",
+		ExportDisk:  "reprots",
+	})
+	if err == nil {
+		t.Fatal("a misspelled ExportDisk was accepted")
+	}
+	if !strings.Contains(err.Error(), "ExportDisk") {
+		t.Fatalf("the error does not name the field: %v", err)
+	}
+}

@@ -65,6 +65,14 @@ func buildDisks(cfg *Config) (map[string]Disk, error) {
 		return nil, fmt.Errorf("steward: disk name %q must be lowercase letters, digits, - or _", cfg.DefaultDisk)
 	}
 
+	if cfg.ExportDisk != "" && len(cfg.Disks) > 0 {
+		if _, ok := cfg.Disks[cfg.ExportDisk]; !ok {
+			return nil, fmt.Errorf(
+				"steward: ExportDisk %q is not among Disks (%s)",
+				cfg.ExportDisk, strings.Join(diskNames(cfg.Disks), ", "))
+		}
+	}
+
 	for name, d := range cfg.Disks {
 		if !validDiskName(name) {
 			return nil, fmt.Errorf("steward: disk name %q must be lowercase letters, digits, - or _", name)

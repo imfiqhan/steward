@@ -55,6 +55,12 @@ type Config struct {
 	//	}
 	Disks map[string]Disk
 
+	// ExportDisk is where finished background exports are written. Empty means
+	// DefaultDisk, which is usually right — but not when the default disk's
+	// directory is served by something other than the panel, since an export
+	// carries whatever rows its owner could read.
+	ExportDisk string
+
 	// DefaultDisk is where an upload goes when its field names no disk
 	// (default "local").
 	DefaultDisk string

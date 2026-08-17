@@ -232,7 +232,7 @@ func (a *Admin) runExport(ctx context.Context, job *ExportJob) error {
 		return err
 	}
 
-	disk := a.cfg.DefaultDisk
+	disk := a.exportDisk()
 	name := fmt.Sprintf("exports/%s-%d-%s.csv", job.Slug, job.ID, time.Now().UTC().Format("20060102-150405"))
 	stored, err := a.storeExport(ctx, disk, name, buf.Bytes())
 	if err != nil {
@@ -443,4 +443,13 @@ func (a *Admin) downloadExport(c *Context) error {
 	c.W.Header().Set("X-Content-Type-Options", "nosniff")
 	http.ServeFile(c.W, c.R, filepath.Join(ls.Dir, filepath.FromSlash(job.Path)))
 	return nil
+}
+
+// exportDisk is where finished exports are written: the configured one, or the
+// default when none is named.
+func (a *Admin) exportDisk() string {
+	if a.cfg.ExportDisk != "" {
+		return a.cfg.ExportDisk
+	}
+	return a.cfg.DefaultDisk
 }
