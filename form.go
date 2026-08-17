@@ -166,6 +166,26 @@ func (f *Form[T]) Datetime(path string, label ...string) *Field[T] {
 }
 
 // Time adds a time-of-day input stored as "15:04".
+// DateRange pairs two date columns into one control: one calendar, both ends,
+// with the same behaviour a grid filter's range has — on a touch device the two
+// native inputs appear instead, since a calendar built here beats nothing the
+// platform offers.
+//
+//	f.DateRange("DateStart", "DateEnd", "Berlangsung")
+//
+// Each end keeps its own column, so validation, defaults and the change log
+// treat them as the two fields they are. Rules set on the returned field apply
+// to the start; UpdateRules and the rest chain as usual.
+func (f *Form[T]) DateRange(fromPath, toPath string, label ...string) *Field[T] {
+	from := f.add(FieldDate, fromPath, label...)
+	from.rangeTo = toPath
+	to := f.add(FieldDate, toPath)
+	// The second half renders inside the first's control rather than as a row
+	// of its own.
+	to.rangeOf = fromPath
+	return from
+}
+
 func (f *Form[T]) Time(path string, label ...string) *Field[T] {
 	return f.add(FieldTime, path, label...)
 }
@@ -337,8 +357,12 @@ type Field[T any] struct {
 	form *Form[T]
 	path string
 
-	kind     FieldKind
-	label    string
+	kind  FieldKind
+	label string
+	// rangeTo names the column holding the other end of a DateRange, and
+	// rangeOf names the start on the field that is that other end.
+	rangeTo  string
+	rangeOf  string
 	fieldset string
 	divider  bool
 
@@ -753,4 +777,14 @@ func asNumber(v any) (float64, bool) {
 		return float64(x), true
 	}
 	return 0, false
+}
+
+// fieldByPath finds a declared field by the column it writes.
+func (f *Form[T]) fieldByPath(path string) *Field[T] {
+	for _, fd := range f.fields {
+		if fd.path == path {
+			return fd
+		}
+	}
+	return nil
 }

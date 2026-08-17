@@ -70,10 +70,10 @@
           </div>
         {{else if eq .Input "datebetween"}}
           <div class="flex gap-2">
-            <div class="steward-datepicker" data-steward-datepicker>
+            <div class="steward-datepicker" data-steward-datepicker="compact">
               <input id="filter-{{.Param}}" type="date" name="{{.Param}}" value="{{.Value}}" class="input"/>
             </div>
-            <div class="steward-datepicker" data-steward-datepicker>
+            <div class="steward-datepicker" data-steward-datepicker="compact">
               <input type="date" name="{{.Param}}_to" value="{{.Value2}}" class="input" aria-label="{{.Label}} end"/>
             </div>
           </div>
@@ -81,11 +81,11 @@
           {{/* Wrapped, so the calendar app.js adds to a form's date field reaches
                a filter's too — these were the browser's own control and nothing
                else. */}}
-          <div class="steward-datepicker" data-steward-datepicker>
+          <div class="steward-datepicker" data-steward-datepicker="compact">
             <input id="filter-{{.Param}}" type="date" name="{{.Param}}" value="{{.Value}}" class="input"/>
           </div>
         {{else if eq .Input "datetime"}}
-          <div class="steward-datepicker" data-steward-datepicker>
+          <div class="steward-datepicker" data-steward-datepicker="compact">
             <input id="filter-{{.Param}}" type="datetime-local" name="{{.Param}}" step="1" value="{{.Value}}" class="input"/>
           </div>
         {{else}}

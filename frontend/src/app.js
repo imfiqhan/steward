@@ -2650,6 +2650,28 @@ window.htmx = htmx;
         if (sel) sel.focus();
       });
       root.appendChild(trigger);
+
+      /* A filter's control is narrow — measured at 109px, against 672px for the
+         same field on a form — and a 24px button inside that box sits on top of
+         the value. Where the template asks for it, the trigger becomes the
+         control: the native input still holds and submits the value, and reads
+         it back out when the calendar writes one. This is the presentation a
+         date range already uses, and on a touch device neither appears at all,
+         since initDatePickers returns before any of this. */
+      if (root.dataset.stewardDatepicker === "compact") {
+        input.classList.add("steward-visually-hidden");
+        var text = document.createElement("span");
+        text.className = "steward-datepicker-value";
+        trigger.classList.add("steward-datepicker-compact");
+        trigger.setAttribute("aria-label", "Choose a date");
+        trigger.appendChild(text);
+        var paint = function () {
+          text.textContent = input.value ? dayLabel(input.value.slice(0, 10)) : "Any date";
+          root.dataset.set = input.value ? "1" : "";
+        };
+        paint();
+        input.addEventListener("change", paint);
+      }
     });
   }
 
@@ -2678,17 +2700,21 @@ window.htmx = htmx;
    * inputs, for the same reason the single picker does.
    */
 
+  // dayLabel writes one ISO day the way a reader reads it, in the page's
+  // language, falling back to the ISO string where that is not available.
+  function dayLabel(iso) {
+    var p = iso.split("-");
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    try {
+      return d.toLocaleDateString(document.documentElement.lang || undefined,
+        { day: "numeric", month: "short", year: "numeric" });
+    } catch (err) {
+      return iso;
+    }
+  }
+
   function rangeLabel(from, to) {
-    var lang = document.documentElement.lang || undefined;
-    var fmt = function (iso) {
-      var p = iso.split("-");
-      var d = new Date(+p[0], +p[1] - 1, +p[2]);
-      try {
-        return d.toLocaleDateString(lang, { day: "numeric", month: "short", year: "numeric" });
-      } catch (err) {
-        return iso;
-      }
-    };
+    var fmt = dayLabel;
     if (from && to) return from === to ? fmt(from) : fmt(from) + " – " + fmt(to);
     if (from) return "From " + fmt(from);
     if (to) return "Until " + fmt(to);

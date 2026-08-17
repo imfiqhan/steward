@@ -4,6 +4,7 @@ import (
 	"context"
 	"html/template"
 	"net/http/httptest"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -813,4 +814,140 @@ func TestFilterSpanIsClamped(t *testing.T) {
 	if !strings.Contains(html, "steward-span-12") || !strings.Contains(html, "steward-span-1") {
 		t.Error("the clamped values should be 12 and 1")
 	}
+}
+
+// A form could pair two date columns only as two separate fields. DateRange
+// makes them one control — the same one a filter uses, so a touch device gets
+// its own inputs — while each end still binds, validates and saves as its own
+// column.
+
+type rangeRow struct {
+	ID        uint `gorm:"primaryKey"`
+	Title     string
+	DateStart time.Time
+	DateEnd   time.Time
+}
+
+func newRangeFormServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	db := testDB(t)
+	if err := db.AutoMigrate(&rangeRow{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("form-daterange-test-secret-key"),
+		AuthExcept: []string{"/range_rows*"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := steward.Register[rangeRow](app)
+	res.Form(func(f *steward.Form[rangeRow]) {
+		f.Text("Title").Rules("required")
+		f.DateRange("DateStart", "DateEnd", "Runs")
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Verify(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestFormDateRangeRendersOneControl(t *testing.T) {
+	html := fetchOK(t, newRangeFormServer(t).URL+"/admin/range_rows/create")
+
+	if !strings.Contains(html, "data-steward-daterange") {
+		t.Error("the pair should render the range control")
+	}
+	// Both ends submit under their own column's name.
+	for _, want := range []string{
+		`name="DateStart"`, `name="DateEnd"`,
+		"data-steward-daterange-from", "data-steward-daterange-to",
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("the control should carry %q", want)
+		}
+	}
+	// One row, not two: the second end has no label of its own.
+	if n := strings.Count(html, `data-steward-field="DateStart"`); n != 1 {
+		t.Errorf("the pair should render one row, got %d", n)
+	}
+	if strings.Contains(html, `data-steward-field="DateEnd"`) {
+		t.Error("the second end should not render a row of its own")
+	}
+	// One label for the pair — the clear button names it too, which is why the
+	// label element is counted rather than the text.
+	if n := strings.Count(html, `for="field-DateStart"`); n != 1 {
+		t.Errorf("the row should carry one label for the pair, got %d", n)
+	}
+}
+
+// TestFormDateRangeSavesBothEnds is the half that markup cannot show.
+func TestFormDateRangeSavesBothEnds(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&rangeRow{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("form-daterange-save-secret-key"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[rangeRow](app).Form(func(f *steward.Form[rangeRow]) {
+		f.Text("Title").Rules("required")
+		f.DateRange("DateStart", "DateEnd", "Runs")
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+	seedUser(t, app, "root", "correct-horse")
+
+	c := new2FAClient(t, srv)
+	if code, _ := c.login("root", "correct-horse"); code >= 400 {
+		t.Fatal("login failed")
+	}
+	_, form := c.get("/range_rows/create")
+	code, body := c.post("/range_rows", url.Values{
+		"Title":     {"A festival"},
+		"DateStart": {"2026-08-01"},
+		"DateEnd":   {"2026-08-09"},
+	}, c.token(form))
+	if code >= 400 {
+		t.Fatalf("saving the pair = %d: %s", code, body)
+	}
+
+	// Both ends read back into the one control.
+	_, edit := c.get("/range_rows/1/edit")
+	if !strings.Contains(edit, `value="2026-08-01"`) || !strings.Contains(edit, `value="2026-08-09"`) {
+		t.Errorf("both ends should read back: %s", rangeControl(edit))
+	}
+	if !strings.Contains(edit, `data-set="1"`) {
+		t.Error("a control holding a value should say so")
+	}
+
+	// And as two columns in the database, which is the point of the pair.
+	var got rangeRow
+	if err := db.First(&got, 1).Error; err != nil {
+		t.Fatal(err)
+	}
+	if got.DateStart.Format("2006-01-02") != "2026-08-01" ||
+		got.DateEnd.Format("2006-01-02") != "2026-08-09" {
+		t.Errorf("stored %s .. %s", got.DateStart, got.DateEnd)
+	}
+}
+
+// rangeControl pulls the control out for readable failures.
+func rangeControl(html string) string {
+	i := strings.Index(html, "data-steward-daterange")
+	if i < 0 {
+		return "(no range control)"
+	}
+	return strings.Join(strings.Fields(html[max(0, i-40):min(len(html), i+320)]), " ")
 }

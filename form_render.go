@@ -25,19 +25,23 @@ import (
 // ---- view model -------------------------------------------------------------
 
 type formFieldVM struct {
-	Kind        string
-	Name        string // input name = field path
-	Label       string
-	Value       string
-	Required    bool
-	Disabled    bool
-	ReadOnly    bool
-	Placeholder string
-	Help        string
-	Accept      string
-	Fieldset    string
-	Divider     bool
-	Options     []optionVM
+	Kind string
+	Name string // input name = field path
+	// RangeTo and RangeToValue carry the other end of a DateRange, which is
+	// rendered inside this field's control rather than as a row of its own.
+	RangeTo      string
+	RangeToValue string
+	Label        string
+	Value        string
+	Required     bool
+	Disabled     bool
+	ReadOnly     bool
+	Placeholder  string
+	Help         string
+	Accept       string
+	Fieldset     string
+	Divider      bool
+	Options      []optionVM
 	// Icons carries an Icon field's choices; SpriteURL is where the browser
 	// fetches their glyphs, once, for the whole grid.
 	Icons     []iconChoiceVM
@@ -216,6 +220,24 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			}
 		} else {
 			fv.Value = fd.valueString(row)
+		}
+		// A range's second half has no row of its own: its value rides on the
+		// first, whose control holds both.
+		if fd.rangeOf != "" {
+			continue
+		}
+		if fd.rangeTo != "" {
+			fv.Kind = "daterange"
+			fv.RangeTo = fd.rangeTo
+			if other := t.form.fieldByPath(fd.rangeTo); other != nil {
+				if creating && row == nil {
+					if other.defaultVal != nil {
+						fv.RangeToValue = fmt.Sprint(other.defaultVal)
+					}
+				} else {
+					fv.RangeToValue = other.valueString(row)
+				}
+			}
 		}
 		if fd.kind == FieldPassword {
 			fv.Value = ""

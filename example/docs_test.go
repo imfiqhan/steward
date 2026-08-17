@@ -41,6 +41,8 @@ type docsRow struct {
 	Visibility  string
 	Featured    bool
 	PublishedOn time.Time
+	RunsFrom    time.Time
+	RunsTo      time.Time
 	PostDate    time.Time
 	OpensAt     string
 	Cover       string
@@ -103,6 +105,7 @@ func TestDocumentedFieldKindsAllWork(t *testing.T) {
 		f.Date("PublishedOn")
 		f.Datetime("PostDate").Rules("required")
 		f.Time("OpensAt")
+		f.DateRange("RunsFrom", "RunsTo", "Runs")
 
 		// Uploads
 		f.Image("Cover").Dir("covers").MaxSize(2 << 20).Accept("image/*")

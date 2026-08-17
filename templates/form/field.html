@@ -309,6 +309,26 @@
              {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}/>
     </div>
 
+  {{else if eq .Kind "daterange"}}
+    {{/* The same control a grid filter's range uses, so both ends of a pair
+         are picked in one calendar and a touch device gets its own two inputs
+         instead. Each end submits under its own column's name, so binding and
+         validation see the two fields they are. */}}
+    <div class="steward-daterange" data-steward-daterange{{if or .Value .RangeToValue}} data-set="1"{{end}}>
+      <button type="button" class="steward-daterange-trigger" data-steward-daterange-trigger
+              id="field-{{.Name}}" aria-haspopup="dialog" aria-expanded="false"
+              {{if .Disabled}}disabled{{end}}>
+        {{icon "calendar" "size-4"}}
+        <span data-steward-daterange-label>Any date</span>
+      </button>
+      <button type="button" class="steward-daterange-clear" data-steward-daterange-clear
+              aria-label="Clear {{.Label}}" {{if and (not .Value) (not .RangeToValue)}}hidden{{end}}>
+        {{icon "x" "size-3"}}
+      </button>
+      <input type="hidden" name="{{.Name}}" value="{{.Value}}" data-steward-daterange-from/>
+      <input type="hidden" name="{{.RangeTo}}" value="{{.RangeToValue}}" data-steward-daterange-to/>
+    </div>
+
   {{else}}
     <input id="field-{{.Name}}"
       type="{{if eq .Kind "number"}}number{{else if eq .Kind "decimal"}}number{{else if eq .Kind "email"}}email{{else if eq .Kind "password"}}password{{else if eq .Kind "url"}}url{{else if eq .Kind "color"}}color{{else if eq .Kind "date"}}date{{else if eq .Kind "datetime"}}datetime-local{{else if eq .Kind "time"}}time{{else}}text{{end}}"

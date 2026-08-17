@@ -384,6 +384,45 @@ tr.steward-dragging { opacity: 0.5; }
   gap: 0.25rem;
 }
 
+/* The compact date filter wears the range trigger's clothes, so the two sit
+   beside each other without looking like different ideas. The native input is
+   still in the form — hidden from sight, not from submission. */
+/* Scoped to the wrapper rather than written as one utility class: the input
+   carries .input, which sets a width of its own at the same specificity, and
+   whichever rule the bundle happens to place last would win. */
+.steward-datepicker[data-steward-datepicker="compact"] > input.steward-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.steward-datepicker-trigger.steward-datepicker-compact {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.steward-datepicker-trigger.steward-datepicker-compact:hover { background: var(--muted); }
+.steward-datepicker[data-set="1"] .steward-datepicker-compact { color: var(--foreground); }
+.steward-datepicker-value { overflow: hidden; text-overflow: ellipsis; }
+
 .steward-daterange-trigger {
   display: inline-flex;
   align-items: center;
