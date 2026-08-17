@@ -169,9 +169,6 @@ func (r *GormRepository[T]) relCondSQL(rt *relTarget, c Cond) (string, []any, er
 // Splitting this out of applyCond is what lets a relation path reuse every
 // operator: the same predicate goes either straight into the WHERE clause or
 // inside a subquery.
-func predicateSQL(col string, c Cond) (string, []any, error) {
-	return predicateSQLFor("", col, c)
-}
 
 // predicateSQLFor is predicateSQL against a named dialect.
 //

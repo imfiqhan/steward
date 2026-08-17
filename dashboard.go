@@ -104,17 +104,6 @@ func (d *Dashboard) add(w *Widget) *Widget {
 	return w
 }
 
-// widgets lists the tiles that were not placed in a row.
-func (d *Dashboard) flowed() []*Widget {
-	var out []*Widget
-	for _, n := range d.nodes {
-		if s := n.spec(); s.kind == "tile" && s.tile != nil {
-			out = append(out, s.tile)
-		}
-	}
-	return out
-}
-
 // Row arranges tiles explicitly rather than letting them flow into the
 // dashboard's three-column grid, and is the same Row a custom page uses:
 //

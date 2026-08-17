@@ -182,7 +182,7 @@ cover it, and an HTML DSL in Go would be more surface for less flexibility.
 make build   # build library + example
 make test    # run tests
 make lint    # golangci-lint
-make run     # run the example app (SQLite, http://localhost:8080/admin)
+make run     # run the example app (SQLite, http://localhost:8321)
 ```
 
 The example app seeds a default panel account, **admin / admin** — change it

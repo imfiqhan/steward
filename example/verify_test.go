@@ -52,15 +52,17 @@ func defaultDiskFor(disks map[string]steward.Disk) string {
 
 // TestVerifyCatchesAnUnknownRule is the quiet one. The rule engine's switch has
 // no default case, so a rule it does not recognise is skipped without a word:
-// "requried" removes a required check and the field looks validated.
+// a name like "requiredd" removes a required check and the field looks
+// validated. The name is a plausible slip rather than nonsense, because that is
+// the case worth catching.
 func TestVerifyCatchesAnUnknownRule(t *testing.T) {
 	got := verifyWith(t, func(r *steward.Resource[verifyRow]) {
 		r.Form(func(f *steward.Form[verifyRow]) {
-			f.Text("Title").Rules("requried|max:255")
+			f.Text("Title").Rules("requiredd|max:255")
 		})
 	}, nil)
 
-	if !strings.Contains(got, `unknown validation rule "requried"`) {
+	if !strings.Contains(got, `unknown validation rule "requiredd"`) {
 		t.Errorf("Verify said %q", got)
 	}
 	// The message names what was allowed, not only what was not.

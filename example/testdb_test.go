@@ -108,10 +108,6 @@ func pgAdmin(t *testing.T, dsn string) *gorm.DB {
 	return pgAdminDB
 }
 
-// onPostgres reports whether the suite is running against PostgreSQL, for the
-// few assertions that are genuinely engine-specific.
-func onPostgres() bool { return os.Getenv("STEWARD_TEST_PG") != "" }
-
 // localZone names the process's timezone the way PostgreSQL wants it: an IANA
 // name. time.Local reports the abbreviation ("WIB"), which the server rejects,
 // so the name comes from TZ or from what /etc/localtime points at.

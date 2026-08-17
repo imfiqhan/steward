@@ -492,19 +492,22 @@ func TestCommandSearchSkipsTheCount(t *testing.T) {
 	db = db.Session(&gorm.Session{})
 	// After, not before: the statement's SQL is built by the query callback, so
 	// before it there is nothing to read.
-	db.Callback().Query().After("gorm:query").Register("count-probe", func(tx *gorm.DB) {
+	err := db.Callback().Query().After("gorm:query").Register("count-probe", func(tx *gorm.DB) {
 		if tx.Statement != nil && strings.Contains(strings.ToLower(tx.Statement.SQL.String()), "count(") {
 			counted = true
 		}
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < 3; i++ {
 		if err := db.Create(&paletteRow{Title: "A headline"}).Error; err != nil {
 			t.Fatal(err)
 		}
 	}
-	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("command-count-test-secret"), Prefix: "/admin"})
-	if err != nil {
-		t.Fatal(err)
+	app, err2 := steward.New(steward.Config{DB: db, SecretKey: []byte("command-count-test-secret"), Prefix: "/admin"})
+	if err2 != nil {
+		t.Fatal(err2)
 	}
 	steward.Register[paletteRow](app).Command("Title")
 	if err := app.Build(); err != nil {

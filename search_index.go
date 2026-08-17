@@ -25,6 +25,10 @@ type indexer interface {
 	indexable() bool
 }
 
+// Asserted rather than merely described: the reindex path reaches these methods
+// on the concrete type, so nothing else would notice the shape drifting.
+var _ indexer = (*typedResource[struct{}])(nil)
+
 // Searchable declares which paths go into the search index, and turns quick
 // search and the command palette over to Config.Searcher for this resource.
 //

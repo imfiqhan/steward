@@ -1,0 +1,131 @@
+# What has to hold before anything is tagged.
+#
+# The framework and its example are separate modules, and the example holds most
+# of the tests: `go test ./...` in the root runs one of them. That is how five
+# tests sat red on main without anyone noticing, so every job below drives the
+# Makefile, whose targets cover both.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.database }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, postgres]
+
+    services:
+      # Started for both entries; the sqlite run simply does not look at it.
+      # A service block cannot be made conditional, and an idle Postgres costs
+      # less than two nearly identical jobs.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: steward
+          POSTGRES_DB: steward_test
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            example/go.sum
+
+      - name: vet
+        run: make vet
+
+      # -race, and both modules. The tests reach PostgreSQL only when
+      # STEWARD_TEST_PG names one; without it they open SQLite.
+      - name: test
+        env:
+          STEWARD_TEST_PG: ${{ matrix.database == 'postgres' && 'postgres://postgres:steward@127.0.0.1:5433/steward_test?sslmode=disable' || '' }}
+        run: make test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.1.6
+          # The action lints one module; the others are walked here so a
+          # contrib package cannot rot unnoticed.
+          args: ./...
+      - name: lint the other modules
+        run: |
+          for dir in example cmd/steward contrib/*; do
+            echo "== $dir"
+            (cd "$dir" && golangci-lint run ./...)
+          done
+
+  assets:
+    name: assets match their source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      # assets/dist is committed, because a consumer of the module cannot run
+      # this build. So the copy in the tree has to be the one the sources
+      # produce, or a released panel ships stale CSS and JS.
+      - name: rebuild
+        run: make assets
+      - name: nothing changed
+        run: |
+          git diff --exit-code -- assets/dist || {
+            echo "::error::assets/dist is stale — run 'make assets' and commit the result"
+            exit 1
+          }
+
+  consumable:
+    name: modules resolve without the workspace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      # go.work makes every module resolve locally, which is what a consumer
+      # does not have. Building with it off is the closest check that the
+      # published modules hold together.
+      - name: build each module on its own
+        env:
+          GOWORK: "off"
+        run: |
+          for dir in . cmd/steward example contrib/*; do
+            echo "== $dir"
+            (cd "$dir" && go build ./...)
+          done
+
+      # The build above still passes with a bogus require, because a module's
+      # own replace applies while it is the main module. A consumer's does not:
+      # replace is not transitive, so a require of v0.0.0 is unresolvable for
+      # anyone who depends on these packages.
+      - name: contrib modules require a real framework version
+        run: |
+          if grep -rn "github.com/imfiqhan/steward v0.0.0" contrib/*/go.mod; then
+            echo "::error::a contrib module requires an unpublished framework version"
+            exit 1
+          fi

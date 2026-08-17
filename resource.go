@@ -407,7 +407,9 @@ func (t *typedResource[T]) compile(a *Admin) error {
 			continue
 		}
 		// A rule the engine does not know is skipped without a word, so
-		// "requried" removes a required check and nothing says so.
+		// a rule name with a typo in it removes a required check and nothing
+		// says so.
+
 		for _, spec := range []string{fd.rules, fd.createRules, fd.updateRules} {
 			for _, name := range rules.Unknown(spec) {
 				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(

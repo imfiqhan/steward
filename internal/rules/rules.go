@@ -154,8 +154,8 @@ func uniqueRule(f Field, arg, value string) string {
 
 // known lists every rule applyRule answers to. It is written out rather than
 // derived, because the switch it mirrors has no default case: an unknown rule
-// there is silently skipped, so "requried" removes a required check without
-// saying anything.
+// there is silently skipped, so a rule name with a typo in it removes a
+// required check without saying anything.
 var known = map[string]bool{
 	"required": true, "email": true, "url": true, "numeric": true,
 	"integer": true, "alpha_dash": true, "min": true, "max": true,

@@ -275,7 +275,7 @@ func TestDashboardKeepsDeclarationOrder(t *testing.T) {
 	if first < 0 || middle < 0 || last < 0 {
 		t.Fatal("every tile should render")
 	}
-	if !(first < middle && middle < last) {
+	if first >= middle || middle >= last {
 		t.Errorf("declaration order should hold, got first=%d middle=%d last=%d", first, middle, last)
 	}
 	// And the row is a row, not folded into the grid around it.

@@ -165,7 +165,6 @@ func (f *Form[T]) Datetime(path string, label ...string) *Field[T] {
 	return f.add(FieldDatetime, path, label...)
 }
 
-// Time adds a time-of-day input stored as "15:04".
 // DateRange pairs two date columns into one control: one calendar, both ends,
 // with the same behaviour a grid filter's range has — on a touch device the two
 // native inputs appear instead, since a calendar built here beats nothing the

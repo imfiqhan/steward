@@ -280,6 +280,8 @@ func (c *Column[T]) Limit(n int) *Column[T] {
 	return c
 }
 
+// BadgeColor names a badge's palette entry.
+//
 // badgeHTML renders a Basecoat badge; named colors map onto Tailwind
 // palette utilities (kept in sync with the @source inline safelist in
 // frontend/src/app.css), everything else falls back to the secondary
