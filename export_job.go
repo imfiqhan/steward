@@ -11,8 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // ExportJob is one requested CSV, built away from the request that asked for
@@ -176,14 +174,18 @@ func (a *Admin) RunPendingExports(ctx context.Context) (int, error) {
 func (a *Admin) claimExport(ctx context.Context) (*ExportJob, bool, error) {
 	db := a.db.WithContext(ctx)
 	for {
-		var job ExportJob
-		err := db.Where("status = ?", ExportPending).Order("id ASC").First(&job).Error
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, false, nil
-			}
+		// Find rather than First: an empty queue is the normal state, and First
+		// reports it as ErrRecordNotFound, which GORM's logger writes at error
+		// level — an error line a minute on a panel with nothing to export.
+		var found []ExportJob
+		if err := db.Where("status = ?", ExportPending).
+			Order("id ASC").Limit(1).Find(&found).Error; err != nil {
 			return nil, false, err
 		}
+		if len(found) == 0 {
+			return nil, false, nil
+		}
+		job := found[0]
 		now := time.Now()
 		res := db.Model(&ExportJob{}).
 			Where("id = ? AND status = ?", job.ID, ExportPending).
