@@ -52,7 +52,7 @@
           {{/* One control for both ends. The two inputs it writes are the same
                ones a Between filter submits, so the server side is unchanged and
                a hand-written URL still works. */}}
-          <div class="steward-daterange" data-steward-daterange>
+          <div class="steward-daterange" data-steward-daterange{{if .WithTime}} data-steward-daterange-time{{end}}>
             <button type="button" class="steward-daterange-trigger" data-steward-daterange-trigger
                     aria-haspopup="dialog" aria-expanded="false">
               {{icon "calendar" "size-4"}}
@@ -64,15 +64,6 @@
             </button>
             <input type="hidden" name="{{.Param}}" value="{{.Value}}" data-steward-daterange-from/>
             <input type="hidden" name="{{.Param}}_to" value="{{.Value2}}" data-steward-daterange-to/>
-          </div>
-        {{else if eq .Input "datebetween"}}
-          <div class="flex gap-2">
-            <div class="steward-datepicker" data-steward-datepicker="compact">
-              <input id="filter-{{.Param}}" type="date" name="{{.Param}}" value="{{.Value}}" class="input"/>
-            </div>
-            <div class="steward-datepicker" data-steward-datepicker="compact">
-              <input type="date" name="{{.Param}}_to" value="{{.Value2}}" class="input" aria-label="{{.Label}} end"/>
-            </div>
           </div>
         {{else if eq .Input "date"}}
           {{/* Wrapped, so the calendar app.js adds to a form's date field reaches

@@ -2724,8 +2724,16 @@ window.htmx = htmx;
     }
   }
 
+  // momentLabel writes an ISO date-and-time the way a reader reads it.
+  function momentLabel(iso) {
+    var t = iso.length > 10 ? iso.slice(11, 16) : "";
+    return dayLabel(iso.slice(0, 10)) + (t ? " " + t : "");
+  }
+
   function rangeLabel(from, to) {
-    var fmt = dayLabel;
+    var fmt = function (iso) {
+      return iso.length > 10 ? momentLabel(iso) : dayLabel(iso);
+    };
     if (from && to) return from === to ? fmt(from) : fmt(from) + " – " + fmt(to);
     if (from) return "From " + fmt(from);
     if (to) return "Until " + fmt(to);
@@ -2883,11 +2891,13 @@ window.htmx = htmx;
       paint();
 
       // Without a fine pointer, two native inputs beat a calendar built here.
+      var withTime = root.dataset.stewardDaterangeTime !== undefined;
+
       if (COARSE) {
         trigger.hidden = true;
         [["from", fromInput], ["to", toInput]].forEach(function (pair) {
           var d = document.createElement("input");
-          d.type = "date";
+          d.type = withTime ? "datetime-local" : "date";
           d.className = "input";
           d.value = pair[1].value;
           d.setAttribute("aria-label", pair[0] === "from" ? "From" : "Until");
@@ -2897,16 +2907,60 @@ window.htmx = htmx;
         return;
       }
 
+      function timeOf(v) { return v.length > 10 ? v.slice(11, 16) : ""; }
+
+      /* Two time inputs under the calendar, for a range whose ends are moments.
+         They are native inputs: a time picker built here would be worse than
+         every platform's own, and this is the same reasoning that leaves the
+         date to the platform on a touch device. */
+      function timeRow() {
+        var row = document.createElement("div");
+        row.className = "steward-daterange-times";
+        [["From", fromInput, "00:00"], ["Until", toInput, "23:59"]].forEach(function (spec) {
+          var wrap = document.createElement("label");
+          wrap.className = "steward-daterange-time";
+          wrap.textContent = spec[0];
+          var t = document.createElement("input");
+          t.type = "time";
+          t.className = "input";
+          t.value = timeOf(spec[1].value);
+          t.addEventListener("change", function () {
+            var day = spec[1].value.slice(0, 10);
+            if (!day) return;
+            spec[1].value = day + "T" + (t.value || spec[2]);
+            paint();
+          });
+          wrap.appendChild(t);
+          row.appendChild(wrap);
+        });
+        return row;
+      }
+
+      // Re-reads the time inputs after the calendar has rewritten the days.
+      function times() {
+        var row = root.querySelector(".steward-daterange-times");
+        if (!row) return;
+        var inputs = row.querySelectorAll("input");
+        if (inputs[0]) inputs[0].value = timeOf(fromInput.value);
+        if (inputs[1]) inputs[1].value = timeOf(toInput.value);
+      }
+
       trigger.addEventListener("click", function () {
         if (root.querySelector(".steward-cal")) { closeRange(root); return; }
         document.querySelectorAll("[data-steward-daterange]").forEach(closeRange);
-        var cal = buildRangeCalendar(root, fromInput.value, toInput.value, function (a, b) {
-          fromInput.value = a;
-          toInput.value = b;
-          paint();
-          closeRange(root);
-        });
+        var cal = buildRangeCalendar(root, fromInput.value.slice(0, 10), toInput.value.slice(0, 10),
+          function (a, b) {
+            // The calendar picks days; a range that carries times keeps the ones
+            // already entered, defaulting to the whole of the first and last day
+            // so the bound is never silently narrowed to midnight.
+            fromInput.value = withTime ? a + "T" + (timeOf(fromInput.value) || "00:00") : a;
+            toInput.value = withTime ? b + "T" + (timeOf(toInput.value) || "23:59") : b;
+            paint();
+            if (!withTime) closeRange(root);
+            if (withTime) times();
+          });
         root.appendChild(cal);
+        if (withTime) cal.appendChild(timeRow());
         var r = cal.getBoundingClientRect();
         if (r.bottom > window.innerHeight - 8 && root.getBoundingClientRect().top > r.height + 8) {
           cal.style.top = "auto";

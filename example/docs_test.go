@@ -105,7 +105,7 @@ func TestDocumentedFieldKindsAllWork(t *testing.T) {
 		f.Date("PublishedOn")
 		f.Datetime("PostDate").Rules("required")
 		f.Time("OpensAt")
-		f.DateRange("RunsFrom", "RunsTo", "Runs")
+		f.DateRange("RunsFrom", "RunsTo", "Runs").Datetime()
 
 		// Uploads
 		f.Image("Cover").Dir("covers").MaxSize(2 << 20).Accept("image/*")

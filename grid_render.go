@@ -35,19 +35,50 @@ type gridState struct {
 // bareDate matches a day with no time on it.
 var bareDate = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
+// bareMinute matches a moment given without seconds, which is what a
+// datetime-local input submits.
+var bareMinute = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$`)
+
 // endOfDay turns a bare upper bound into the exclusive start of the next day,
 // which includes the whole of the day named whether the column stores a date or
 // a timestamp. It reports false for anything that is not a bare date, or for a
 // filter whose values are not dates at all.
 func endOfDay(v string, dateLike bool) (string, bool) {
-	if !dateLike || !bareDate.MatchString(v) {
+	if !dateLike {
 		return "", false
 	}
-	d, err := time.Parse("2006-01-02", v)
-	if err != nil {
-		return "", false
+	if bareDate.MatchString(v) {
+		d, err := time.Parse("2006-01-02", v)
+		if err != nil {
+			return "", false
+		}
+		return d.AddDate(0, 0, 1).Format("2006-01-02"), true
 	}
-	return d.AddDate(0, 0, 1).Format("2006-01-02"), true
+	// A bound given to the minute means the whole of that minute, for the same
+	// reason a bare date means the whole day: compared as text, "17:00" sorts
+	// below the "17:00:00" a column holds, so an upper bound of 17:00 dropped
+	// everything recorded at 17:00 exactly.
+	if bareMinute.MatchString(v) {
+		d, err := time.Parse("2006-01-02 15:04", v)
+		if err != nil {
+			return "", false
+		}
+		return d.Add(time.Minute).Format("2006-01-02 15:04"), true
+	}
+	return "", false
+}
+
+// moment normalises what a datetime-local input submits.
+//
+// The browser sends "2026-07-15T09:00", and the drivers compare that against a
+// stored timestamp as text: "T" sorts above the space the column holds, so a
+// lower bound excluded every row and an upper bound admitted every one. Both
+// looked like a filter that was simply being ignored.
+func moment(v string) string {
+	if len(v) > 10 && v[10] == 'T' {
+		return v[:10] + " " + v[11:]
+	}
+	return v
 }
 
 // filterParam is the query-param name for a filter on the given field path.
@@ -101,6 +132,11 @@ func (t *typedResource[T]) parseState(c *Context) *gridState {
 		st.filterVals[name+"_to"] = v2
 		if v == "" && v2 == "" {
 			continue
+		}
+		// The panel echoes back what was typed; the query gets the spelling the
+		// database compares.
+		if fi.dateLike() {
+			v, v2 = moment(v), moment(v2)
 		}
 		switch fi.op {
 		case OpBetween:
@@ -306,8 +342,11 @@ type filterVM struct {
 	Param string
 	Label string
 	// Span is how many of the panel's twelve columns the control takes.
-	Span        int
-	Input       string // text | select | date | datetime | between | datebetween
+	Span int
+	// WithTime carries times through a range's ends, which also makes its
+	// bounds exact rather than rounded out to whole days.
+	WithTime    bool
+	Input       string // text | select | date | datetime | between | daterange
 	Value       string
 	Value2      string
 	Placeholder string
@@ -497,10 +536,11 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 			Param:       param,
 			Label:       fi.label,
 			Span:        fi.spanOr(),
+			WithTime:    fi.withTime,
 			Value:       st.filterVals[param],
 			Value2:      st.filterVals[param+"_to"],
 			Placeholder: fi.placeholder,
-			Input:       [...]string{"text", "select", "date", "datetime", "between", "datebetween", "daterange"}[fi.input],
+			Input:       [...]string{"text", "select", "date", "datetime", "between", "daterange"}[fi.input],
 		}
 		if fv.Value != "" || fv.Value2 != "" {
 			vm.ActiveFilters++

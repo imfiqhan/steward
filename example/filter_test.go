@@ -206,7 +206,6 @@ func TestDateRangeIncludesTheWholeOfItsLastDay(t *testing.T) {
 		g.Column("Name")
 		g.Filter(func(f *steward.Filters[dateRow]) {
 			f.DateRange("At", "When")
-			f.Between("At", "Between").Datetime()
 		})
 	})
 	if err := app.Build(); err != nil {
@@ -258,4 +257,109 @@ func getAcceptJSON(t *testing.T, url string) (int, string) {
 	defer func() { _ = resp.Body.Close() }()
 	b, _ := io.ReadAll(resp.Body)
 	return resp.StatusCode, string(b)
+}
+
+// A range that carries times asks for moments, so its bounds are exact. The
+// whole-day rounding that makes "1–31 July" include the 31st must not reach a
+// range that named 17:00, or every such filter quietly runs to midnight.
+func TestDateRangeWithTimesIsExact(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&dateRow{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, at := range []time.Time{
+		time.Date(2026, 7, 15, 8, 59, 0, 0, time.Local),  // before the window
+		time.Date(2026, 7, 15, 9, 0, 0, 0, time.Local),   // the first instant in it
+		time.Date(2026, 7, 15, 13, 30, 0, 0, time.Local), // inside
+		time.Date(2026, 7, 15, 17, 0, 0, 0, time.Local),  // the last instant
+		time.Date(2026, 7, 15, 17, 1, 0, 0, time.Local),  // after
+		time.Date(2026, 7, 15, 23, 0, 0, 0, time.Local),  // later that evening
+	} {
+		if err := db.Create(&dateRow{Name: at.Format(time.RFC3339), At: at}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("daterange-time-test-secret"),
+		AuthExcept: []string{"/date_rows*"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[dateRow](app).Grid(func(g *steward.Grid[dateRow]) {
+		g.Column("Name")
+		g.Filter(func(f *steward.Filters[dateRow]) {
+			f.DateRange("At", "When").Datetime()
+		})
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Verify(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	defer srv.Close()
+
+	// The control asks for times, and says so in the markup.
+	page := fetchOK(t, srv.URL+"/admin/date_rows")
+	if !strings.Contains(page, "data-steward-daterange-time") {
+		t.Error("a range with times should declare it, or the control asks for days")
+	}
+
+	count := func(query string) int {
+		_, body := getAcceptJSON(t, srv.URL+"/admin/date_rows?"+query)
+		var out struct {
+			Total int `json:"total"`
+		}
+		if err := json.Unmarshal([]byte(body), &out); err != nil {
+			t.Fatalf("bad JSON for %q: %v (%s)", query, err, body)
+		}
+		return out.Total
+	}
+	for _, c := range []struct {
+		query string
+		want  int
+		why   string
+	}{
+		{"f_At=2026-07-15T09:00&f_At_to=2026-07-15T17:00", 3, "both ends inclusive, to the minute"},
+		{"f_At=2026-07-15T17:01", 2, "an open upper bound keeps going"},
+		{"f_At_to=2026-07-15T09:00", 2, "an open lower bound stops at the moment given"},
+		{"", 6, "no filter"},
+	} {
+		if got := count(c.query); got != c.want {
+			t.Errorf("%s: %q gave %d, want %d", c.why, c.query, got, c.want)
+		}
+	}
+}
+
+// TestBetweenDatetimeIsRetired names the replacement rather than behaving as a
+// numeric filter on a date column, which is what the spelling now means.
+func TestBetweenDatetimeIsRetired(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&dateRow{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("between-retired-secret-00")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[dateRow](app).Grid(func(g *steward.Grid[dateRow]) {
+		g.Column("Name")
+		g.Filter(func(f *steward.Filters[dateRow]) {
+			f.Between("At", "When").Datetime()
+		})
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	err = app.Verify()
+	if err == nil {
+		t.Fatal("the retired spelling should not build")
+	}
+	for _, want := range []string{"Between(...).Datetime() is gone", "DateRange"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the error should mention %q, got: %v", want, err)
+		}
+	}
 }

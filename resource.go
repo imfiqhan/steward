@@ -299,6 +299,14 @@ func (t *typedResource[T]) compile(a *Admin) error {
 				t.res.m.slug, p, info.Relation))
 		}
 	}
+	for _, fi := range g.filters {
+		if fi.datetimeOnBetween {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"resource %q: filter %q: Between(...).Datetime() is gone; use "+
+					"DateRange(%q).Datetime() for a range of moments, or Between alone "+
+					"for a range of numbers", t.res.m.slug, fi.path, fi.path))
+		}
+	}
 	if l := g.filterLayout; l != "" && !filterLayouts[l] {
 		a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
 			"resource %q: unknown filter layout %q (known: %s, %s)",

@@ -1039,3 +1039,53 @@ func TestFilterLayoutIsVerified(t *testing.T) {
 		t.Errorf("an unknown layout should be a boot error, got: %v", err)
 	}
 }
+
+// A form range that carries times stores both moments, which is the case a pair
+// of separate Datetime fields existed to cover.
+func TestFormDateRangeWithTimes(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&rangeRow{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("form-range-time-test-secret"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[rangeRow](app).Form(func(f *steward.Form[rangeRow]) {
+		f.Text("Title").Rules("required")
+		f.DateRange("DateStart", "DateEnd", "Runs").Datetime()
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app)
+	t.Cleanup(srv.Close)
+	seedUser(t, app, "root", "correct-horse")
+
+	c := new2FAClient(t, srv)
+	if code, _ := c.login("root", "correct-horse"); code >= 400 {
+		t.Fatal("login failed")
+	}
+	_, form := c.get("/range_rows/create")
+	if !strings.Contains(form, "data-steward-daterange-time") {
+		t.Error("the control should declare that it carries times")
+	}
+	code, body := c.post("/range_rows", url.Values{
+		"Title":     {"A rehearsal"},
+		"DateStart": {"2026-08-01T16:30"},
+		"DateEnd":   {"2026-08-01T17:30"},
+	}, c.token(form))
+	if code >= 400 {
+		t.Fatalf("saving = %d: %s", code, body)
+	}
+
+	var got rangeRow
+	if err := db.First(&got, 1).Error; err != nil {
+		t.Fatal(err)
+	}
+	if got.DateStart.Format("15:04") != "16:30" || got.DateEnd.Format("15:04") != "17:30" {
+		t.Errorf("the times should survive: %s .. %s", got.DateStart, got.DateEnd)
+	}
+}

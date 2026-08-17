@@ -561,7 +561,6 @@ const (
 	inputDate
 	inputDatetime
 	inputBetween
-	inputDateBetween
 	inputDateRange
 )
 
@@ -574,7 +573,13 @@ type FilterItem[T any] struct {
 	optionsFn   func(*Context) Options
 	placeholder string
 	span        int
-	info        *fieldInfo
+	// withTime carries times through a range's two ends, which also makes its
+	// bounds exact rather than rounded out to whole days.
+	withTime bool
+	// datetimeOnBetween records the retired spelling so Verify can name its
+	// replacement, rather than the filter quietly behaving as a numeric one.
+	datetimeOnBetween bool
+	info              *fieldInfo
 }
 
 // Span sets how many of the filter panel's twelve columns the control takes,
@@ -596,7 +601,7 @@ func (fi *FilterItem[T]) spanOr() int {
 		return fi.span
 	}
 	switch fi.input {
-	case inputBetween, inputDateBetween, inputDateRange:
+	case inputBetween, inputDateRange:
 		// Two controls, or a range picker with a written-out label.
 		return 6
 	case inputDate, inputDatetime:
@@ -610,7 +615,7 @@ func (fi *FilterItem[T]) spanOr() int {
 // upper bound is read.
 func (fi *FilterItem[T]) dateLike() bool {
 	switch fi.input {
-	case inputDate, inputDatetime, inputDateBetween, inputDateRange:
+	case inputDate, inputDatetime, inputDateRange:
 		return true
 	}
 	return false
@@ -732,10 +737,21 @@ func (f *Filters[T]) DateRange(path string, label ...string) *FilterItem[T] {
 }
 
 // Datetime switches a Between filter to date-range inputs.
+// Datetime asks for a time alongside the date.
+//
+// On a DateRange filter both ends carry one, and the bounds are then exact
+// rather than rounded out to whole days. On any other filter it becomes a
+// single date-and-time picker.
+//
+// It is refused on Between, which is the numeric two-ended filter: a range of
+// dates is DateRange, with or without times.
 func (fi *FilterItem[T]) Datetime() *FilterItem[T] {
-	if fi.input == inputBetween {
-		fi.input = inputDateBetween
-	} else {
+	switch fi.input {
+	case inputDateRange:
+		fi.withTime = true
+	case inputBetween:
+		fi.datetimeOnBetween = true
+	default:
 		fi.input = inputDatetime
 	}
 	return fi

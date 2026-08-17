@@ -31,17 +31,19 @@ type formFieldVM struct {
 	// rendered inside this field's control rather than as a row of its own.
 	RangeTo      string
 	RangeToValue string
-	Label        string
-	Value        string
-	Required     bool
-	Disabled     bool
-	ReadOnly     bool
-	Placeholder  string
-	Help         string
-	Accept       string
-	Fieldset     string
-	Divider      bool
-	Options      []optionVM
+	// WithTime marks a range whose ends carry times.
+	WithTime    bool
+	Label       string
+	Value       string
+	Required    bool
+	Disabled    bool
+	ReadOnly    bool
+	Placeholder string
+	Help        string
+	Accept      string
+	Fieldset    string
+	Divider     bool
+	Options     []optionVM
 	// Icons carries an Icon field's choices; SpriteURL is where the browser
 	// fetches their glyphs, once, for the whole grid.
 	Icons     []iconChoiceVM
@@ -229,6 +231,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 		if fd.rangeTo != "" {
 			fv.Kind = "daterange"
 			fv.RangeTo = fd.rangeTo
+			fv.WithTime = fd.kind == FieldDatetime
 			if other := t.form.fieldByPath(fd.rangeTo); other != nil {
 				if creating && row == nil {
 					if other.defaultVal != nil {

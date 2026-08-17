@@ -314,7 +314,7 @@
          are picked in one calendar and a touch device gets its own two inputs
          instead. Each end submits under its own column's name, so binding and
          validation see the two fields they are. */}}
-    <div class="steward-daterange" data-steward-daterange{{if or .Value .RangeToValue}} data-set="1"{{end}}>
+    <div class="steward-daterange" data-steward-daterange{{if .WithTime}} data-steward-daterange-time{{end}}{{if or .Value .RangeToValue}} data-set="1"{{end}}>
       <button type="button" class="steward-daterange-trigger" data-steward-daterange-trigger
               id="field-{{.Name}}" aria-haspopup="dialog" aria-expanded="false"
               {{if .Disabled}}disabled{{end}}>

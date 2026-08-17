@@ -186,6 +186,25 @@ func (f *Form[T]) DateRange(fromPath, toPath string, label ...string) *Field[T] 
 	return from
 }
 
+// Datetime carries a time through both ends of a DateRange, for a pair whose
+// times mean something — an event running from 16:30 to 17:30. Both columns
+// store a date and a time then, and the control asks for both.
+//
+//	f.DateRange("DateStart", "DateEnd", "Berlangsung").Datetime()
+//
+// It has no effect on any other kind: Date and Datetime already say which they
+// are.
+func (fd *Field[T]) Datetime() *Field[T] {
+	if fd.rangeTo == "" {
+		return fd
+	}
+	fd.kind = FieldDatetime
+	if other := fd.form.fieldByPath(fd.rangeTo); other != nil {
+		other.kind = FieldDatetime
+	}
+	return fd
+}
+
 func (f *Form[T]) Time(path string, label ...string) *Field[T] {
 	return f.add(FieldTime, path, label...)
 }

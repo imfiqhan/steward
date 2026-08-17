@@ -231,6 +231,22 @@ tr.steward-dragging { opacity: 0.5; }
   .steward-form-grid > .steward-span-12 { grid-column: span 12; }
 }
 
+/* The time inputs sit under the calendar, one per end. */
+.steward-daterange-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.steward-daterange-time {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
 /* ---- Filter panel --------------------------------------------------------- */
 
 /* Twelve columns, like a form and like a page. Below the small breakpoint each
