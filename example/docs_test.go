@@ -3,6 +3,7 @@ package main
 import (
 	"html/template"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -246,6 +247,44 @@ func TestDocumentedWidgetsAllWork(t *testing.T) {
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("the page should contain %q", want)
+		}
+	}
+}
+
+// Every Config field belongs in the configuration reference. Reflection over
+// the struct is what keeps that true: a field added to Config fails here until
+// it is listed, and a field listed here that no longer exists fails too.
+//
+// The page is steward-site/content/docs/configuration.md.
+func TestEveryConfigFieldIsDocumented(t *testing.T) {
+	documented := map[string]bool{
+		"DB": true, "SecretKey": true,
+		"Prefix": true, "Brand": true, "CurrencySymbol": true, "GridActions": true,
+		"UploadDir": true, "Storage": true, "Disks": true, "DefaultDisk": true,
+		"PublicUploads": true, "SignedURLTTL": true,
+		"TablePrefix": true, "DisableAutoMigrate": true,
+		"Require2FA": true, "LoginCheck": true, "AuthExcept": true,
+		"EnableTokenAuth": true, "TokenTTL": true,
+		"TokenRateLimit": true, "TokenRateWindow": true,
+		"Cache": true, "Searcher": true, "Mailer": true, "Logger": true,
+		"Dev": true, "TemplatesFS": true, "AssetsFS": true,
+	}
+
+	typ := reflect.TypeOf(steward.Config{})
+	seen := map[string]bool{}
+	for i := 0; i < typ.NumField(); i++ {
+		f := typ.Field(i)
+		if f.PkgPath != "" {
+			continue // unexported: not part of the surface
+		}
+		seen[f.Name] = true
+		if !documented[f.Name] {
+			t.Errorf("Config.%s is not in the configuration reference", f.Name)
+		}
+	}
+	for name := range documented {
+		if !seen[name] {
+			t.Errorf("the reference documents Config.%s, which no longer exists", name)
 		}
 	}
 }
