@@ -208,6 +208,19 @@ const portal = await page.evaluate(() => {
   return { portaled: pop.closest("#steward-menu-portal") !== null, clippers };
 });
 check(portal.portaled, "an open menu is moved out of the table");
+// Moved out, the menu no longer matches a rule written for its wrapper's
+// child: it falls back to absolute, and animates left and top along with the
+// fade, which reads as the menu sliding in from somewhere else.
+const settle = await page.evaluate(() => {
+  const pop = document.querySelector("[data-popover][data-steward-portal]");
+  const cs = getComputedStyle(pop);
+  return {
+    position: cs.position,
+    animates: /(^|[ ,])(left|top|all)([ ,]|$)/.test(cs.transitionProperty),
+  };
+});
+check(settle.position === "fixed", `the moved menu is still fixed (${settle.position})`);
+check(!settle.animates, "it does not animate its way in from elsewhere");
 check(portal.clippers === 0, `nothing above it can clip it (${portal.clippers})`);
 
 check(kb.onTrigger, "opening a menu leaves focus on its trigger");

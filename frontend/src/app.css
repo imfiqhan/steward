@@ -793,7 +793,13 @@ tr.steward-dragging { opacity: 0.5; }
    left and top are interpolable, so the shared transition would animate the
    popover in from wherever the stylesheet had put it. Only the fade and the
    scale should move. */
-[data-steward-menu] > [data-popover] {
+/* The second selector is the same menu after it has been moved out of the
+   table: it is no longer its wrapper's child, and without this it falls back to
+   absolute — positioned against the document while the script places it against
+   the viewport — and animates left and top, which reads as the menu sliding in
+   from somewhere else. Only the fade and the scale should move. */
+[data-steward-menu] > [data-popover],
+[data-popover][data-steward-portal] {
   position: fixed;
   transition-property: opacity, transform, visibility;
 }
