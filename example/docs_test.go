@@ -341,3 +341,44 @@ func envOr(key, def string) string {
 func fakeSecret(_ context.Context, _ string) (string, error) {
 	return "docs-test-secret-key-0000", nil
 }
+
+// The settings store is what the configuration page offers for values that
+// change without a deploy: a slug reads as "" when absent, a write is visible
+// to the next read, and the panel's own page edits the same rows.
+func TestDocumentedSettingsStore(t *testing.T) {
+	db := testDB(t)
+	app, err := steward.New(steward.Config{
+		DB: db, SecretKey: []byte("docs-settings-test-secret-key"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+
+	got, err := app.Setting(ctx, "login-notice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "" {
+		t.Errorf("an unset slug should read as empty, got %q", got)
+	}
+
+	if err := app.SetSetting(ctx, "login-notice", "Maintenance on Sunday."); err != nil {
+		t.Fatal(err)
+	}
+	got, err = app.Setting(ctx, "login-notice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "Maintenance on Sunday." {
+		t.Errorf("a written setting should read back, got %q", got)
+	}
+
+	// A typo is not an error, which is the trap the page warns about.
+	if v, err := app.Setting(ctx, "login-notce"); err != nil || v != "" {
+		t.Errorf("a misspelled slug should read as empty, got %q, %v", v, err)
+	}
+}
