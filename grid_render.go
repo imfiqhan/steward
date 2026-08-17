@@ -389,6 +389,7 @@ type gridVM struct {
 	ActiveFilters  int
 	Pagination     []pageLinkVM
 	ExportURL      string
+	ExportPageURL  string
 	ResetURL       string
 	Features       map[string]bool
 	DeleteURLBase  string
@@ -449,6 +450,7 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		SearchParam:    "q",
 		Search:         st.search,
 		ExportURL:      urlWith(c, map[string]string{"export": "all"}),
+		ExportPageURL:  urlWith(c, map[string]string{"export": "page"}),
 		ResetURL:       c.URL(m.slug),
 		DeleteURLBase:  c.URL(m.slug),
 		ActionStyle:    string(g.actionStyle.resolve(c.Admin.cfg.GridActions)),

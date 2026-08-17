@@ -8,11 +8,34 @@
     </div>
     <div class="ms-auto flex items-center gap-2">
       {{if .Data.Features.export}}
-      {{/* data-steward-export: the answer is a CSV or an envelope depending on
+      {{/* Three modes, because the grid can export what matched, what is on
+           screen, or what is checked — and only the first was reachable.
+           data-steward-export: the answer is a CSV or an envelope depending on
            how much matched, and a plain navigation cannot tell them apart. */}}
-      <a href="{{.Data.ExportURL}}" class="btn" data-variant="outline" data-steward-export>
-        {{icon "download"}} Export
-      </a>
+      <div id="export-menu" class="dropdown-menu">
+        <button type="button" id="export-menu-trigger" aria-haspopup="menu" aria-controls="export-menu-menu"
+                aria-expanded="false" class="btn" data-variant="outline">
+          {{icon "download"}} Export
+        </button>
+        <div id="export-menu-popover" data-popover aria-hidden="true" class="min-w-48" data-align="end">
+          <div role="menu" id="export-menu-menu" aria-labelledby="export-menu-trigger">
+            <a role="menuitem" id="export-menu-all" tabindex="-1" href="{{.Data.ExportURL}}" data-steward-export>
+              {{icon "list"}} Everything that matches
+            </a>
+            <a role="menuitem" id="export-menu-page" tabindex="-1" href="{{.Data.ExportPageURL}}" data-steward-export>
+              {{icon "file"}} This page only
+            </a>
+            {{if .Data.Features.selector}}
+            {{/* Hidden until something is checked, and its href is completed
+                 from the checkboxes at click time. */}}
+            <a role="menuitem" id="export-menu-selected" tabindex="-1" href="{{.Data.BaseURL}}?export=selected"
+               data-steward-export data-steward-export-selected hidden>
+              {{icon "check"}} Selected rows<span data-steward-export-count></span>
+            </a>
+            {{end}}
+          </div>
+        </div>
+      </div>
       {{end}}
       {{if .Data.Features.create}}
       <a href="{{.Data.BaseURL}}/create" class="btn"

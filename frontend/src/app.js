@@ -87,11 +87,48 @@ window.htmx = htmx;
     return m ? m[1] : fallback;
   }
 
+  /* The selected-rows item is shown only once something is checked, and its URL
+   * is completed from the checkboxes at the moment it is used: the ids are the
+   * reader's current selection, not whatever the page was rendered with. */
+
+  function exportSelectedIDs() {
+    return [...document.querySelectorAll("table tbody input[type=checkbox]:checked")]
+      .map(function (c) { return c.value; })
+      .filter(Boolean);
+  }
+
+  function syncExportSelected() {
+    var item = document.querySelector("[data-steward-export-selected]");
+    if (!item) return;
+    var ids = exportSelectedIDs();
+    item.hidden = ids.length === 0;
+    // Written into its own span: assigning to the item's textContent would take
+    // the icon element with it.
+    var count = item.querySelector("[data-steward-export-count]");
+    if (count) count.textContent = ids.length ? " (" + ids.length + ")" : "";
+  }
+
+  document.addEventListener("change", function (e) {
+    if (e.target.closest("table tbody input[type=checkbox], table thead input[type=checkbox]")) {
+      syncExportSelected();
+    }
+  });
+  document.addEventListener("htmx:afterSettle", syncExportSelected);
+  document.addEventListener("DOMContentLoaded", syncExportSelected);
+
   document.addEventListener("click", function (e) {
     var a = e.target.closest("[data-steward-export]");
     if (!a) return;
     e.preventDefault();
     var url = a.getAttribute("href");
+    if (a.hasAttribute("data-steward-export-selected")) {
+      var ids = exportSelectedIDs();
+      if (ids.length === 0) {
+        toast("error", "Nothing selected.");
+        return;
+      }
+      url = url + "&ids=" + encodeURIComponent(ids.join(","));
+    }
     a.setAttribute("aria-busy", "true");
     fetch(url, { headers: { Accept: "text/csv, application/json" }, credentials: "same-origin" })
       .then(function (res) {
