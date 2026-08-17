@@ -75,6 +75,74 @@ window.htmx = htmx;
     }
   });
 
+  /* ---- Escape closes one layer ---------------------------------------------
+   *
+   * A dialog takes Escape as a close request, and a control open inside it — a
+   * combobox, a calendar — closes on the same key without claiming it. So one
+   * Escape dismissed the dropdown *and*, an animation later, the filter drawer
+   * holding it, along with the filters entered into it.
+   *
+   * Refusing the dialog's cancel event is not enough: the drawer is closed by a
+   * close() call from the component library, which has already happened by the
+   * time cancel fires. So the key is claimed here instead, in the capture phase
+   * — the one moment before any other handler has closed anything — and the
+   * innermost layer is closed from this side.
+   *
+   * Nothing is claimed when a dialog has nothing open inside it, so Escape still
+   * closes the drawer, and the palette, on its own. */
+
+  /* The same key is also how a menu is meant to be dismissed, and none of the
+   * header or toolbar menus were closing on it: the component tracks its items
+   * through aria-activedescendant and leaves focus on the trigger, so a handler
+   * bound inside the popover never sees the key. Only the row menus closed,
+   * because their light dismiss is ours. */
+
+  var OPEN_LAYERS = [
+    '.combobox [data-popover][aria-hidden="false"]',
+    '.dropdown-menu > [data-popover][aria-hidden="false"]',
+    '[data-steward-menu] > [data-popover][aria-hidden="false"]',
+    '[data-popover][data-steward-portal][aria-hidden="false"]',
+    ".steward-cal",
+  ].join(", ");
+
+  function layersIn(root) {
+    return [...root.querySelectorAll(OPEN_LAYERS)];
+  }
+
+  document.addEventListener(
+    "keydown",
+    function (e) {
+      if (e.key !== "Escape") return;
+      // A dialog's own contents come first, so Escape peels one layer at a
+      // time instead of taking the drawer with the dropdown inside it.
+      var layers = [];
+      document.querySelectorAll("dialog[open]").forEach(function (dlg) {
+        layers = layers.concat(layersIn(dlg));
+      });
+      if (layers.length === 0) layers = layersIn(document);
+      if (layers.length === 0) return;
+
+      layers.forEach(function (el) {
+        if (el.classList.contains("steward-cal")) {
+          var root = el.closest("[data-steward-daterange]");
+          if (root) closeRange(root);
+          return;
+        }
+        // The component's own close restores focus and aria; ours would not.
+        var owner = el.closest(".combobox, .dropdown-menu, [data-steward-menu]");
+        if (owner && typeof owner.close === "function") {
+          owner.close(false);
+        } else {
+          el.setAttribute("aria-hidden", "true");
+        }
+      });
+
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    },
+    true
+  );
+
   /* ---- Export --------------------------------------------------------------
    *
    * The same URL answers two ways: a CSV when the match is small enough to

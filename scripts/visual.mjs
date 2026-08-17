@@ -6,7 +6,9 @@
 // Needs:  npm i playwright && npx playwright install webkit
 import { webkit } from "playwright";
 
-const BASE = (process.argv[2] || "http://localhost:8321") + "/admin";
+// The example mounts at the root, which is the framework's default; pass a
+// different origin as the first argument to point this at another panel.
+const BASE = process.argv[2] || "http://localhost:8321";
 const failures = [];
 const check = (ok, msg) => {
   console.log((ok ? "  ok " : "FAIL ") + msg);
@@ -20,7 +22,7 @@ await page.goto(BASE + "/auth/login");
 await page.fill("#login-username", "admin");
 await page.fill("#login-password", "admin");
 await page.click("button[type=submit]");
-await page.waitForURL("**/admin/**");
+await page.waitForLoadState("networkidle");
 
 // --- header: theme toggle aligned and on the right -------------------------
 const header = await page.evaluate(() => {
@@ -669,6 +671,105 @@ if (await up.count()) {
     }
   } else {
     check(false, "the form renders a date picker");
+  }
+}
+
+// --- Escape closes one layer at a time -------------------------------------
+//
+// A dialog treats Escape as a close request, and a control open inside it closes
+// on the same key without claiming it: one press dismissed a dropdown and, an
+// animation later, the drawer holding it, along with the filters typed in.
+// Menus were the other half — none of them closed on Escape at all, because the
+// component leaves focus on the trigger and its handler never saw the key.
+{
+  const drawerOpen = () => page.evaluate(() => {
+    const d = document.getElementById("grid-filters");
+    return !!d && d.tagName === "DIALOG" && d.open;
+  });
+  const comboOpen = () => page.evaluate(() =>
+    !!document.querySelector('#grid-filters .combobox [data-popover][aria-hidden="false"]'));
+
+  await page.goto(BASE + "/authors");
+  await page.waitForLoadState("networkidle");
+  const toggle = await page.$("[data-steward-toggle='#grid-filters']");
+  check(!!toggle, "the authors grid opens its filters in a drawer");
+  if (toggle) {
+    await toggle.click();
+    await page.waitForTimeout(400);
+    check(await drawerOpen(), "the drawer opens");
+
+    await page.fill("#grid-filters [name=f_Name]", "ada");
+    const combo = await page.$("#grid-filters .combobox [role=combobox], #grid-filters .combobox button");
+    if (combo) {
+      await combo.click();
+      await page.waitForTimeout(350);
+      check(await comboOpen(), "a combobox opens inside the drawer");
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(700);
+      check(!(await comboOpen()), "Escape closes the combobox");
+      check(await drawerOpen(), "and leaves the drawer open");
+      check(
+        (await page.inputValue("#grid-filters [name=f_Name]")) === "ada",
+        "with what was typed still there"
+      );
+    }
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(700);
+    check(!(await drawerOpen()), "the next Escape closes the drawer");
+  }
+
+  // Every menu, not only the row menus.
+  for (const [name, trigger, popover] of [
+    ["export menu", "#export-menu-trigger", "#export-menu-popover"],
+    ["user menu", "#user-menu-trigger", "#user-menu-popover"],
+  ]) {
+    const t = await page.$(trigger);
+    if (!t) {
+      check(false, name + " is present");
+      continue;
+    }
+    await t.click();
+    await page.waitForFunction(
+      (sel) => document.querySelector(sel).getAttribute("aria-hidden") === "false",
+      popover, { timeout: 3000 }
+    ).catch(() => {});
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(500);
+    const closed = await page.evaluate(
+      (sel) => document.querySelector(sel).getAttribute("aria-hidden") === "true", popover);
+    check(closed, "Escape closes the " + name);
+  }
+}
+
+// --- the export menu offers every mode it documents ------------------------
+{
+  await page.goto(BASE + "/posts");
+  await page.waitForLoadState("networkidle");
+  await page.click("#export-menu-trigger");
+  await page.waitForSelector("#export-menu-all", { state: "visible", timeout: 3000 }).catch(() => {});
+  const modes = await page.evaluate(() =>
+    [...document.querySelectorAll("#export-menu-menu [role=menuitem]")].map((el) => ({
+      id: el.id, hidden: el.hidden, icon: !!el.querySelector("svg"),
+    })));
+  check(modes.length === 3, `the export menu offers three modes (${modes.length})`);
+  check(modes.every((m) => m.icon), "each export mode kept its icon");
+  const sel = modes.find((m) => m.id === "export-menu-selected");
+  check(sel && sel.hidden, "the selected-rows mode is hidden until rows are checked");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
+
+  const boxes = await page.$$("table tbody input[type=checkbox]");
+  if (boxes.length >= 2) {
+    await boxes[0].click();
+    await boxes[1].click();
+    await page.waitForTimeout(300);
+    const shown = await page.evaluate(() => {
+      const el = document.getElementById("export-menu-selected");
+      return { hidden: el.hidden, text: el.textContent.replace(/\s+/g, " ").trim(), icon: !!el.querySelector("svg") };
+    });
+    check(!shown.hidden, "checking rows reveals the selected-rows mode");
+    check(/\(2\)$/.test(shown.text), `it counts them (${shown.text})`);
+    check(shown.icon, "and writing the count did not eat its icon");
   }
 }
 

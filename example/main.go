@@ -213,6 +213,18 @@ func registerResources(app *steward.Admin) {
 			g.Column("Email")
 			// Posts uses buttons, so this grid covers the other presentation.
 			g.ActionStyle(steward.GridActionsMenu)
+			// And the other filter layout, so both are exercised by the visual
+			// checks: a control open inside the drawer has to take Escape
+			// without the drawer going with it.
+			g.FilterLayout(steward.FiltersDrawer)
+			g.Filter(func(f *steward.Filters[models.Author]) {
+				f.Like("Name")
+				f.Equal("Email").Select(steward.Options{
+					"ada@example.com":   "Ada",
+					"grace@example.com": "Grace",
+				})
+				f.DateRange("CreatedAt", "Joined")
+			})
 		}).
 		Detail(func(d *steward.Detail[models.Author]) {
 			d.Field("ID")
