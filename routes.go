@@ -85,6 +85,16 @@ func (a *Admin) buildRoutes() *http.ServeMux {
 	mux.HandleFunc("POST "+p+"/auth/profile/2fa/disable", a.h(a.twoFactorDisable))
 	mux.HandleFunc("POST "+p+"/auth/profile/2fa/codes", a.h(a.twoFactorRegenerateCodes))
 
+	// The bell polls its badge and fetches its list only when opened, so an
+	// unopened bell costs one indexed count per poll.
+	if a.notificationsEnabled() {
+		mux.HandleFunc("GET "+p+"/_notifications", a.h(a.notificationList))
+		mux.HandleFunc("GET "+p+"/_notifications/badge", a.h(a.notificationBell))
+		mux.HandleFunc("POST "+p+"/_notifications/read", a.h(a.notificationReadAll))
+		mux.HandleFunc("POST "+p+"/_notifications/{id}/read", a.h(a.notificationRead))
+		mux.HandleFunc("GET "+p+"/_notifications/{id}/go", a.h(a.notificationGo))
+	}
+
 	mux.HandleFunc("GET "+p+"/_assets/", a.serveAsset)
 	mux.HandleFunc("GET "+p+"/_command", a.h(a.commandSearch))
 

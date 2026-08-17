@@ -68,6 +68,11 @@ type Config struct {
 	// Changing it invalidates all sessions. Minimum 16 bytes.
 	SecretKey []byte
 
+	// DisableNotifications hides the bell in the header and unmounts its
+	// endpoints. The table is still created, so turning it back on later
+	// needs no migration.
+	DisableNotifications bool
+
 	// DisableAutoMigrate skips running the embedded framework migrations at
 	// Build. Recommended in production: run them explicitly via the app's
 	// `migrate up` command instead.
@@ -407,6 +412,7 @@ func (a *Admin) coreTables() migrations.Tables {
 			&OperationLog{}, &Setting{},
 		},
 		TokenModel:          &AdminToken{},
+		NotificationModel:   &Notification{},
 		UserModel:           &AdminUser{},
 		AddTwoFactorColumns: twoFactorColumns,
 		SeedFn:              seedDefaults,

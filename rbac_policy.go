@@ -144,6 +144,12 @@ func (a *Admin) permissionSkip(rel string) bool {
 	case "/", "/auth/login", "/auth/logout", "/auth/profile":
 		return true
 	}
+	// A notification is addressed to one account and every query is scoped to
+	// it, so the bell needs no permission of its own; gating it would leave a
+	// role staring at an error where its own messages should be.
+	if rel == "/_notifications" || strings.HasPrefix(rel, "/_notifications/") {
+		return true
+	}
 	return strings.HasPrefix(rel, "/_assets/") ||
 		strings.HasPrefix(rel, "/_uploads/") ||
 		strings.HasPrefix(rel, "/_widget/") ||

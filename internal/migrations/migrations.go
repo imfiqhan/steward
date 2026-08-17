@@ -18,6 +18,9 @@ type Tables struct {
 	// TokenModel is created by 0003 rather than listed in Models, so that
 	// databases already past 0001 pick the table up too.
 	TokenModel any
+	// NotificationModel is created by 0005, apart from Models for the same
+	// reason as TokenModel.
+	NotificationModel any
 	// UserModel is the account table, altered by 0004 to add the two-factor
 	// columns. Same reasoning as TokenModel: installations already past 0001
 	// need the change applied, not just present in the model.
@@ -77,6 +80,15 @@ func Core(t Tables) []migrate.Migration {
 			// relying on them; the columns are inert when the feature is
 			// unused, so leaving them is the safer no-op.
 			Down: func(tx *gorm.DB) error { return nil },
+		},
+		{
+			Name: "0005_create_admin_notifications",
+			Up: func(tx *gorm.DB) error {
+				return tx.Migrator().AutoMigrate(t.NotificationModel)
+			},
+			Down: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable(t.NotificationModel)
+			},
 		},
 	}
 }

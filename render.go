@@ -269,6 +269,10 @@ type pageMeta struct {
 	Brand  string
 	Title  string
 	Prefix string
+
+	// Notifications reports whether the bell is mounted, so the header can
+	// leave the control out entirely when the feature is off.
+	Notifications bool
 	CSRF          string
 	Theme         string
 	Dev           bool
@@ -315,6 +319,7 @@ func (a *Admin) pageMetaFor(c *Context, title string) pageMeta {
 		Brand:         a.cfg.Brand,
 		Title:         title,
 		Prefix:        a.cfg.Prefix,
+		Notifications: a.notificationsEnabled(),
 		CSRF:          c.CSRF(),
 		Theme:         themeFrom(c.R),
 		Dev:           a.cfg.Dev,

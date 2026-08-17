@@ -1,0 +1,59 @@
+{{/* The panel behind the bell, fetched when it opens and re-rendered by the
+     mark-read endpoints. The badge sits outside this target, so it is swapped
+     out of band and the two never disagree. */}}
+<div role="group" aria-labelledby="notification-heading">
+  <div class="flex items-center justify-between gap-2">
+    <div role="heading" id="notification-heading">Notifications</div>
+    {{if .Data.Unread}}
+    <button type="button" role="menuitem" tabindex="-1" class="steward-notification-readall"
+            hx-post="{{url "_notifications/read"}}" hx-target="#notification-menu" hx-swap="innerHTML"
+            hx-headers='{"X-CSRF-Token": "{{.Page.CSRF}}"}'>
+      Mark all read
+    </button>
+    {{end}}
+  </div>
+</div>
+<hr role="separator"/>
+
+{{if .Data.Items}}
+{{range .Data.Items}}
+{{/* A row about something is a link to it; one that is only a message is not,
+     and gets an explicit control to mark it read instead. */}}
+{{if .URL}}
+<a role="menuitem" tabindex="-1" class="steward-notification-item{{if not .Read}} is-unread{{end}}"
+   href="{{url "_notifications"}}/{{.ID}}/go">
+  {{if .Icon}}<span class="steward-notification-icon">{{icon .Icon "size-4"}}</span>{{end}}
+  <span class="steward-notification-text">
+    <span class="steward-notification-title">{{.Title}}</span>
+    {{if .Body}}<span class="steward-notification-body">{{.Body}}</span>{{end}}
+    <span class="steward-notification-when">{{.When}}</span>
+  </span>
+</a>
+{{else}}
+<div role="menuitem" tabindex="-1" class="steward-notification-item{{if not .Read}} is-unread{{end}}">
+  {{if .Icon}}<span class="steward-notification-icon">{{icon .Icon "size-4"}}</span>{{end}}
+  <span class="steward-notification-text">
+    <span class="steward-notification-title">{{.Title}}</span>
+    {{if .Body}}<span class="steward-notification-body">{{.Body}}</span>{{end}}
+    <span class="steward-notification-when">{{.When}}</span>
+  </span>
+  {{if not .Read}}
+  <button type="button" class="steward-notification-check" aria-label="Mark read"
+          hx-post="{{url "_notifications"}}/{{.ID}}/read" hx-target="#notification-menu" hx-swap="innerHTML"
+          hx-headers='{"X-CSRF-Token": "{{$.Page.CSRF}}"}'>
+    {{icon "check" "size-4"}}
+  </button>
+  {{end}}
+</div>
+{{end}}
+{{end}}
+{{else}}
+<p class="steward-notification-empty">Nothing yet.</p>
+{{end}}
+
+<span id="notification-badge" hx-swap-oob="innerHTML">
+  {{if .Data.Unread}}
+  <span class="steward-notification-count" aria-hidden="true">{{if gt .Data.Unread 99}}99+{{else}}{{.Data.Unread}}{{end}}</span>
+  <span class="sr-only">{{.Data.Unread}} unread</span>
+  {{end}}
+</span>

@@ -17,6 +17,25 @@
       <span class="steward-theme-light">{{icon "moon"}}</span>
       <span class="steward-theme-dark">{{icon "sun"}}</span>
     </button>
+    {{if and .Page.User .Page.Notifications}}
+    {{/* The badge polls on its own; the list is fetched when the bell opens, so
+         a bell nobody opens costs one indexed count per interval. */}}
+    <div id="notification-menu-wrap" class="dropdown-menu">
+      <button type="button" id="notification-trigger" aria-haspopup="menu" aria-controls="notification-menu"
+              aria-expanded="false" class="btn steward-notification-trigger" data-variant="ghost" data-size="icon-sm"
+              aria-label="Notifications">
+        {{icon "bell"}}
+        <span id="notification-badge" hx-get="{{url "_notifications/badge"}}"
+              hx-trigger="load, every 60s" hx-swap="innerHTML"></span>
+      </button>
+      <div id="notification-popover" data-popover aria-hidden="true" class="w-80 max-w-[calc(100vw-2rem)]" data-align="end">
+        <div role="menu" id="notification-menu" aria-labelledby="notification-trigger"
+             hx-get="{{url "_notifications"}}" hx-trigger="click once from:#notification-trigger" hx-swap="innerHTML">
+          <p class="steward-notification-empty">Loading…</p>
+        </div>
+      </div>
+    </div>
+    {{end}}
     {{if .Page.User}}
     <div id="user-menu" class="dropdown-menu">
       <button type="button" id="user-menu-trigger" aria-haspopup="menu" aria-controls="user-menu-menu"

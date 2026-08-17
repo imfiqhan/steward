@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/glebarez/sqlite"
+
 	steward "github.com/imfiqhan/steward"
 	"gorm.io/gorm"
 )
@@ -275,6 +277,7 @@ func TestEveryConfigFieldIsDocumented(t *testing.T) {
 		"UploadDir":    true, "Storage": true, "Disks": true, "DefaultDisk": true,
 		"PublicUploads": true, "SignedURLTTL": true,
 		"TablePrefix": true, "DisableAutoMigrate": true,
+		"DisableNotifications": true,
 		"Require2FA":           true, "LoginCheck": true, "AuthExcept": true,
 		"EnableTokenAuth": true, "TokenTTL": true,
 		"TokenRateLimit": true, "TokenRateWindow": true,
@@ -395,3 +398,129 @@ func TestDocumentedSettingsStore(t *testing.T) {
 	}
 }
 
+// The notifications page shows every call it documents. Compiling them here
+// keeps the page from drifting past the API, which is how a snippet goes wrong
+// without anyone noticing.
+//
+// steward-site/content/docs/notifications.md
+func TestDocumentedNotificationCalls(t *testing.T) {
+	app, _ := newNotifyApp(t)
+	ctx := context.Background()
+
+	type submitted struct {
+		PostID uint   `json:"post_id"`
+		Author string `json:"author"`
+	}
+
+	n := steward.Notification{
+		Title: "Article awaiting review",
+		Body:  `"Pemprov Jatim gelar sosialisasi" was submitted by Editor.`,
+		URL:   "/admin/posts/4182",
+		Icon:  "file-text",
+		Type:  "post.submitted",
+	}.WithPayload(submitted{PostID: 4182, Author: "editor"})
+
+	if err := app.Notify(ctx, 1, n); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.NotifyUsers(ctx, []uint{1}, n); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.NotifyRole(ctx, n, "administrator"); err != nil {
+		t.Fatal(err)
+	}
+
+	items, err := app.Notifications(ctx, 1, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) == 0 {
+		t.Fatal("nothing to read back")
+	}
+	var got submitted
+	if err := items[0].Payload(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got.PostID != 4182 {
+		t.Fatalf("payload came back as %+v", got)
+	}
+
+	if _, err := app.UnreadNotifications(ctx, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.MarkNotificationRead(ctx, 1, items[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.MarkNotificationsRead(ctx, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.DeleteNotification(ctx, 1, items[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.PruneNotifications(ctx, 90*24*time.Hour); err != nil {
+		t.Fatal(err)
+	}
+
+	// An icon the page names but the sprite lacks renders as a gap in the row.
+	have := map[string]bool{}
+	for _, name := range app.Icons() {
+		have[name] = true
+	}
+	for _, name := range []string{"file-text", "bell", "check", "calendar", "database"} {
+		if !have[name] {
+			t.Errorf("the page names icon %q, which is not in the sprite", name)
+		}
+	}
+}
+
+// The page sends from a Saved hook, which lives on the form rather than the
+// resource. Registering it here is what proves the shape.
+//
+// steward-site/content/docs/notifications.md
+func TestDocumentedNotificationHook(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:notifyhook?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&hookPost{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB:        db,
+		SecretKey: []byte("notification-hook-test-secret"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const statusPending = 1
+	steward.Register[hookPost](app).
+		Form(func(f *steward.Form[hookPost]) {
+			f.Text("Title")
+			f.Saved(func(c *steward.Context, p *hookPost, created bool) error {
+				if p.Status != statusPending {
+					return nil
+				}
+				return c.Admin.NotifyRole(c.Ctx(), steward.Notification{
+					Title: "Article awaiting review",
+					Body:  p.Title,
+					URL:   c.URL("hook_posts", fmt.Sprint(p.ID)),
+					Icon:  "file-text",
+					Type:  "post.submitted",
+				}, "editor")
+			})
+		})
+
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Verify(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type hookPost struct {
+	ID     uint `gorm:"primaryKey"`
+	Title  string
+	Status int16
+}
