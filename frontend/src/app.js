@@ -2112,6 +2112,24 @@ window.htmx = htmx;
     pop.style.top = top + "px";
     pop.style.right = "auto";
     pop.style.bottom = "auto";
+
+    // The offsets above are viewport coordinates, which is what "fixed" means
+    // only while no ancestor is a containing block for it. transform, filter,
+    // perspective, contain and will-change all make one — the filter drawer's
+    // <article> carries will-change for its slide — and the box then lands at
+    // that ancestor's origin plus the offset, which put this popover 650px
+    // past the right edge of the screen.
+    //
+    // Corrected by what was actually measured rather than by looking for the
+    // ancestor: the property that created it does not matter, and the list of
+    // properties that can is longer than it looks.
+    var got = pop.getBoundingClientRect();
+    var dx = got.left - left;
+    var dy = got.top - top;
+    if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+      pop.style.left = left - dx + "px";
+      pop.style.top = top - dy + "px";
+    }
   }
 
   /* The menu is moved to <body> while it is open.

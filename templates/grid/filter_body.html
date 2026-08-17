@@ -1,7 +1,6 @@
 {{/* The controls themselves, shared by both filter layouts: in place above
      the rows, and inside the drawer. */}}
 {{define "grid/_filter_body"}}
-        hx-get="{{.Data.BaseURL}}" hx-target="#page-content" hx-push-url="true">
     {{/* The same twelve columns a form divides into, so a span means one thing
          across the panel. Flowed instead, a date range — which needs room for
          two controls — ended up the narrowest thing in the row. */}}
