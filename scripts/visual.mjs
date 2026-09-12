@@ -745,6 +745,15 @@ if (await up.count()) {
 {
   await page.goto(BASE + "/posts");
   await page.waitForLoadState("networkidle");
+  // The browser restores checkbox state across a reload, so the starting point
+  // has to be set rather than assumed.
+  await page.evaluate(() => {
+    document.querySelectorAll("table input[type=checkbox]:checked").forEach((c) => {
+      c.checked = false;
+      c.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  });
+  await page.waitForTimeout(200);
   await page.click("#export-menu-trigger");
   await page.waitForSelector("#export-menu-all", { state: "visible", timeout: 3000 }).catch(() => {});
   const modes = await page.evaluate(() =>
