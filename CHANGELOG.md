@@ -4,6 +4,32 @@ Steward is `0.x`: the API can change between releases, and this file is where
 those changes are written down. Read the **Upgrading** notes before moving a
 running panel to a new version.
 
+## v0.1.1
+
+### Fixed
+
+- **Quick search and the command palette on PostgreSQL, for a resource whose
+  searchable columns are not all text.** A `uuid` column given to
+  `QuickSearch` or `Command` made every search fail, not only a search for a
+  uuid: PostgreSQL resolves `ILIKE` for text alone, quick search puts every
+  declared column in one `OR`, and the refusal happens during analysis, so the
+  whole statement went with it. A grid answered 500 for any term, including one
+  that matched nothing; the palette answered 200 with an empty list. The column
+  is cast now — `CAST(col AS TEXT) ILIKE ?` — on PostgreSQL only, and only for
+  pattern matching. Equality is untouched, so `uuid = uuid` keeps its index.
+
+  Relation paths are covered too: `QuickSearch("Submission.ID")` searches
+  through a subquery, and that reads the same predicate.
+
+Nothing to do on upgrade: no configuration, no migration, and the SQL is
+unchanged on SQLite, MySQL and SQL Server. See
+[Databases](https://steward.fiqhan.dev/docs/databases/) for what a pattern
+search costs on a large table.
+
+The `contrib/*` modules are unchanged and stay at `v0.1.0`. They require the
+framework at a minimum, not a maximum, so requiring `v0.1.1` alongside them is
+all it takes.
+
 ## v0.1.0
 
 The first tagged release. Everything before it was reachable only as a
