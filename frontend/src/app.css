@@ -1080,16 +1080,32 @@ tr.steward-dragging { opacity: 0.5; }
 
    Relative positioning is what Chart.js's responsive resizing measures
    against. */
+/* A column, because the component appends the legend as a sibling of the chart
+   container rather than inside it. Both children divide this height; the
+   capped box stays the tile's whole height whether or not a legend is drawn. */
 [data-steward-chart] {
+  display: flex;
+  flex-direction: column;
   height: clamp(180px, 30vh, 300px);
 }
 
 /* The component moves the canvas into a container of its own, and that is what
    Chart.js measures — capping only the outer box left the canvas drawing past
-   it at its default 16:9. */
+   it at its default 16:9.
+
+   min-height:0 because a flex item refuses by default to shrink below its
+   content, and the canvas is content: without it the container keeps the
+   canvas's height and pushes the legend out again. */
 [data-steward-chart] [data-basecoat-chart-container] {
   position: relative;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The legend takes the height its rows need, one or several. Left shrinkable it
+   would be compressed to fit instead, which clips the text it exists to show. */
+[data-steward-chart] .chart-legend {
+  flex: none;
 }
 
 /* ---- Combobox: keeping a long option inside the field --------------------- */

@@ -184,6 +184,39 @@ func registerResources(app *steward.Admin) {
 						Icon("file-text").Color(steward.BadgeOrange),
 				),
 			),
+			// Legends, which the component appends beside the chart rather than
+			// inside it: line, bar, and one whose labels wrap to several rows.
+			steward.Row(
+				steward.Col(4, steward.Card("By week", steward.Chart(&steward.ChartData{
+					Type:   steward.ChartLine,
+					Labels: []string{"W1", "W2", "W3", "W4"},
+					Legend: true,
+					Series: []steward.ChartSeries{
+						{Label: "Published in the app", Values: []float64{3, 5, 2, 6}},
+						{Label: "Imported from the feed", Values: []float64{1, 2, 4, 3}},
+					},
+				}))),
+				steward.Col(4, steward.Card("By status", steward.Chart(&steward.ChartData{
+					Type:   steward.ChartBar,
+					Labels: []string{"W1", "W2", "W3", "W4"},
+					Legend: true,
+					Series: []steward.ChartSeries{
+						{Label: "Published", Values: []float64{float64(published), 4, 2, 5}},
+						{Label: "Drafts", Values: []float64{float64(drafts), 1, 3, 2}},
+					},
+				}))),
+				steward.Col(4, steward.Card("Many series", steward.Chart(&steward.ChartData{
+					Type:   steward.ChartLine,
+					Labels: []string{"W1", "W2", "W3", "W4"},
+					Legend: true,
+					Series: []steward.ChartSeries{
+						{Label: "Published in the app", Values: []float64{3, 5, 2, 6}},
+						{Label: "Imported from the feed", Values: []float64{1, 2, 4, 3}},
+						{Label: "Scheduled for later", Values: []float64{2, 1, 3, 2}},
+						{Label: "Returned for revision", Values: []float64{4, 2, 1, 5}},
+					},
+				}))),
+			),
 			steward.Row(
 				steward.Col(12, steward.Card("Most recent",
 					steward.Table([]string{"Title", "Status"}, rows))),

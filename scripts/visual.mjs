@@ -261,7 +261,9 @@ const composed = await page.evaluate(() => {
     hasMetric: /Published/.test(document.body.textContent),
   };
 });
-check(composed.rows === 2, `the page renders its rows (${composed.rows})`);
+// Three, because that is what the report page declares: the chart and metrics,
+// the legend charts, and the table.
+check(composed.rows === 3, `the page renders its rows (${composed.rows})`);
 check(composed.cols.every((c) => c.overflow <= 1),
   `every card stays inside its column (${composed.cols.map((c) => c.overflow).join(",")})`);
 check(composed.wide > composed.narrow,
@@ -780,6 +782,57 @@ if (await up.count()) {
     check(/\(2\)$/.test(shown.text), `it counts them (${shown.text})`);
     check(shown.icon, "and writing the count did not eat its icon");
   }
+}
+
+// --- chart legends sit inside the box whose height is capped ----------------
+//
+// The component appends the legend as a sibling of the chart container, so a
+// container taking the full height leaves the legend outside the box, where the
+// card's overflow cuts it. A unit test cannot see this: the legend is drawn,
+// and only its position says it is wrong.
+{
+  await page.goto(BASE + "/posts/report");
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(1200);
+
+  const charts = await page.evaluate(() =>
+    [...document.querySelectorAll("[data-steward-chart]")].map((box) => {
+      const card = box.closest(".card");
+      const legend = box.querySelector(".chart-legend");
+      const container = box.querySelector("[data-basecoat-chart-container]");
+      const h2 = card ? card.querySelector("h2") : null;
+      const title = h2 ? h2.textContent.trim() : "chart";
+      const b = box.getBoundingClientRect();
+      if (!legend) return { title, legend: false, boxH: Math.round(b.height) };
+      const l = legend.getBoundingClientRect();
+      const c = card.getBoundingClientRect();
+      const lineH = parseFloat(getComputedStyle(legend).lineHeight) || 20;
+      return {
+        title,
+        legend: true,
+        boxH: Math.round(b.height),
+        containerH: container ? Math.round(container.getBoundingClientRect().height) : null,
+        legendH: Math.round(l.height),
+        pastBox: Math.round(l.bottom - b.bottom),
+        pastCard: Math.round(l.bottom - c.bottom),
+        rows: Math.max(1, Math.round(l.height / lineH)),
+      };
+    })
+  );
+
+  check(charts.some((c) => c.legend), `the report page draws a chart with a legend (${charts.length} charts)`);
+
+  const heights = [...new Set(charts.map((c) => c.boxH))];
+  check(heights.length === 1, `every chart tile is the same height, legend or not (${heights.join(", ")})`);
+
+  for (const c of charts.filter((x) => x.legend)) {
+    check(c.pastBox <= 0, `${c.title}: legend ends inside the capped box (${c.pastBox}px past it)`);
+    check(c.pastCard <= 0, `${c.title}: and inside the card that clips it (${c.pastCard}px past it)`);
+    check(c.containerH < c.boxH, `${c.title}: the plot gave up room for it (${c.containerH} of ${c.boxH})`);
+  }
+
+  const wrapped = charts.find((c) => c.legend && c.rows > 1);
+  check(!!wrapped, `a legend wraps to more than one row (${wrapped ? wrapped.rows : 0})`);
 }
 
 await page.screenshot({
