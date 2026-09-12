@@ -4,6 +4,24 @@ Steward is `0.x`: the API can change between releases, and this file is where
 those changes are written down. Read the **Upgrading** notes before moving a
 running panel to a new version.
 
+## v0.1.2
+
+### Fixed
+
+- **A chart's legend was cut off at the bottom of its tile.** The Chart
+  component appends the legend beside the plot rather than inside it, and the
+  plot was taking the tile's whole height, so the legend began where the tile
+  ended and the card clipped it — a row of labels with the descenders shaved
+  off. The tile's height is now divided between the two: the plot gives up
+  28px for one row of labels, 60px where many series wrap onto three.
+
+  A chart tile is still a fixed `clamp(180px, 30vh, 300px)` whatever its span
+  and whether or not it has a legend, so a row of tiles stays level. Charts
+  without a legend are unchanged.
+
+Nothing to do on upgrade, and nothing to change in a panel's own code: this is
+in the stylesheet the module ships.
+
 ## v0.1.1
 
 ### Fixed
