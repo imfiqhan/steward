@@ -177,8 +177,21 @@ func (r *GormRepository[T]) relCondSQL(rt *relTarget, c Cond) (string, []any, er
 // so it takes ILIKE to match the other two.
 func predicateSQLFor(dialect, col string, c Cond) (string, []any, error) {
 	like := " LIKE ?"
+	// PostgreSQL resolves ~~* for text, name and character only, and no type
+	// casts to those implicitly. A column of any other type — uuid, numeric,
+	// timestamptz — has to be cast before the operator is resolved, and the
+	// error is raised during analysis, so one such column anywhere in the
+	// statement rejects it whether or not that branch can be reached.
+	//
+	// The cast is unconditional because the type a column will present is not
+	// known here: the caller passes a quoted name, and a relation subquery has
+	// nothing else to offer. It costs no plan: varchar and text are
+	// binary-coercible to text, so PostgreSQL already relabels them this way
+	// itself, and ~~* cannot use a btree index with or without it.
+	likeCol := col
 	if dialect == "postgres" {
 		like = " ILIKE ?"
+		likeCol = "CAST(" + col + " AS TEXT)"
 	}
 	switch c.Op {
 	case OpEq:
@@ -194,9 +207,9 @@ func predicateSQLFor(dialect, col string, c Cond) (string, []any, error) {
 	case OpLte:
 		return col + " <= ?", []any{c.Val}, nil
 	case OpLike:
-		return col + like, []any{"%" + fmt.Sprint(c.Val) + "%"}, nil
+		return likeCol + like, []any{"%" + fmt.Sprint(c.Val) + "%"}, nil
 	case OpPrefix:
-		return col + like, []any{fmt.Sprint(c.Val) + "%"}, nil
+		return likeCol + like, []any{fmt.Sprint(c.Val) + "%"}, nil
 	case OpIn:
 		return col + " IN ?", []any{c.Val}, nil
 	case OpBetween:
