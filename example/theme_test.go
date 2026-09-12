@@ -166,16 +166,26 @@ func TestDocumentedThemeTokensExist(t *testing.T) {
 		t.Fatalf("stylesheet = %d", code)
 	}
 
+	// Every token the page lists, so the table cannot name one the stylesheet
+	// stopped defining.
 	for _, token := range []string{
 		"--background", "--foreground",
-		"--card", "--card-foreground", "--popover",
+		"--card", "--card-foreground",
+		"--popover", "--popover-foreground",
 		"--primary", "--primary-foreground",
-		"--secondary", "--accent", "--accent-foreground",
+		"--secondary", "--secondary-foreground",
+		"--accent", "--accent-foreground",
 		"--muted", "--muted-foreground",
 		"--destructive", "--border", "--input", "--ring", "--radius",
 		"--chart-1", "--chart-2", "--chart-3", "--chart-4", "--chart-5",
-		"--sidebar", "--sidebar-foreground", "--sidebar-primary",
-		"--sidebar-accent", "--sidebar-border",
+		"--sidebar", "--sidebar-foreground",
+		"--sidebar-primary", "--sidebar-primary-foreground",
+		"--sidebar-accent", "--sidebar-accent-foreground",
+		"--sidebar-border", "--sidebar-ring",
+		"--sidebar-width", "--sidebar-mobile-width",
+		"--scrollbar-width", "--scrollbar-sm-width",
+		"--scrollbar-thumb", "--scrollbar-track", "--scrollbar-radius",
+		"--check-icon", "--chevron-down-icon", "--chevron-down-icon-50",
 		"--font-sans", "--font-mono",
 	} {
 		if !strings.Contains(css, token+":") {
