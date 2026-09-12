@@ -26,11 +26,19 @@ import (
 type Config struct {
 	DB *gorm.DB
 
-	// Prefix is the URL the panel mounts under (default "/admin").
+	// Prefix is the path the panel mounts under. Empty means the root, which is
+	// the default.
 	Prefix string
 
 	// Brand names the panel in the sidebar and titles (default "Steward").
 	Brand string
+
+	// ThemeCSS is inlined in every page's head, after the stylesheet, so it can
+	// redefine the design tokens the components read — --primary, --radius,
+	// --background and the rest — without replacing the stylesheet itself. It
+	// reaches the standalone pages (login, password reset, two-factor) as well
+	// as the panel. Empty renders nothing.
+	ThemeCSS string
 
 	// CurrencySymbol prefixes every Currency field (default "$"). A single
 	// field overrides it with Field.Symbol.

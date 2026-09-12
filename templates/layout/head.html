@@ -1,0 +1,12 @@
+{{/* Everything every shell's <head> carries but its title. The panel's layout
+     and the standalone auth pages all include this, so a page added later
+     cannot miss the stylesheet or the theme that follows it. */}}
+{{define "layout/head.html"}}
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  {{with .Page.CSRF}}<meta name="csrf-token" content="{{.}}"/>{{end}}
+  <link rel="icon" href="{{asset "favicon.svg"}}" type="image/svg+xml"/>
+  <link rel="stylesheet" href="{{asset "dist/app.css"}}"/>
+  {{/* After the stylesheet, so a redefined token wins on equal specificity. */}}
+  {{with .Page.ThemeCSS}}<style>{{.}}</style>{{end}}
+{{end}}

@@ -1,11 +1,8 @@
 <!doctype html>
 <html lang="en" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  {{template "layout/head.html" .}}
   <title>Set up two-factor authentication — {{.Page.Brand}}</title>
-  <link rel="icon" href="{{asset "favicon.svg"}}" type="image/svg+xml"/>
-  <link rel="stylesheet" href="{{asset "dist/app.css"}}"/>
 </head>
 <body>
   <div class="min-h-screen grid place-items-center p-4">

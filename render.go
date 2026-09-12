@@ -270,6 +270,10 @@ type pageMeta struct {
 	Title  string
 	Prefix string
 
+	// ThemeCSS is Config.ThemeCSS, typed so the head emits it as CSS rather
+	// than escaping it as text.
+	ThemeCSS template.CSS
+
 	// Notifications reports whether the bell is mounted, so the header can
 	// leave the control out entirely when the feature is off.
 	Notifications bool
@@ -319,6 +323,7 @@ func (a *Admin) pageMetaFor(c *Context, title string) pageMeta {
 		Brand:         a.cfg.Brand,
 		Title:         title,
 		Prefix:        a.cfg.Prefix,
+		ThemeCSS:      template.CSS(a.cfg.ThemeCSS),
 		Notifications: a.notificationsEnabled(),
 		CSRF:          c.CSRF(),
 		Theme:         themeFrom(c.R),
