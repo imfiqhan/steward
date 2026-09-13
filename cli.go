@@ -13,6 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 
+	"github.com/imfiqhan/steward/internal/suggest"
 	"github.com/imfiqhan/steward/migrate"
 )
 
@@ -175,7 +176,8 @@ func runCLI(app App, args []string) error {
 			}
 			return nil
 		default:
-			return fmt.Errorf("unknown migrate subcommand %q (want up, down, status)", sub)
+			return fmt.Errorf("unknown migrate subcommand %q%s",
+				sub, suggest.Block(sub, migrateSubcommands))
 		}
 
 	case "menu:sync":
@@ -230,7 +232,7 @@ func runCLI(app App, args []string) error {
 			pw = string(raw)
 		}
 		if len(pw) < 5 {
-			return fmt.Errorf("password must be at least 5 characters")
+			return fmt.Errorf("password must be at least 5 characters, got %d", len(pw))
 		}
 		hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
 		if err != nil {
@@ -244,11 +246,11 @@ func runCLI(app App, args []string) error {
 		return nil
 
 	case "help", "-h", "--help":
-		fmt.Println("commands: serve [-addr], worker, migrate up|down|status, menu:sync, search:reindex, admin:create-user")
+		fmt.Println("commands: " + strings.Join(cliCommands, ", "))
 		return nil
 
 	default:
-		return fmt.Errorf("unknown command %q — try: serve, worker, migrate up|down|status, menu:sync, search:reindex, admin:create-user", cmd)
+		return fmt.Errorf("unknown command %q%s", cmd, suggest.Block(cmd, cliCommands))
 	}
 }
 
@@ -303,3 +305,13 @@ func downPlan(sts []migrate.Status, steps int) (n int, everything bool) {
 	}
 	return n, n == applied
 }
+
+// The command sets the CLI answers with when it is given a name it does not
+// have. Kept beside the switch that reads them so the two cannot drift.
+var (
+	cliCommands = []string{
+		"serve", "worker", "migrate", "menu:sync", "search:reindex",
+		"admin:create-user", "help",
+	}
+	migrateSubcommands = []string{"up", "down", "status"}
+)

@@ -18,6 +18,7 @@ import (
 	"github.com/imfiqhan/steward/internal/migrations"
 	"github.com/imfiqhan/steward/internal/ratelimit"
 	"github.com/imfiqhan/steward/internal/session"
+	"github.com/imfiqhan/steward/internal/suggest"
 	"github.com/imfiqhan/steward/migrate"
 )
 
@@ -246,7 +247,8 @@ func New(cfg Config) (*Admin, error) {
 		return nil, errors.New("steward: Config.DB is required")
 	}
 	if len(cfg.SecretKey) < 16 {
-		return nil, errors.New("steward: Config.SecretKey must be at least 16 bytes")
+		return nil, fmt.Errorf("steward: Config.SecretKey must be at least 16 bytes, got %d",
+			len(cfg.SecretKey))
 	}
 	// Normalised to either "" (mounted at the root) or "/segment", with no
 	// trailing slash, so that every pattern and URL below can concatenate it
@@ -394,8 +396,8 @@ func (a *Admin) build() error {
 		m := r.meta()
 		if m.icon != "" && !rend.hasIcon(m.icon) {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-				"resource %q: icon %q not found; available: %s",
-				m.slug, m.icon, strings.Join(rend.iconNames(), ", ")))
+				"%s: icon %q not found%s",
+				m.slug, m.icon, suggest.Block(m.icon, rend.iconNames())))
 		}
 	}
 
@@ -409,13 +411,13 @@ func (a *Admin) build() error {
 		for _, w := range a.dash.allWidgets() {
 			if w.icon != "" && !rend.hasIcon(w.icon) {
 				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-					"dashboard widget %q: icon %q not found; available: %s",
-					w.title, w.icon, strings.Join(rend.iconNames(), ", ")))
+					"dashboard widget %q: icon %q not found%s",
+					w.title, w.icon, suggest.Block(w.icon, rend.iconNames())))
 			}
 			if w.tone != "" && !badgeColors[w.tone] {
 				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-					"dashboard widget %q: unknown colour %q (known colours: %s)",
-					w.title, w.tone, strings.Join(badgeColorNames(), ", ")))
+					"dashboard widget %q: unknown colour %q%s",
+					w.title, w.tone, suggest.Block(string(w.tone), badgeColorNames())))
 			}
 		}
 		verifyNodes(a, "dashboard layout", a.dash.nodes)
