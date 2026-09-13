@@ -320,6 +320,7 @@ func (a *Admin) Build() error {
 	a.buildOnce.Do(func() {
 		a.buildErr = a.build()
 		if a.buildErr == nil {
+			a.warnUnknownClasses()
 			a.startExportWorker()
 		}
 	})
