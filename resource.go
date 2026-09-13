@@ -9,8 +9,10 @@ import (
 	"unicode"
 
 	"github.com/jinzhu/inflection"
+	"gorm.io/gorm/schema"
 
 	"github.com/imfiqhan/steward/internal/rules"
+	"github.com/imfiqhan/steward/internal/suggest"
 )
 
 // resourceMeta is the type-erased identity every resource carries.
@@ -212,10 +214,13 @@ func (t *typedResource[T]) compile(a *Admin) error {
 	}
 	t.grid = g
 
-	verify := func(context, path string) *fieldInfo {
+	// site is where the caller wrote the declaration, when it is known. It
+	// lands on the message's first line, which is the line a reader edits.
+	verify := func(context, path, site string) *fieldInfo {
 		info, err := ft.lookup(path)
 		if err != nil {
-			a.verifyErrs = append(a.verifyErrs, fmt.Errorf("resource %q: %s: %w", t.res.m.slug, context, err))
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf("%s: %s: %w",
+				t.res.m.slug, context, withSite(err, site)))
 			return nil
 		}
 		return info
@@ -232,23 +237,25 @@ func (t *typedResource[T]) compile(a *Admin) error {
 		for _, colour := range col.badges {
 			if !badgeColors[colour] {
 				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-					"resource %q: column %q: unknown badge colour %q (known colours: %s)",
-					t.res.m.slug, col.path, colour, strings.Join(badgeColorNames(), ", ")))
+					"%s: column %q: unknown badge colour %q%s%s",
+					t.res.m.slug, col.path, colour, at(col.declaredAt),
+					suggest.Block(string(colour), badgeColorNames())))
 			}
 		}
 		if col.disk != "" {
 			if _, ok := a.Disk(col.disk); !ok {
 				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-					"resource %q: column %q: unknown disk %q (configured: %s)",
-					t.res.m.slug, col.path, col.disk, strings.Join(a.DiskNames(), ", ")))
+					"%s: column %q: unknown disk %q%s%s",
+					t.res.m.slug, col.path, col.disk, at(col.declaredAt),
+					suggest.Block(col.disk, a.DiskNames())))
 			}
 		}
 		if n := len(col.boolLabels); n != 0 && n != 2 {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-				"resource %q: column %q: Bool takes no labels or exactly two, got %d",
-				t.res.m.slug, col.path, n))
+				"%s: column %q: Bool takes no labels or exactly two, got %d%s",
+				t.res.m.slug, col.path, n, at(col.declaredAt)))
 		}
-		col.info = verify("grid column", col.path)
+		col.info = verify("grid column", col.path, col.declaredAt)
 		if col.info != nil {
 			if col.label == "" {
 				col.label = col.info.Label
@@ -258,8 +265,9 @@ func (t *typedResource[T]) compile(a *Admin) error {
 			}
 			if col.sortable && col.info.DBName == "" {
 				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-					"resource %q: column %q is a relation path and cannot be Sortable",
-					t.res.m.slug, col.path))
+					"%s: column %q is a relation path and cannot be Sortable%s%s",
+					t.res.m.slug, col.path, at(col.declaredAt),
+					suggest.Block(col.path, sortablePaths(g))))
 			}
 			// Long text gets a default truncation when nothing custom is set.
 			if col.info.Kind == kindString && col.present == nil && len(col.transform) == 0 {
@@ -279,21 +287,21 @@ func (t *typedResource[T]) compile(a *Admin) error {
 		gr.With(preloads...)
 	}
 	for _, fi := range g.filters {
-		fi.info = verify("grid filter", fi.path)
+		fi.info = verify("grid filter", fi.path, fi.declaredAt)
 		if fi.info == nil {
 			continue
 		}
 		if !fi.info.filterable() {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-				"resource %q: grid filter %q: relation %q has a composite key, which cannot be filtered",
-				t.res.m.slug, fi.path, fi.info.Relation))
+				"%s: grid filter %q: relation %q has a composite key%s",
+				t.res.m.slug, fi.path, fi.info.Relation, at(fi.declaredAt)))
 		}
 		if fi.label == "" {
 			fi.label = fi.info.Label
 		}
 	}
 	for _, p := range g.quickSearch {
-		if info := verify("quick search", p); info != nil && !info.filterable() {
+		if info := verify("quick search", p, ""); info != nil && !info.filterable() {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
 				"resource %q: quick search %q: relation %q has a composite key, which cannot be searched",
 				t.res.m.slug, p, info.Relation))
@@ -302,25 +310,26 @@ func (t *typedResource[T]) compile(a *Admin) error {
 	for _, fi := range g.filters {
 		if fi.datetimeOnBetween {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-				"resource %q: filter %q: Between(...).Datetime() is gone; use "+
+				"%s: filter %q: Between(...).Datetime() is gone; use "+
 					"DateRange(%q).Datetime() for a range of moments, or Between alone "+
 					"for a range of numbers", t.res.m.slug, fi.path, fi.path))
 		}
 	}
 	if l := g.filterLayout; l != "" && !filterLayouts[l] {
 		a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-			"resource %q: unknown filter layout %q (known: %s, %s)",
-			t.res.m.slug, l, FiltersAbove, FiltersDrawer))
+			"%s: unknown filter layout %q%s",
+			t.res.m.slug, l, suggest.Block(string(l),
+				[]string{string(FiltersAbove), string(FiltersDrawer)})))
 	}
 	for _, p := range t.res.commandPaths {
-		if info := verify("command search", p); info != nil && !info.filterable() {
+		if info := verify("command search", p, ""); info != nil && !info.filterable() {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
 				"resource %q: command search %q: relation %q has a composite key, which cannot be searched",
 				t.res.m.slug, p, info.Relation))
 		}
 	}
 	for _, p := range t.res.commandDisplay {
-		info := verify("command display", p)
+		info := verify("command display", p, "")
 		if info == nil {
 			continue
 		}
@@ -336,16 +345,18 @@ func (t *typedResource[T]) compile(a *Admin) error {
 		// Sorting cannot go through the relation subquery — ORDER BY needs the
 		// column in the result set, which means a join. Reject it at boot
 		// instead of silently ignoring the sort at click time.
-		if info := verify("default sort", g.defaultSort.Path); info != nil && info.DBName == "" {
+		if info := verify("default sort", g.defaultSort.Path, ""); info != nil && info.DBName == "" {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-				"resource %q: default sort %q is a relation path; sort by a column on the model itself",
-				t.res.m.slug, g.defaultSort.Path))
+				"%s: default sort %q is a relation path, not a column%s",
+				t.res.m.slug, g.defaultSort.Path,
+				suggest.Block(g.defaultSort.Path, sortablePaths(g))))
 		}
 	}
 	if g.treePath != "" {
-		if info := verify("tree parent", g.treePath); info != nil && info.Relation != "" {
+		if info := verify("tree parent", g.treePath, ""); info != nil && info.Relation != "" {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-				"resource %q: tree parent %q must be a direct column", t.res.m.slug, g.treePath))
+				"%s: tree parent %q must be a direct column%s",
+				t.res.m.slug, g.treePath, suggest.Block(g.treePath, sortablePaths(g))))
 		}
 	}
 
@@ -362,13 +373,15 @@ func (t *typedResource[T]) compile(a *Admin) error {
 			idx, ok := colIdx[p]
 			if !ok {
 				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-					"resource %q: header group %q references unknown column %q", t.res.m.slug, hg.label, p))
+					"%s: header group %q references unknown column %q%s",
+					t.res.m.slug, hg.label, p, suggest.Block(p, columnPaths(g))))
 				bad = true
 				break
 			}
 			if g.columns[idx].hidden {
 				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-					"resource %q: header group %q includes hidden column %q", t.res.m.slug, hg.label, p))
+					"%s: header group %q includes hidden column %q",
+					t.res.m.slug, hg.label, p))
 				bad = true
 				break
 			}
@@ -388,7 +401,8 @@ func (t *typedResource[T]) compile(a *Admin) error {
 		}
 		if !contiguous {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-				"resource %q: header group %q columns must be contiguous", t.res.m.slug, hg.label))
+				"%s: header group %q columns must be contiguous\n  available: %s",
+				t.res.m.slug, hg.label, suggest.List(columnPaths(g))))
 			continue
 		}
 		hg.start, hg.span = indexes[0], len(indexes)
@@ -413,16 +427,18 @@ func (t *typedResource[T]) compile(a *Admin) error {
 		for _, spec := range []string{fd.rules, fd.createRules, fd.updateRules} {
 			for _, name := range rules.Unknown(spec) {
 				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-					"resource %q: field %q: unknown validation rule %q (known rules: %s)",
-					t.res.m.slug, fd.path, name, strings.Join(rules.Names(), ", ")))
+					"%s: field %q: unknown validation rule %q%s%s",
+					t.res.m.slug, fd.path, name, at(fd.declaredAt),
+					suggest.Block(name, rules.Names())))
 			}
 		}
 		// Likewise an unknown disk: uploads would quietly go to the default one.
 		if fd.disk != "" {
 			if _, ok := a.Disk(fd.disk); !ok {
 				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-					"resource %q: field %q: unknown disk %q (configured: %s)",
-					t.res.m.slug, fd.path, fd.disk, strings.Join(a.DiskNames(), ", ")))
+					"%s: field %q: unknown disk %q%s%s",
+					t.res.m.slug, fd.path, fd.disk, at(fd.declaredAt),
+					suggest.Block(fd.disk, a.DiskNames())))
 			}
 		}
 		if fd.virtual {
@@ -431,7 +447,7 @@ func (t *typedResource[T]) compile(a *Admin) error {
 			}
 			continue
 		}
-		fd.info = verify("form field", fd.path)
+		fd.info = verify("form field", fd.path, fd.declaredAt)
 		if fd.info == nil {
 			continue
 		}
@@ -464,11 +480,14 @@ func (t *typedResource[T]) compile(a *Admin) error {
 		switch {
 		case match == nil:
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-				"resource %q: inline column %q has no matching form field", t.res.m.slug, col.path))
+				"%s: inline column %q has no matching form field%s%s",
+				t.res.m.slug, col.path, at(col.declaredAt),
+				suggest.Block(col.path, formFieldPaths(t.form))))
 			col.inline = inlineNone
 		case col.inline == inlineSwitch && match.kind != FieldSwitch:
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-				"resource %q: inline switch column %q needs a form Switch field", t.res.m.slug, col.path))
+				"%s: inline switch column %q needs a form Switch field%s",
+				t.res.m.slug, col.path, at(col.declaredAt)))
 			col.inline = inlineNone
 		}
 	}
@@ -484,13 +503,17 @@ func (t *typedResource[T]) resolveBelongsTo(a *Admin, fd *Field[T]) {
 	rel, ok := t.ft.model.Relationships.Relations[fd.relName]
 	if !ok || rel.FieldSchema == nil {
 		a.verifyErrs = append(a.verifyErrs,
-			fmt.Errorf("resource %q: form field %q: unknown relation %q", t.res.m.slug, fd.path, fd.relName))
+			fmt.Errorf("%s: form field %q: unknown relation %q%s%s",
+				t.res.m.slug, fd.path, fd.relName, at(fd.declaredAt),
+				suggest.Block(fd.relName, relationNames(t.ft))))
 		return
 	}
 	titleField := rel.FieldSchema.LookUpField(fd.relTitle)
 	if titleField == nil {
 		a.verifyErrs = append(a.verifyErrs,
-			fmt.Errorf("resource %q: form field %q: relation %s has no field %q", t.res.m.slug, fd.path, fd.relName, fd.relTitle))
+			fmt.Errorf("%s: form field %q: relation %s has no field %q%s%s",
+				t.res.m.slug, fd.path, fd.relName, fd.relTitle, at(fd.declaredAt),
+				suggest.Block(fd.relTitle, schemaFieldNames(rel.FieldSchema))))
 		return
 	}
 	fd.relTable = rel.FieldSchema.Table
@@ -612,4 +635,68 @@ func splitCamel(s string) string {
 		b.WriteRune(r)
 	}
 	return b.String()
+}
+
+// The candidate sets the verify messages offer back. Each reads what the
+// resource already declared, so nothing has to be threaded to build one.
+
+// columnPaths is every column a grid declares, hidden ones included: a header
+// group naming a hidden column is a different mistake from naming none.
+func columnPaths[T any](g *Grid[T]) []string {
+	out := make([]string, 0, len(g.columns))
+	for _, c := range g.columns {
+		out = append(out, c.path)
+	}
+	return out
+}
+
+// sortablePaths is the columns that can carry an ORDER BY — the ones on the
+// model itself, since a relation path has no column to sort.
+func sortablePaths[T any](g *Grid[T]) []string {
+	out := make([]string, 0, len(g.columns))
+	for _, c := range g.columns {
+		if c.computed || c.info == nil || c.info.DBName == "" {
+			continue
+		}
+		out = append(out, c.path)
+	}
+	return out
+}
+
+// formFieldPaths is every path the form submits, for a grid column that
+// claimed to edit one inline and named nothing.
+func formFieldPaths[T any](f *Form[T]) []string {
+	if f == nil {
+		return nil
+	}
+	out := make([]string, 0, len(f.fields))
+	for _, fd := range f.fields {
+		out = append(out, fd.path)
+	}
+	return out
+}
+
+// relationNames is the relations the model actually declares.
+func relationNames(ft *fieldTable) []string {
+	if ft == nil || ft.model == nil {
+		return nil
+	}
+	out := make([]string, 0, len(ft.model.Relationships.Relations))
+	for name := range ft.model.Relationships.Relations {
+		out = append(out, name)
+	}
+	return out
+}
+
+// schemaFieldNames is the fields of a related model, for a title column that
+// names one it does not have.
+func schemaFieldNames(s *schema.Schema) []string {
+	if s == nil {
+		return nil
+	}
+	out := make([]string, 0, len(s.Fields))
+	for _, f := range s.Fields {
+		out = append(out, f.Name)
+	}
+	return out
 }

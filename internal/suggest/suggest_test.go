@@ -15,7 +15,7 @@ func TestNearestOffersOnlyACloseName(t *testing.T) {
 		{"Titl", "Title"},   // one deletion
 		{"titles", "Title"}, // case plus one insertion
 		{"title", "Title"},  // right name, wrong case
-		{"Autor", ""},       // three edits away, past the cut
+		{"Athr", ""},        // three edits away, past the cut
 		{"Slug", ""},        // nothing close
 		{"", ""},
 	}

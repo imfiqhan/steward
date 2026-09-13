@@ -327,6 +327,16 @@ func (a *Admin) Build() error {
 	return a.buildErr
 }
 
+// resourceTypeNames lists the model names that are registered resources, for
+// an error naming one that is not.
+func (a *Admin) resourceTypeNames() []string {
+	out := make([]string, 0, len(a.byType))
+	for t := range a.byType {
+		out = append(out, t.Name())
+	}
+	return out
+}
+
 // Verify runs Build and returns every configuration error collected during
 // resource compilation, joined. Assert it in a test to catch bad column
 // references at CI time instead of request time.

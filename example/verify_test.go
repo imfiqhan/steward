@@ -65,9 +65,16 @@ func TestVerifyCatchesAnUnknownRule(t *testing.T) {
 	if !strings.Contains(got, `unknown validation rule "requiredd"`) {
 		t.Errorf("Verify said %q", got)
 	}
-	// The message names what was allowed, not only what was not.
-	if !strings.Contains(got, "required") || !strings.Contains(got, "known rules:") {
-		t.Errorf("the error does not list the known rules: %q", got)
+	// The message names the rule that was meant and the set to choose from,
+	// and points at the line that has to change.
+	for _, want := range []string{
+		"did you mean: required",
+		"available: alpha_dash, email",
+		"verify_test.go:",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the error is missing %q: %q", want, got)
+		}
 	}
 
 	// The rules that exist pass, including the ones taking an argument.
@@ -92,8 +99,10 @@ func TestVerifyCatchesAnUnknownDisk(t *testing.T) {
 	if !strings.Contains(got, `unknown disk "pubic"`) {
 		t.Errorf("Verify said %q", got)
 	}
-	if !strings.Contains(got, "configured: media, public") {
-		t.Errorf("the error does not list the configured disks: %q", got)
+	for _, want := range []string{"did you mean: public", "available: media, public"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the error is missing %q: %q", want, got)
+		}
 	}
 
 	if got := verifyWith(t, func(r *steward.Resource[verifyRow]) {

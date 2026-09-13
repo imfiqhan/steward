@@ -77,7 +77,7 @@ type Form[T any] struct {
 func newForm[T any](res *Resource[T]) *Form[T] { return &Form[T]{res: res} }
 
 func (f *Form[T]) add(kind FieldKind, path string, label ...string) *Field[T] {
-	fd := &Field[T]{form: f, kind: kind, path: path}
+	fd := &Field[T]{form: f, kind: kind, path: path, declaredAt: callerSite()}
 	if len(label) > 0 {
 		fd.label = label[0]
 	}
@@ -386,6 +386,10 @@ func (f *Form[T]) Deleted(fn func(c *Context, ids []string) error) *Form[T] {
 type Field[T any] struct {
 	form *Form[T]
 	path string
+
+	// declaredAt is where this field was written, for an error that names
+	// something the reader has to go and change.
+	declaredAt string
 
 	kind  FieldKind
 	label string

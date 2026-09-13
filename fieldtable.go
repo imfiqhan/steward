@@ -1,6 +1,7 @@
 package steward
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -165,8 +166,37 @@ func (ft *fieldTable) lookup(path string) (*fieldInfo, error) {
 			known = append(known, p)
 		}
 	}
-	return nil, fmt.Errorf("unknown field %q on %s%s",
-		path, ft.model.Name, suggest.Block(path, known))
+	return nil, &unknownFieldError{path: path, model: ft.model.Name, known: known}
+}
+
+// unknownFieldError carries the parts of the message rather than the message,
+// so a caller that knows where the path was declared can put that on the first
+// line — after the message is built, the first line is no longer reachable.
+type unknownFieldError struct {
+	path  string
+	model string
+	known []string
+	site  string
+}
+
+func (e *unknownFieldError) Error() string {
+	// The declaration site says where to look more precisely than the model
+	// name does, so naming both only spends the first line's budget twice.
+	where := " on " + e.model
+	if e.site != "" {
+		where = at(e.site)
+	}
+	return fmt.Sprintf("unknown field %q%s%s", e.path, where, suggest.Block(e.path, e.known))
+}
+
+// withSite records where a path was declared, when the caller knows. Anything
+// that is not an unresolved path passes through untouched.
+func withSite(err error, site string) error {
+	var u *unknownFieldError
+	if site != "" && errors.As(err, &u) {
+		u.site = site
+	}
+	return err
 }
 
 // callerSite reports the file and line in the caller's own code, for an error

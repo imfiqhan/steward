@@ -13,6 +13,8 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/imfiqhan/steward/internal/suggest"
+
 	"github.com/imfiqhan/steward/internal/htmlsafe"
 )
 
@@ -28,7 +30,7 @@ func newDetail[T any](res *Resource[T]) *Detail[T] { return &Detail[T]{res: res}
 
 // Field adds one field row to the detail panel.
 func (d *Detail[T]) Field(path string, label ...string) *DetailField[T] {
-	df := &DetailField[T]{path: path}
+	df := &DetailField[T]{path: path, declaredAt: callerSite()}
 	if len(label) > 0 {
 		df.label = label[0]
 	}
@@ -40,7 +42,7 @@ func (d *Detail[T]) Field(path string, label ...string) *DetailField[T] {
 // than read from one path, for anything a struct field cannot name: a
 // collection, a summary, several values at once.
 func (d *Detail[T]) FieldFunc(name, label string, fn func(row *T) template.HTML) *DetailField[T] {
-	df := &DetailField[T]{path: name, label: label, computed: true}
+	df := &DetailField[T]{path: name, label: label, computed: true, declaredAt: callerSite()}
 	df.present = func(_ any, row *T) template.HTML { return fn(row) }
 	d.fields = append(d.fields, df)
 	return df
@@ -50,6 +52,9 @@ func (d *Detail[T]) FieldFunc(name, label string, fn func(row *T) template.HTML)
 type DetailField[T any] struct {
 	path  string
 	label string
+
+	// declaredAt is where this row was written.
+	declaredAt string
 
 	present func(v any, m *T) template.HTML
 	info    *fieldInfo
@@ -471,20 +476,22 @@ func (t *typedResource[T]) compileDetail(a *Admin) {
 		for _, colour := range df.badges {
 			if !badgeColors[colour] {
 				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-					"resource %q: detail field %q: unknown badge colour %q (known colours: %s)",
-					t.res.m.slug, df.path, colour, strings.Join(badgeColorNames(), ", ")))
+					"%s: detail field %q: unknown badge colour %q%s%s",
+					t.res.m.slug, df.path, colour, at(df.declaredAt),
+					suggest.Block(string(colour), badgeColorNames())))
 			}
 		}
 		if n := len(df.boolLabels); n != 0 && n != 2 {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-				"resource %q: detail field %q: Bool takes no labels or exactly two, got %d",
-				t.res.m.slug, df.path, n))
+				"%s: detail field %q: Bool takes no labels or exactly two, got %d%s",
+				t.res.m.slug, df.path, n, at(df.declaredAt)))
 		}
 		if df.disk != "" {
 			if _, ok := a.Disk(df.disk); !ok {
 				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-					"resource %q: detail field %q: unknown disk %q (configured: %s)",
-					t.res.m.slug, df.path, df.disk, strings.Join(a.DiskNames(), ", ")))
+					"%s: detail field %q: unknown disk %q%s%s",
+					t.res.m.slug, df.path, df.disk, at(df.declaredAt),
+					suggest.Block(df.disk, a.DiskNames())))
 			}
 		}
 		if df.computed {
@@ -495,7 +502,8 @@ func (t *typedResource[T]) compileDetail(a *Admin) {
 		}
 		info, err := t.ft.lookup(df.path)
 		if err != nil {
-			a.verifyErrs = append(a.verifyErrs, fmt.Errorf("resource %q: detail field: %w", t.res.m.slug, err))
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf("%s: detail field: %w",
+				t.res.m.slug, withSite(err, df.declaredAt)))
 			continue
 		}
 		df.info = info
@@ -516,7 +524,9 @@ func (t *typedResource[T]) compileDetail(a *Admin) {
 	for i := range d.relations {
 		if _, ok := a.byType[d.relations[i].typ]; !ok {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-				"resource %q: RelationGrid target %s is not a registered resource", t.res.m.slug, d.relations[i].typ))
+				"%s: RelationGrid target %s is not a registered resource%s",
+				t.res.m.slug, d.relations[i].typ, suggest.Block(
+					d.relations[i].typ.Name(), a.resourceTypeNames())))
 		}
 	}
 }

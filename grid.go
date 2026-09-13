@@ -41,7 +41,7 @@ func newGrid[T any](res *Resource[T]) *Grid[T] {
 // Column adds a model field column ("Title", "Author.Name"); the optional
 // second argument overrides the derived label.
 func (g *Grid[T]) Column(path string, label ...string) *Column[T] {
-	c := &Column[T]{path: path}
+	c := &Column[T]{path: path, declaredAt: callerSite()}
 	if len(label) > 0 {
 		c.label = label[0]
 	}
@@ -51,7 +51,7 @@ func (g *Grid[T]) Column(path string, label ...string) *Column[T] {
 
 // ColumnFunc adds a computed column rendered entirely by fn.
 func (g *Grid[T]) ColumnFunc(name, label string, fn func(row *T) template.HTML) *Column[T] {
-	c := &Column[T]{path: name, label: label, computed: true}
+	c := &Column[T]{path: name, label: label, computed: true, declaredAt: callerSite()}
 	c.present = func(_ any, row *T) template.HTML { return fn(row) }
 	g.columns = append(g.columns, c)
 	return c
@@ -198,6 +198,10 @@ type Column[T any] struct {
 	path     string
 	label    string
 	computed bool
+
+	// declaredAt is where this column was written, for an error that names
+	// something the reader has to go and change.
+	declaredAt string
 
 	sortable bool
 	hidden   bool
@@ -582,6 +586,8 @@ type FilterItem[T any] struct {
 	// replacement, rather than the filter quietly behaving as a numeric one.
 	datetimeOnBetween bool
 	info              *fieldInfo
+	// declaredAt is where this filter was written.
+	declaredAt string
 }
 
 // Span sets how many of the filter panel's twelve columns the control takes,
@@ -671,7 +677,7 @@ func (l GridFilterLayout) resolve(fallback GridFilterLayout) GridFilterLayout {
 type Options map[string]string
 
 func (f *Filters[T]) add(path string, op Op, input filterInput, label ...string) *FilterItem[T] {
-	it := &FilterItem[T]{path: path, op: op, input: input}
+	it := &FilterItem[T]{path: path, op: op, input: input, declaredAt: callerSite()}
 	if len(label) > 0 {
 		it.label = label[0]
 	}
