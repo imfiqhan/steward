@@ -322,7 +322,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			if fv.MaxFiles <= 0 {
 				fv.MaxFiles = defaultMaxFiles
 			}
-			for _, p := range decodePaths(fv.Value) {
+			for _, p := range decodeStringList(fv.Value) {
 				fv.Files = append(fv.Files, uploadedVM{
 					Path: p, URL: c.Admin.DiskURL(fd.disk, p), Name: displayFileName(p),
 				})
@@ -717,7 +717,7 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	if !creating {
 		for _, w := range writes {
 			if isUploadKind(w.fd.kind) {
-				held[w.fd.path] = decodePaths(w.fd.valueString(m))
+				held[w.fd.path] = decodeStringList(w.fd.valueString(m))
 			}
 		}
 	}
@@ -1281,11 +1281,13 @@ func isUploadKind(k FieldKind) bool {
 // defaultMaxFiles bounds a multi-file field that names no limit of its own.
 const defaultMaxFiles = 10
 
-// decodePaths reads a Files column: a JSON array of storage paths.
+// decodeStringList reads a column holding a JSON array of strings: a Files
+// column's storage paths, a Tags column's values.
 //
-// A value that is not one is treated as a single path, so a column promoted
-// from File to Files keeps the row it already held rather than losing it.
-func decodePaths(raw string) []string {
+// A value that is not an array is treated as a single entry, so a column
+// promoted from File to Files, or from a plain text field to Tags, keeps what
+// it already held rather than losing it.
+func decodeStringList(raw string) []string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return nil
@@ -1326,7 +1328,7 @@ func (t *typedResource[T]) dropReplacedUploads(c *Context, m *T, held map[string
 			continue
 		}
 		after := map[string]bool{}
-		for _, p := range decodePaths(fd.valueString(m)) {
+		for _, p := range decodeStringList(fd.valueString(m)) {
 			after[p] = true
 		}
 		for _, p := range before {

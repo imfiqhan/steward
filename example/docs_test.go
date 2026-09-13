@@ -57,6 +57,7 @@ type docsRow struct {
 	Payload     string
 	Notes       string
 	Size        int64
+	Keywords    string
 	Icon        string
 	Brand       string
 	Slug        string
@@ -122,6 +123,9 @@ func TestDocumentedFieldKindsAllWork(t *testing.T) {
 		f.Markdown("Body")
 		f.Richtext("Content")
 
+		// Free values
+		f.Tags("Keywords").Help("Type a keyword and press Enter.")
+
 		// Relations
 		f.BelongsTo("CategoryID", "Category", "Name")
 
@@ -152,6 +156,8 @@ func TestDocumentedFieldKindsAllWork(t *testing.T) {
 		d.Field("Content").HTML()
 		d.Field("Payload").JSON()
 		d.Field("Notes").Preformatted()
+
+		d.Field("Keywords").Tags()
 
 		d.Field("Cover").Image(480, 0)
 		d.Field("Attachment").Link()

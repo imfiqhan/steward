@@ -42,6 +42,7 @@ const (
 	FieldIcon
 	FieldFiles
 	FieldImages
+	FieldTags
 )
 
 // kindNames map kinds to template partials and schema strings.
@@ -55,6 +56,7 @@ var kindNames = map[FieldKind]string{
 	FieldImage: "image", FieldMarkdown: "markdown", FieldBelongsTo: "belongsto",
 	FieldMultiSelect: "multiselect", FieldRichtext: "richtext",
 	FieldIcon: "icon", FieldFiles: "files", FieldImages: "images",
+	FieldTags: "tags",
 }
 
 // Form configures a resource's create/edit view; write-only until Build.
@@ -91,6 +93,16 @@ func (f *Form[T]) Text(path string, label ...string) *Field[T] {
 // Textarea adds a multi-line input.
 func (f *Form[T]) Textarea(path string, label ...string) *Field[T] {
 	return f.add(FieldTextarea, path, label...)
+}
+
+// Tags collects free-form values as chips: the reader types one and presses
+// Enter, and the field holds as many as they add. Unlike MultiSelect there is
+// no list to choose from — the values are whatever they write — so it suits a
+// column of labels, keywords, or the options of a question.
+//
+// Stored as a JSON array in a text column, the way Files stores paths.
+func (f *Form[T]) Tags(path string, label ...string) *Field[T] {
+	return f.add(FieldTags, path, label...)
 }
 
 // Email adds an email input (browser + server validation).
@@ -637,6 +649,11 @@ func (fd *Field[T]) decode(raw string) (any, error) {
 		// Sanitize on the way in, so a stored value is always safe to render
 		// and no read path has to remember to clean it.
 		return htmlsafe.Sanitize(raw), nil
+	case FieldTags:
+		// Normalise here rather than trusting the editor: the column is read
+		// back as a JSON array, and what posts the field is not always the
+		// widget that drew it.
+		return encodeTags(raw), nil
 	case FieldBelongsTo:
 		if raw == "" {
 			return zeroFor(info), nil

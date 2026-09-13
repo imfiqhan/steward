@@ -899,6 +899,90 @@ if (await up.count()) {
   check(!!wrapped, `a legend wraps to more than one row (${wrapped ? wrapped.rows : 0})`);
 }
 
+// --- tag field: typing, removing, and what the form submits -------------------
+//
+// The editor is the only thing between a hidden input holding JSON and a reader
+// typing words. Nothing about it is visible to a Go test: the chips, the key
+// that confirms a value, and the array the field submits all live in the page.
+{
+  await page.goto(BASE + "/posts/1/edit");
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(600);
+
+  const read = () =>
+    page.evaluate(() => {
+      const root = document.querySelector("[data-steward-tags]");
+      if (!root) return null;
+      const box = root.getBoundingClientRect();
+      const input = root.querySelector("[data-steward-tags-input]");
+      const chips = [...root.querySelectorAll(".steward-tag")];
+      return {
+        value: root.querySelector("[data-steward-tags-value]").value,
+        chips: chips.map((c) => c.textContent.trim()),
+        removes: root.querySelectorAll("[data-steward-tag-remove]").length,
+        // A chip that wrapped out of the box is a chip the reader cannot see.
+        inside: chips.every((c) => {
+          const r = c.getBoundingClientRect();
+          return r.top >= box.top - 1 && r.bottom <= box.bottom + 1;
+        }),
+        inputInside: input.getBoundingClientRect().right <= box.right + 1,
+      };
+    });
+
+  const start = await read();
+  check(!!start, "the post form draws a tag field");
+  if (start) {
+    await page.click("[data-steward-tags]");
+    await page.keyboard.type("go");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("sql,");
+    await page.waitForTimeout(150);
+    const added = await read();
+    check(
+      added.chips.length === start.chips.length + 2,
+      `Enter and comma each confirm a value (${start.chips.length} → ${added.chips.length})`
+    );
+    check(
+      added.value === JSON.stringify(added.chips),
+      `and the hidden input carries them as an array (${added.value})`
+    );
+    check(added.inside && added.inputInside, "the chips and the input stay inside the box");
+
+    // The same value twice is a slip, not a second value.
+    await page.keyboard.type("go");
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(120);
+    const repeated = await read();
+    check(
+      repeated.chips.length === added.chips.length,
+      `a repeat does not lengthen the list (${repeated.chips.length})`
+    );
+
+    await page.click("[data-steward-tag-remove]");
+    await page.waitForTimeout(120);
+    const removed = await read();
+    check(
+      removed.chips.length === repeated.chips.length - 1,
+      `a chip's button removes it (${repeated.chips.length} → ${removed.chips.length})`
+    );
+    check(
+      removed.value === JSON.stringify(removed.chips),
+      "and the hidden input follows what is drawn"
+    );
+
+    // Typed and not confirmed is still what the reader meant.
+    await page.click("[data-steward-tags-input]");
+    await page.keyboard.type("unconfirmed");
+    await page.click("#field-Title");
+    await page.waitForTimeout(150);
+    const blurred = await read();
+    check(
+      blurred.chips.includes("unconfirmed"),
+      `leaving the field keeps what was typed in it (${blurred.chips.join(", ")})`
+    );
+  }
+}
+
 await page.screenshot({
   path: "/tmp/steward-visual.png",
   fullPage: false,

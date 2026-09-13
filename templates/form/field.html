@@ -60,6 +60,20 @@
     </div>
 
 
+  {{else if eq .Kind "tags"}}
+    {{/* A chip surface and the input that feeds it. The values live in the
+         hidden input as a JSON array, which is what the column stores, so the
+         editor can be replaced without the wire shape changing. */}}
+    <div class="steward-tags" data-steward-tags
+         {{if .Disabled}}data-disabled="1"{{end}} {{if .ReadOnly}}data-readonly="1"{{end}}>
+      <div class="steward-tags-surface" data-steward-tags-chips></div>
+      <input type="text" class="steward-tags-input" data-steward-tags-input
+             id="field-{{.Name}}"
+             placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}Type and press Enter{{end}}"
+             autocomplete="off" autocorrect="off" spellcheck="false"
+             {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}/>
+      <input type="hidden" name="{{.Name}}" value="{{.Value}}" data-steward-tags-value/>
+    </div>
   {{else if or (eq .Kind "select") (eq .Kind "belongsto") (eq .Kind "multiselect")}}
     {{/* One control for every list-of-choices field: type to narrow, arrow to
          move, Enter to take. A short list ships whole and is filtered in the

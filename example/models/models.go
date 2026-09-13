@@ -23,6 +23,8 @@ type Post struct {
 	// A Files field's column: a JSON array of storage paths, so text rather
 	// than a sized string.
 	Attachments string `gorm:"type:text"`
+	// A Tags field's column, holding the same shape: a JSON array of values.
+	Keywords    string `gorm:"type:text"`
 	PublishedAt *time.Time
 	AuthorID    uint
 	Author      Author

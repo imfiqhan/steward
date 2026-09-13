@@ -4,6 +4,63 @@ Steward is `0.x`: the API can change between releases, and this file is where
 those changes are written down. Read the **Upgrading** notes before moving a
 running panel to a new version.
 
+## Unreleased
+
+### Added
+
+- **`Form.Tags`** — a list of free values in one text column. Type a value,
+  press Enter or comma, and it becomes a chip; Backspace on an empty input takes
+  the last one back. The column holds a JSON array, the same shape `Files` uses
+  for its paths, and `Column.Tags()` and `DetailField.Tags()` draw the stored
+  array as chips rather than as raw JSON.
+
+  This is not `MultiSelect`: there is no list to pick from, no pivot table, and
+  nothing virtual — the value goes into the record's own column. Whatever posts
+  the field, the stored value is normalised: trimmed, whitespace collapsed,
+  blanks and repeats dropped, capped at 200 values.
+
+- **`Config.ThemeCSS`** — a panel's own colours and corner rounding, as custom
+  properties layered over the bundle's. All 44 tokens the panel reads are named
+  in [Customization](https://steward.fiqhan.dev/docs/customization/), including
+  the login page, which now reads them too.
+
+- **A warning for a class the stylesheet has no rule for.** The bundle is
+  compiled from the class names the framework's own templates use, so a Tailwind
+  utility an override reaches for is in it only by coincidence — and writing one
+  that is not fails silently. With `Dev: true` the panel reads the overrides at
+  boot and names what it finds. A class your own `ThemeCSS` defines counts as
+  known.
+
+- **`migrate down -force`.** A rollback whose plan is every applied migration is
+  refused without it, since that is the command that empties the database.
+
+### Fixed
+
+- **A child field in a repeater row is a field.** `Span`, `ReadOnly`, `Disable`,
+  `Symbol`, `Min` and `Max` reached the row's markup as nothing at all, so every
+  child took the full twelve columns whatever it declared. A row is the form's
+  own twelve-column grid now, and `Fieldset` and `Divider` work inside one.
+
+  The modifiers a row cannot honour — `CreationRules`, `UpdateRules`,
+  `OnlyOnCreate`, `OnlyOnUpdate`, `Show`, `SavingValue`, `ValuesFunc` — are
+  refused by `Verify` rather than ignored at render time.
+
+- **A repeater row added in the browser is live.** A cloned row carried markup
+  the component library had not built and this framework had not bound: a select
+  was an inert combobox, a date field had no calendar trigger.
+
+- **`HasMany(...).Label(s)`** names the fieldset, instead of the relation's Go
+  field name being the only thing a reader sees.
+
+- **A failed `Saved` hook is reported.** The record was written and the hook's
+  error was swallowed, so a panel said "Post saved." while the work the hook was
+  there to do had not happened. The save still stands — it is already committed
+  — but the toast is a warning carrying the hook's message.
+
+- **The command palette says when a section could not answer.** A resource whose
+  query timed out or was refused contributed nothing, which read as "no
+  matches" — the same answer a typo gets.
+
 ## v0.1.2
 
 ### Fixed

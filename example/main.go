@@ -81,6 +81,7 @@ func registerResources(app *steward.Admin) {
 			g.Column("Status").Badge(map[any]steward.BadgeColor{"draft": steward.BadgeSecondary, "published": steward.BadgeGreen})
 			g.Column("Featured").Switch().Width(80)
 			g.Column("Author.Name", "Author")
+			g.Column("Keywords").Tags()
 			g.Column("PublishedAt", "Published").Sortable()
 			g.Column("CreatedAt", "Created").Sortable()
 			g.QuickSearch("Title", "Body")
@@ -152,6 +153,9 @@ func registerResources(app *steward.Admin) {
 			f.Files("Attachments").Dir("posts/docs").
 				Accept(".pdf,.txt").MaxSize(2 << 20).MaxFiles(4).
 				Help("Up to four documents.")
+			// Free values rather than a fixed list: the column stores whatever
+			// is typed, which is what MultiSelect above cannot do.
+			f.Tags("Keywords").Help("Type a keyword and press Enter.")
 			f.Saving(func(c *steward.Context, p *models.Post) error {
 				if p.Status == "published" && p.PublishedAt == nil {
 					now := time.Now()
@@ -240,6 +244,7 @@ func registerResources(app *steward.Admin) {
 		d.Field("Status").Badge(map[any]steward.BadgeColor{"draft": steward.BadgeSecondary, "published": steward.BadgeGreen})
 		d.Field("Author.Name", "Author")
 		d.Field("Body").Markdown()
+		d.Field("Keywords").Tags()
 		d.Field("PublishedAt", "Published")
 		d.Field("CreatedAt", "Created")
 	})

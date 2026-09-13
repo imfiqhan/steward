@@ -1098,6 +1098,138 @@ window.htmx = htmx;
     markUploadMissing(thumb.closest("[data-steward-upload]"));
   }, true);
 
+  /* ---- Tags ------------------------------------------------------------------- */
+  /*
+   * Progressive enhancement over a hidden input holding a JSON array, which is
+   * what the column stores. The chips are drawn from that array and every edit
+   * writes it back, so the field submits the same value with the script off as
+   * with it on — minus the ability to change it.
+   */
+
+  function tagsHidden(root) { return root.querySelector("[data-steward-tags-value]"); }
+
+  function tagsRead(root) {
+    var hidden = tagsHidden(root);
+    var raw = hidden ? hidden.value.trim() : "";
+    if (raw === "") return [];
+    try {
+      var v = JSON.parse(raw);
+      if (Array.isArray(v)) {
+        return v.filter(function (s) { return typeof s === "string" && s !== ""; });
+      }
+    } catch (e) { /* not an array: one value, below */ }
+    // A column promoted from a plain text field holds a bare string. Reading it
+    // as one value keeps what is there instead of clearing it on first save.
+    return [raw];
+  }
+
+  function tagsWrite(root, values) {
+    var hidden = tagsHidden(root);
+    if (!hidden) return;
+    // Empty is the empty string, not "[]", so a Tags column and a Files column
+    // agree on what nothing looks like.
+    hidden.value = values.length ? JSON.stringify(values) : "";
+    hidden.dispatchEvent(new Event("change", { bubbles: true }));
+    tagsPaint(root, values);
+  }
+
+  function tagsChip(value, index, editable) {
+    var chip = document.createElement("span");
+    chip.className = "steward-tag";
+    chip.appendChild(document.createTextNode(value));
+    if (!editable) return chip;
+    var remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "steward-tag-remove";
+    remove.dataset.stewardTagRemove = String(index);
+    remove.setAttribute("aria-label", "Remove " + value);
+    remove.innerHTML = '<svg class="lucide" xmlns="http://www.w3.org/2000/svg" width="24" ' +
+      'height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+      'stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/>' +
+      '<path d="m6 6 12 12"/></svg>';
+    chip.appendChild(remove);
+    return chip;
+  }
+
+  function tagsPaint(root, values) {
+    var chips = root.querySelector("[data-steward-tags-chips]");
+    if (!chips) return;
+    var editable = !root.hasAttribute("data-disabled") && !root.hasAttribute("data-readonly");
+    chips.textContent = "";
+    values.forEach(function (value, i) { chips.appendChild(tagsChip(value, i, editable)); });
+    root.dataset.stewardTagsCount = String(values.length);
+  }
+
+  function tagsCommit(root) {
+    var input = root.querySelector("[data-steward-tags-input]");
+    if (!input) return;
+    var typed = input.value.replace(/,+$/, "").trim().replace(/\s+/g, " ");
+    input.value = "";
+    if (typed === "") return;
+    var values = tagsRead(root);
+    // The same value twice is a slip; adding it again would only make the list
+    // longer, so the field settles on what is already there.
+    if (values.indexOf(typed) !== -1) return;
+    values.push(typed);
+    tagsWrite(root, values);
+  }
+
+  function initTags(scope) {
+    (scope || document).querySelectorAll("[data-steward-tags]").forEach(function (root) {
+      if (root.dataset.stewardTagsReady === "1") return;
+      root.dataset.stewardTagsReady = "1";
+      tagsPaint(root, tagsRead(root));
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () { initTags(); });
+  document.addEventListener("htmx:afterSettle", function () { initTags(); });
+
+  document.addEventListener("keydown", function (e) {
+    var input = e.target.closest && e.target.closest("[data-steward-tags-input]");
+    if (!input) return;
+    var root = input.closest("[data-steward-tags]");
+    if (e.key === "Enter" || e.key === ",") {
+      // Enter in a single-input form submits it, which is not what confirming a
+      // value means.
+      e.preventDefault();
+      tagsCommit(root);
+      return;
+    }
+    if (e.key === "Backspace" && input.value === "") {
+      var values = tagsRead(root);
+      if (values.length) {
+        values.pop();
+        tagsWrite(root, values);
+      }
+    }
+  });
+
+  // What was typed and not confirmed is still what the reader meant, and a form
+  // submitted straight from the field would otherwise drop it.
+  document.addEventListener("focusout", function (e) {
+    var input = e.target.closest && e.target.closest("[data-steward-tags-input]");
+    if (input) tagsCommit(input.closest("[data-steward-tags]"));
+  });
+
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest) return;
+    var remove = e.target.closest("[data-steward-tag-remove]");
+    if (remove) {
+      var root = remove.closest("[data-steward-tags]");
+      var values = tagsRead(root);
+      values.splice(parseInt(remove.dataset.stewardTagRemove, 10), 1);
+      tagsWrite(root, values);
+      return;
+    }
+    // Clicking the box is clicking the field it is drawn as.
+    var box = e.target.closest("[data-steward-tags]");
+    if (box && !e.target.closest("input")) {
+      var field = box.querySelector("[data-steward-tags-input]");
+      if (field) field.focus();
+    }
+  });
+
   /* ---- Rich text editor ------------------------------------------------------- */
   /*
    * Progressive enhancement over the Richtext field's textarea: the textarea
