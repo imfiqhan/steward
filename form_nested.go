@@ -22,14 +22,27 @@ import (
 //
 // v1 limits child fields to non-upload, non-relation kinds (no File/Image/
 // BelongsTo inside rows); Verify reports violations at boot.
-func HasMany[T any, C any](f *Form[T], relation string, fkPath string, fn func(*Form[C])) {
+func HasMany[T any, C any](f *Form[T], relation string, fkPath string, fn func(*Form[C])) *Nested {
 	child := &Form[C]{}
 	fn(child)
-	f.nested = append(f.nested, &hasManyForm[T, C]{
+	h := &hasManyForm[T, C]{
 		relation:  relation,
 		fkPath:    fkPath,
 		childForm: child,
-	})
+	}
+	f.nested = append(f.nested, h)
+	return &Nested{label: &h.label}
+}
+
+// Nested is what HasMany returns: the few things about a repeater that are not
+// the child form's business.
+type Nested struct{ label *string }
+
+// Label names the group and its add button. Without one the relation's field
+// name is split into words, which is English whatever the panel is written in.
+func (n *Nested) Label(s string) *Nested {
+	*n.label = s
+	return n
 }
 
 // nestedForm is the type-erased handle Form[T] stores; C lives only inside
@@ -73,7 +86,9 @@ type hasManyForm[T, C any] struct {
 func (h *hasManyForm[T, C]) fieldName() string { return h.relation }
 
 func (h *hasManyForm[T, C]) compile(a *Admin, parent *typedResource[T]) error {
-	h.label = splitCamel(h.relation)
+	if h.label == "" {
+		h.label = splitCamel(h.relation)
+	}
 	h.parentPK = parent.ft.pk
 
 	// The relation must exist on T as a has-many.
@@ -141,6 +156,7 @@ func (h *hasManyForm[T, C]) childFieldVM(c *Context, fd *Field[C], row *C, key s
 		Required:    fd.required,
 		Placeholder: fd.placeholder,
 		Help:        fd.help,
+		Span:        fd.span,
 	}
 	if row != nil {
 		fv.Value = fd.valueString(row)

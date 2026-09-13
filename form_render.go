@@ -765,14 +765,22 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 			return fmt.Errorf("saving %s rows: %w", n.fieldName(), err)
 		}
 	}
+	// Saved runs after the row and its nested rows are written, which is the
+	// only place a check that depends on them can run — so its complaint has to
+	// reach the reader. The write already happened and there is no transaction
+	// to undo it, so this is a warning carrying the redirect, not a failure.
+	var savedErr error
 	if f.savedFn != nil {
-		if err := f.savedFn(c, m, creating); err != nil {
-			c.Admin.log.Error("steward: saved hook", "err", err)
+		if savedErr = f.savedFn(c, m, creating); savedErr != nil {
+			c.Admin.log.Error("steward: saved hook", "err", savedErr)
 		}
 	}
 
 	// Inline single-field edits stay on the page: toast only, no redirect.
 	if c.R.FormValue("_inline") == "1" {
+		if savedErr != nil {
+			return c.Envelope(Warning("Saved. " + savedErr.Error()))
+		}
 		return c.Envelope(Success("Saved."))
 	}
 	verb := "updated"
@@ -781,7 +789,11 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	}
 	// The envelope's toast carries this; a flash as well would show the same
 	// sentence twice, once as a banner on the page redirected to.
-	return c.Envelope(Success(t.res.m.title + " " + verb + ".").Redirect(c.URL(t.res.m.slug)))
+	done := t.res.m.title + " " + verb + "."
+	if savedErr != nil {
+		return c.Envelope(Warning(done).Detail(savedErr.Error()).Redirect(c.URL(t.res.m.slug)))
+	}
+	return c.Envelope(Success(done).Redirect(c.URL(t.res.m.slug)))
 }
 
 // setField writes a decoded value into the model via reflection, converting

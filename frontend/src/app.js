@@ -511,7 +511,17 @@ window.htmx = htmx;
       var html = tpl.innerHTML.split("__KEY__").join(key);
       var holder = document.createElement("div");
       holder.innerHTML = html;
-      while (holder.firstElementChild) rows.appendChild(holder.firstElementChild);
+      var added = [];
+      while (holder.firstElementChild) {
+        added.push(rows.appendChild(holder.firstElementChild));
+      }
+      // Markup alone is inert: a select is a combobox the component library has
+      // to build, a date field a calendar this file has to bind. Every one of
+      // those binds on the event a swapped-in fragment raises, so a cloned row
+      // raises it too — the component library's own listener included.
+      added.forEach(function (el) {
+        el.dispatchEvent(new CustomEvent("htmx:afterSettle", { bubbles: true }));
+      });
       return;
     }
     var rm = e.target.closest("[data-steward-nested-remove]");

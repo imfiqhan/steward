@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http/httptest"
@@ -601,4 +602,58 @@ func TestDocumentedExportDiskArrangement(t *testing.T) {
 	if err := app.Verify(); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// The form page shows a repeater with spans and a label, and a Saved hook that
+// reports on rows only it can see.
+//
+// steward-site/content/docs/form.md
+func TestDocumentedRepeaterCalls(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:docsrepeater?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&docsSchema{}, &docsQuestion{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		DB:        db,
+		SecretKey: []byte("documented-repeater-test-secret"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[docsSchema](app).Form(func(f *steward.Form[docsSchema]) {
+		f.Text("Title")
+		steward.HasMany(f, "Fields", "SchemaID", func(cf *steward.Form[docsQuestion]) {
+			cf.Text("Label").Rules("required").Span(4)
+			cf.Textarea("Hint").Span(8)
+		}).Label("Reader comments")
+
+		f.Saved(func(c *steward.Context, s *docsSchema, _ bool) error {
+			if len(s.Fields) == 0 {
+				return errors.New("this form has no questions yet, so it stays unpublished")
+			}
+			return nil
+		})
+	})
+	if err := app.Build(); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Verify(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type docsSchema struct {
+	ID     uint `gorm:"primaryKey"`
+	Title  string
+	Fields []docsQuestion `gorm:"foreignKey:SchemaID"`
+}
+
+type docsQuestion struct {
+	ID       uint `gorm:"primaryKey"`
+	SchemaID uint `gorm:"index"`
+	Label    string
+	Hint     string
 }

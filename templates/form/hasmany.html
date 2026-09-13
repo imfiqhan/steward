@@ -1,7 +1,7 @@
 {{define "form/_nestedrow"}}
 <div class="rounded-lg border p-4 steward-nested-row" data-steward-nested-row data-key="{{.Key}}">
   <div class="flex items-start gap-3">
-    <div class="grid grow gap-4 sm:grid-cols-2">
+    <div class="steward-form-grid grow">
       {{range .Fields}}
         {{template "form/field.html" .}}
       {{end}}

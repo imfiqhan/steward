@@ -784,6 +784,68 @@ if (await up.count()) {
   }
 }
 
+// --- repeater rows: spans, live controls, level cells --------------------------
+//
+// A HasMany row is the form's own twelve columns, so Span means the same thing
+// inside it as outside. A row added client-side is cloned from a template and
+// carries no live controls until something initialises it: the component
+// library revives its own through delegation, but a date picker's trigger is
+// built during init and is simply absent without it.
+{
+  await page.goto(BASE + "/posts/1/edit");
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(800);
+
+  const legend = await page.evaluate(() => {
+    const fs = document.querySelector("[data-steward-nested]");
+    const l = fs && fs.querySelector("legend");
+    return l ? l.textContent.trim() : null;
+  });
+  check(legend === "Reader comments", `a repeater takes the label it was given (${legend})`);
+
+  const before = await page.evaluate(() => document.querySelectorAll("[data-steward-nested-row]").length);
+  await page.click("[data-steward-nested-add]");
+  await page.waitForTimeout(700);
+  const after = await page.evaluate(() => document.querySelectorAll("[data-steward-nested-row]").length);
+  check(after === before + 1, `adding a row adds one (${before} → ${after})`);
+
+  const row = await page.evaluate(() => {
+    const r = [...document.querySelectorAll("[data-steward-nested-row]")].pop();
+    const grid = r.querySelector(":scope > div > div");
+    const cells = [...grid.querySelectorAll(":scope > [class*='steward-span-']")];
+    const w = grid.getBoundingClientRect().width;
+    const picker = r.querySelector("[data-steward-datepicker]");
+    return {
+      columns: getComputedStyle(grid).gridTemplateColumns.split(" ").length,
+      spans: Object.fromEntries(cells.map((el) => [
+        (el.getAttribute("data-steward-field") || "").replace(/.*\[/, "").replace("]", ""),
+        Math.round((el.getBoundingClientRect().width / w) * 12),
+      ])),
+      tops: [...new Set(cells.map((el) => Math.round(el.getBoundingClientRect().top)))],
+      pickerTrigger: picker ? !!picker.querySelector(".steward-datepicker-trigger") : null,
+    };
+  });
+
+  check(row.columns === 12, `a repeater row is twelve columns, like the form around it (${row.columns})`);
+  check(row.spans.Name === 4 && row.spans.Kind === 2 && row.spans.Body === 4 && row.spans.CreatedAt === 2,
+    `each child field takes the width it declared (${JSON.stringify(row.spans)})`);
+  check(row.tops.length === 1, `the cells of a row start level (${row.tops.join(", ")})`);
+  check(row.pickerTrigger === true, "a control in a cloned row is built, not inert");
+
+  if (row.pickerTrigger) {
+    await page.click("[data-steward-nested-row]:last-of-type .steward-datepicker-trigger");
+    await page.waitForTimeout(450);
+    const days = await page.evaluate(() => {
+      const r = [...document.querySelectorAll("[data-steward-nested-row]")].pop();
+      const c = r.querySelector(".steward-cal");
+      return c ? c.querySelectorAll(".steward-cal-day").length : 0;
+    });
+    check(days >= 28, `and opens its calendar (${days} days)`);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+  }
+}
+
 // --- chart legends sit inside the box whose height is capped ----------------
 //
 // The component appends the legend as a sibling of the chart container, so a

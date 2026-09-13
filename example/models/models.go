@@ -37,6 +37,7 @@ type Comment struct {
 	PostID    uint   `gorm:"index"`
 	Name      string `gorm:"size:120"`
 	Body      string `gorm:"size:500"`
+	Kind      string `gorm:"size:20"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

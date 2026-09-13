@@ -112,10 +112,19 @@ func registerResources(app *steward.Admin) {
 			f.Markdown("Body").Rules("required")
 			f.Radio("Status").Options(steward.Options{"draft": "Draft", "published": "Published"}).Default("draft")
 			f.Switch("Featured")
+			// Spans inside a repeater row, and a component the row has to build
+			// rather than parse: a select cloned from the template is a dead
+			// combobox until something initialises it.
 			steward.HasMany(f, "Comments", "PostID", func(cf *steward.Form[models.Comment]) {
-				cf.Text("Name").Rules("required|max:120")
-				cf.Textarea("Body").Rules("required|max:500")
-			})
+				cf.Text("Name").Rules("required|max:120").Span(4)
+				cf.Select("Kind").Options(steward.Options{
+					"question": "Question", "praise": "Praise", "correction": "Correction",
+				}).Default("question").Span(2)
+				cf.Textarea("Body").Rules("required|max:500").Span(4)
+				// A control this file builds itself, rather than one the
+				// component library revives through delegation.
+				cf.Date("CreatedAt", "Received").Span(2)
+			}).Label("Reader comments")
 			f.Datetime("PublishedAt", "Published at").
 				Min(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)).
 				Max(time.Now().AddDate(1, 0, 0)).

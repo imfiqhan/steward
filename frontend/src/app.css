@@ -208,6 +208,10 @@ tr.steward-dragging { opacity: 0.5; }
   display: grid;
   gap: 1.5rem;
   grid-template-columns: repeat(12, minmax(0, 1fr));
+  /* Each cell is itself a grid of label, control and help text. Stretched to
+     the tallest cell in the row, those three spread out and the controls beside
+     it no longer line up. */
+  align-items: start;
 }
 
 /* Below the sm breakpoint every field takes the row: two controls side by side
