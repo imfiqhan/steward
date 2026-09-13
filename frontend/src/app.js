@@ -1474,6 +1474,10 @@ window.htmx = htmx;
   var COMMAND_DEBOUNCE_MS = 220;
   // Whether the last answer was cut short by the server's deadline.
   var commandPartial = false;
+  // Why the answer is incomplete, which decides what the empty state says: a
+  // section that ran out of time is a different thing from one whose query the
+  // database refused, and both are different from a term that matches nothing.
+  var commandReason = "";
   var commandTimer = null;
   var commandAbort = null;
   // Set while the filter is re-run over freshly injected items: that dispatch
@@ -1574,9 +1578,11 @@ window.htmx = htmx;
     // A search the server cut short returns nothing, which is the same shape as
     // no match. Saying so is what tells the reader to try again rather than
     // conclude the record does not exist.
-    note.textContent = commandPartial
-      ? "Search timed out before every section answered."
-      : "No matches.";
+    note.textContent = !commandPartial
+      ? "No matches."
+      : commandReason === "error"
+        ? "Some sections could not be searched — the panel's log says why."
+        : "Search timed out before every section answered.";
     note.hidden = visible || typed.trim() === "";
   }
 
@@ -1594,6 +1600,7 @@ window.htmx = htmx;
       .then(function (r) { return r.ok ? r.json() : { results: [] }; })
       .then(function (body) {
         commandPartial = !!body.partial;
+        commandReason = body.reason || "";
         renderCommandResults(body.results || []);
       })
       .catch(function (err) {

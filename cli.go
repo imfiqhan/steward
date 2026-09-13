@@ -136,8 +136,29 @@ func runCLI(app App, args []string) error {
 		case "down":
 			fs := flag.NewFlagSet("migrate down", flag.ExitOnError)
 			steps := fs.Int("steps", 0, "how many migrations to roll back (0 = last batch)")
+			force := fs.Bool("force", false, "roll back even when that is every migration applied")
 			if err := fs.Parse(args); err != nil {
 				return err
+			}
+			sts, err := runner.Status(ctx)
+			if err != nil {
+				return err
+			}
+			n, everything := downPlan(sts, *steps)
+			if n == 0 {
+				fmt.Println("nothing to roll back")
+				return nil
+			}
+			// A database migrated in one go holds every migration in batch 1,
+			// so "the last batch" is all of them — the panel's own tables
+			// included. On a development machine the command reads as "undo
+			// the last change" and would empty the database instead.
+			if everything && !*force {
+				return fmt.Errorf(
+					"migrate down would roll back all %d applied migrations, including the panel's own tables: "+
+						"they were applied as one batch, so there is no earlier state to return to.\n"+
+						"Roll back fewer with -steps N, or say -force if emptying the database is what you want",
+					n)
 			}
 			return runner.Down(ctx, *steps)
 		case "status":
@@ -254,4 +275,31 @@ func ServeMux(a *Admin) *http.ServeMux {
 	}
 	mux.Handle("/", a)
 	return mux
+}
+
+// downPlan reports how many migrations "migrate down" would roll back, and
+// whether that is every migration applied — which is the state a database
+// migrated from nothing is in, since all of it went in as one batch.
+func downPlan(sts []migrate.Status, steps int) (n int, everything bool) {
+	batches := map[int]int{}
+	applied := 0
+	maxBatch := 0
+	for _, st := range sts {
+		if !st.Applied {
+			continue
+		}
+		applied++
+		batches[st.Batch]++
+		if st.Batch > maxBatch {
+			maxBatch = st.Batch
+		}
+	}
+	if applied == 0 {
+		return 0, false
+	}
+	n = batches[maxBatch]
+	if steps > 0 {
+		n = min(steps, applied)
+	}
+	return n, n == applied
 }

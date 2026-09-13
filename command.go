@@ -35,7 +35,7 @@ type CommandSource func(c *Context, query string) []CommandResult
 // same reason aggregatorProvider is — the interface describes what every
 // resource does, and this is not that.
 type commandSearcher interface {
-	searchCommand(c *Context, query string, limit int) []CommandResult
+	searchCommand(c *Context, query string, limit int) ([]CommandResult, error)
 }
 
 const (
@@ -74,14 +74,14 @@ type namedCommandSource struct {
 
 // searchCommand implements commandSearcher. A resource that never called
 // Command stays out of the palette, as does one this caller may not list.
-func (t *typedResource[T]) searchCommand(c *Context, query string, limit int) []CommandResult {
+func (t *typedResource[T]) searchCommand(c *Context, query string, limit int) ([]CommandResult, error) {
 	if len(t.res.commandPaths) == 0 || !t.canViewAny(c) {
-		return nil
+		return nil, nil
 	}
 	q := &ListQuery{PerPage: limit, Page: 1}
 	if ids, ok := t.searchIDs(c.Ctx(), query, limit); ok {
 		if len(ids) == 0 {
-			return nil
+			return nil, nil
 		}
 		q.Conds = append(q.Conds, Cond{Path: t.ft.pk.Path, Op: OpIn, Val: ids})
 		// The palette shows five of them; which five is the whole question.
@@ -100,7 +100,7 @@ func (t *typedResource[T]) searchCommand(c *Context, query string, limit int) []
 	items, _, err := t.repo.List(c.Ctx(), q)
 	if err != nil {
 		c.Admin.log.Warn("steward: command search", "resource", t.res.m.slug, "err", err)
-		return nil
+		return nil, err
 	}
 
 	out := make([]CommandResult, 0, len(items))
@@ -123,7 +123,7 @@ func (t *typedResource[T]) searchCommand(c *Context, query string, limit int) []
 		}
 		out = append(out, res)
 	}
-	return out
+	return out, nil
 }
 
 // commandLabels reads what a palette row shows: the paths CommandDisplay named,
@@ -218,8 +218,9 @@ func (a *Admin) commandSearch(c *Context) error {
 	deadlined := c.withContext(ctx)
 
 	var (
-		mu sync.Mutex
-		wg sync.WaitGroup
+		mu     sync.Mutex
+		wg     sync.WaitGroup
+		failed bool
 	)
 	collect := func(rs []CommandResult, group string) {
 		mu.Lock()
@@ -239,7 +240,13 @@ func (a *Admin) commandSearch(c *Context) error {
 		wg.Add(1)
 		go func(s commandSearcher) {
 			defer wg.Done()
-			collect(s.searchCommand(deadlined, query, commandPerSource), "")
+			rs, err := s.searchCommand(deadlined, query, commandPerSource)
+			if err != nil {
+				mu.Lock()
+				failed = true
+				mu.Unlock()
+			}
+			collect(rs, "")
 		}(s)
 	}
 	for _, src := range a.commandSources {
@@ -254,12 +261,20 @@ func (a *Admin) commandSearch(c *Context) error {
 	// Grouped in a stable order, so the list does not reshuffle between
 	// keystrokes for reasons the reader cannot see.
 	sort.SliceStable(results, func(i, j int) bool { return results[i].Group < results[j].Group })
-	// A section cut off by the deadline contributes nothing, which reads as "no
-	// matches" — the same answer a typo gets. Saying which it was is the
-	// difference between a reader retyping and a reader concluding the record
-	// is not there.
+	// A section that was cut off by the deadline, or whose query the database
+	// refused, contributes nothing — which reads as "no matches", the same
+	// answer a typo gets. Saying which it was is the difference between a reader
+	// retyping and a reader concluding the record is not there.
+	reason := ""
+	switch {
+	case ctx.Err() != nil:
+		reason = "timeout"
+	case failed:
+		reason = "error"
+	}
 	return c.JSON(http.StatusOK, map[string]any{
 		"results": results,
-		"partial": ctx.Err() != nil,
+		"partial": reason != "",
+		"reason":  reason,
 	})
 }
