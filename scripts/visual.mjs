@@ -811,7 +811,9 @@ if (await up.count()) {
 
   const row = await page.evaluate(() => {
     const r = [...document.querySelectorAll("[data-steward-nested-row]")].pop();
-    const grid = r.querySelector(":scope > div > div");
+    // The row holds one grid per fieldset group; the ungrouped fields are in
+    // the first of them.
+    const grid = r.querySelector(".steward-form-grid");
     const cells = [...grid.querySelectorAll(":scope > [class*='steward-span-']")];
     const w = grid.getBoundingClientRect().width;
     const picker = r.querySelector("[data-steward-datepicker]");

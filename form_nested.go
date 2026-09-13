@@ -64,7 +64,17 @@ type nestedVM struct {
 
 type nestedRowVM struct {
 	Key    string
-	Fields []formFieldVM
+	Groups []formGroupVM
+}
+
+// appendField mirrors formVM.appendField: consecutive fields sharing a
+// fieldset become one group, and the rest fall into an unnamed one.
+func (rv *nestedRowVM) appendField(fv formFieldVM, fieldset string) {
+	if n := len(rv.Groups); n > 0 && rv.Groups[n-1].Title == fieldset {
+		rv.Groups[n-1].Fields = append(rv.Groups[n-1].Fields, fv)
+		return
+	}
+	rv.Groups = append(rv.Groups, formGroupVM{Title: fieldset, Fields: []formFieldVM{fv}})
 }
 
 // Interface assertion: staticcheck cannot see generic interface
@@ -126,6 +136,28 @@ func (h *hasManyForm[T, C]) compile(a *Admin, parent *typedResource[T]) error {
 			fd.ignored = true
 			continue
 		}
+		// Accepting a setting and dropping it at render is the failure that
+		// costs the most time: the code reads as though it works. What a row
+		// cannot honour is refused here instead, naming the call to remove.
+		for _, u := range []struct {
+			set  bool
+			call string
+			why  string
+		}{
+			{fd.createRules != "" || fd.updateRules != "", "CreationRules/UpdateRules", "a row is created or updated by the state of the row, not of the parent"},
+			{fd.onlyCreate || fd.onlyUpdate, "OnlyOnCreate/OnlyOnUpdate", "the same reason"},
+			{fd.showFn != nil, "Show", "a row is rendered from a template cloned in the browser, where the predicate cannot run"},
+			{fd.savingValue != nil, "SavingValue", "nested values are written by the repeater, which does not run field transforms"},
+			{fd.valuesFn != nil, "ValuesFunc", "it is given the parent row, which a child field is not editing"},
+		} {
+			if !u.set {
+				continue
+			}
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"resource %q: HasMany %q field %q: %s has no effect inside a nested row — %s",
+				parent.res.m.slug, h.relation, fd.path, u.call, u.why))
+		}
+
 		info, err := ft.lookup(fd.path)
 		if err != nil {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
@@ -154,9 +186,14 @@ func (h *hasManyForm[T, C]) childFieldVM(c *Context, fd *Field[C], row *C, key s
 		Name:        fmt.Sprintf("%s[%s][%s]", h.relation, key, fd.path),
 		Label:       fd.label,
 		Required:    fd.required,
+		Disabled:    fd.disabled,
+		ReadOnly:    fd.readOnly,
 		Placeholder: fd.placeholder,
 		Help:        fd.help,
+		Symbol:      fd.symbol,
 		Span:        fd.span,
+		MinAttr:     fd.boundString(fd.minVal),
+		MaxAttr:     fd.boundString(fd.maxVal),
 	}
 	if row != nil {
 		fv.Value = fd.valueString(row)
@@ -179,10 +216,14 @@ func (h *hasManyForm[T, C]) childFieldVM(c *Context, fd *Field[C], row *C, key s
 func (h *hasManyForm[T, C]) rowVM(c *Context, row *C, key string) nestedRowVM {
 	rv := nestedRowVM{Key: key}
 	for _, fd := range h.childForm.fields {
-		if fd.divider || fd.ignored || fd.info == nil {
+		if fd.divider {
+			rv.appendField(formFieldVM{Divider: true}, fd.fieldset)
 			continue
 		}
-		rv.Fields = append(rv.Fields, h.childFieldVM(c, fd, row, key))
+		if fd.ignored || fd.info == nil {
+			continue
+		}
+		rv.appendField(h.childFieldVM(c, fd, row, key), fd.fieldset)
 	}
 	return rv
 }

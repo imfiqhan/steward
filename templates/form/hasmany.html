@@ -1,9 +1,20 @@
 {{define "form/_nestedrow"}}
 <div class="rounded-lg border p-4 steward-nested-row" data-steward-nested-row data-key="{{.Key}}">
   <div class="flex items-start gap-3">
-    <div class="steward-form-grid grow">
-      {{range .Fields}}
-        {{template "form/field.html" .}}
+    <div class="grow grid gap-4">
+      {{range .Groups}}
+        {{if .Title}}
+        <fieldset class="steward-fieldset">
+          <legend>{{.Title}}</legend>
+          <div class="steward-form-grid">
+            {{range .Fields}}{{template "form/field.html" .}}{{end}}
+          </div>
+        </fieldset>
+        {{else}}
+        <div class="steward-form-grid">
+          {{range .Fields}}{{template "form/field.html" .}}{{end}}
+        </div>
+        {{end}}
       {{end}}
     </div>
     <button type="button" class="btn shrink-0" data-variant="ghost" data-size="icon-sm"

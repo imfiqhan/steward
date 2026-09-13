@@ -626,8 +626,12 @@ func TestDocumentedRepeaterCalls(t *testing.T) {
 	steward.Register[docsSchema](app).Form(func(f *steward.Form[docsSchema]) {
 		f.Text("Title")
 		steward.HasMany(f, "Fields", "SchemaID", func(cf *steward.Form[docsQuestion]) {
-			cf.Text("Label").Rules("required").Span(4)
-			cf.Textarea("Hint").Span(8)
+			cf.Text("Label").Rules("required").Span(6)
+			cf.Number("Position").Min(1).Span(2)
+			cf.Fieldset("Shown when", func(g *steward.Form[docsQuestion]) {
+				g.Text("DependsOn").Span(2)
+				g.Text("EqualTo").Span(2)
+			})
 		}).Label("Reader comments")
 
 		f.Saved(func(c *steward.Context, s *docsSchema, _ bool) error {
@@ -652,8 +656,11 @@ type docsSchema struct {
 }
 
 type docsQuestion struct {
-	ID       uint `gorm:"primaryKey"`
-	SchemaID uint `gorm:"index"`
-	Label    string
-	Hint     string
+	ID        uint `gorm:"primaryKey"`
+	SchemaID  uint `gorm:"index"`
+	Label     string
+	Hint      string
+	Position  int
+	DependsOn string
+	EqualTo   string
 }
