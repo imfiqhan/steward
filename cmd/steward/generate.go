@@ -9,6 +9,8 @@ import (
 	"unicode"
 
 	"github.com/jinzhu/inflection"
+
+	"github.com/imfiqhan/steward/internal/suggest"
 )
 
 // ---- field spec ---------------------------------------------------------------
@@ -59,7 +61,8 @@ func parseFields(spec string) ([]fieldSpec, error) {
 		}
 		parts := strings.Split(raw, ":")
 		if len(parts) < 2 {
-			return nil, fmt.Errorf("field %q: want name:type[:modifier]", raw)
+			return nil, fmt.Errorf("field %q: want name:type[:modifier]\n  available: %s",
+				raw, suggest.List(fieldTypeNames()))
 		}
 		f := fieldSpec{Name: parts[0], GoName: goName(parts[0])}
 		typ := parts[1]
@@ -68,6 +71,13 @@ func parseFields(spec string) ([]fieldSpec, error) {
 			typ = typ[:i]
 		}
 		f.Type = typ
+		// Left unchecked this fell through goType's default and generated a
+		// string column, so a misspelt type produced a model that compiled,
+		// ran, and was wrong.
+		if _, ok := fieldTypes[typ]; !ok {
+			return nil, fmt.Errorf("field %q: unknown type %q%s",
+				f.Name, typ, suggest.Block(typ, fieldTypeNames()))
+		}
 		for _, mod := range parts[2:] {
 			switch mod {
 			case "nullable":
@@ -77,7 +87,8 @@ func parseFields(spec string) ([]fieldSpec, error) {
 			case "index":
 				f.Index = true
 			default:
-				return nil, fmt.Errorf("field %q: unknown modifier %q", f.Name, mod)
+				return nil, fmt.Errorf("field %q: unknown modifier %q%s",
+					f.Name, mod, suggest.Block(mod, fieldModifiers))
 			}
 		}
 		out = append(out, f)
@@ -110,18 +121,33 @@ func goName(snake string) string {
 	return b.String()
 }
 
-// goType maps a spec type to the model field's Go type.
+// fieldTypes maps a spec type to the model field's Go type. It is the set a
+// spec may name; anything else is a mistake rather than a default.
+var fieldTypes = map[string]string{
+	"string": "string", "text": "string", "markdown": "string",
+	"email": "string", "url": "string", "password": "string",
+	"color": "string", "image": "string", "file": "string",
+	"json": "string", "enum": "string", "time": "string",
+	"int": "int64", "uint": "uint", "float": "float64", "decimal": "float64",
+	"bool": "bool",
+	"date": "time.Time", "datetime": "time.Time",
+	"fk": "uint",
+}
+
+// fieldTypeNames is the set a spec may name, for an error that says so.
+func fieldTypeNames() []string {
+	out := make([]string, 0, len(fieldTypes))
+	for name := range fieldTypes {
+		out = append(out, name)
+	}
+	return out
+}
+
+// goType maps a spec type to the model field's Go type. An unknown type is
+// refused when the spec is parsed, so the fallback here is unreachable for a
+// spec that got this far.
 func (f fieldSpec) goType() string {
-	base := map[string]string{
-		"string": "string", "text": "string", "markdown": "string",
-		"email": "string", "url": "string", "password": "string",
-		"color": "string", "image": "string", "file": "string",
-		"json": "string", "enum": "string", "time": "string",
-		"int": "int64", "uint": "uint", "float": "float64", "decimal": "float64",
-		"bool": "bool",
-		"date": "time.Time", "datetime": "time.Time",
-		"fk": "uint",
-	}[f.Type]
+	base := fieldTypes[f.Type]
 	if base == "" {
 		base = "string"
 	}
@@ -566,3 +592,6 @@ func init() {
 	fmt.Println("created:", path)
 	return nil
 }
+
+// fieldModifiers is what may follow a type in a field spec.
+var fieldModifiers = []string{"nullable", "unique", "index"}

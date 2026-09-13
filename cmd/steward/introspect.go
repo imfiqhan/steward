@@ -10,6 +10,8 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/imfiqhan/steward/internal/suggest"
 )
 
 // skippedColumns are managed by the model skeleton, never generated.
@@ -28,14 +30,14 @@ func introspectDB(driver, dsn, table string) ([]fieldSpec, error) {
 	case "postgres":
 		dial = postgres.Open(dsn)
 	default:
-		return nil, fmt.Errorf("unknown --db %q (want sqlite, mysql, postgres)", driver)
+		return nil, fmt.Errorf("unknown --db %q%s", driver, suggest.Block(driver, dbDrivers))
 	}
 	db, err := gorm.Open(dial, &gorm.Config{Logger: logger.Discard})
 	if err != nil {
 		return nil, fmt.Errorf("connecting: %w", err)
 	}
 	if !db.Migrator().HasTable(table) {
-		return nil, fmt.Errorf("table %q not found", table)
+		return nil, fmt.Errorf("table %q not found%s", table, suggest.Block(table, tableNames(db)))
 	}
 	cols, err := db.Migrator().ColumnTypes(table)
 	if err != nil {
@@ -142,4 +144,18 @@ func applyNameHeuristics(spec *fieldSpec) {
 			spec.Type = "markdown"
 		}
 	}
+}
+
+// dbDrivers is the set --db accepts, shared by every command that takes it.
+var dbDrivers = []string{"sqlite", "mysql", "postgres"}
+
+// tableNames lists what the connected database actually has, for an error
+// naming a table it does not. A driver that cannot answer yields nothing,
+// which costs the suggestion rather than the message.
+func tableNames(db *gorm.DB) []string {
+	names, err := db.Migrator().GetTables()
+	if err != nil {
+		return nil
+	}
+	return names
 }

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	steward "github.com/imfiqhan/steward"
+	"github.com/imfiqhan/steward/internal/suggest"
 )
 
 func main() {
@@ -62,7 +63,7 @@ func run(args []string) error {
 		fmt.Print(usage)
 		return nil
 	default:
-		return fmt.Errorf("unknown command %q\n\n%s", cmd, usage)
+		return fmt.Errorf("unknown command %q%s\n\n%s", cmd, suggest.Block(cmd, commands), usage)
 	}
 }
 
@@ -102,7 +103,7 @@ func cmdPublish(args []string) error {
 		src = steward.BuiltinAssets()
 		target = filepath.Join(dir, "admin-assets")
 	default:
-		return fmt.Errorf("publish what? views or assets")
+		return fmt.Errorf("publish what?%s", suggest.Block(pickPublishArg(args), publishTargets))
 	}
 	count := 0
 	err := fs.WalkDir(src, ".", func(p string, d fs.DirEntry, err error) error {
@@ -132,4 +133,22 @@ func cmdPublish(args []string) error {
 	fmt.Printf("published %d files to %s\n", count, target)
 	fmt.Println("wire them in with Config.TemplatesFS / Config.AssetsFS (os.DirFS)")
 	return nil
+}
+
+// commands is what run dispatches on, for an error that says what it could
+// have been given. Kept beside that switch so the two cannot drift.
+var commands = []string{"new", "make:resource", "make:migration", "publish", "help"}
+
+// publishTargets is what publish copies out.
+var publishTargets = []string{"views", "assets"}
+
+// pickPublishArg is the first non-flag argument, which is what the reader
+// meant the target to be. It is "" when they gave none.
+func pickPublishArg(args []string) string {
+	for _, a := range args {
+		if !strings.HasPrefix(a, "-") {
+			return a
+		}
+	}
+	return ""
 }

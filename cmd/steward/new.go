@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/imfiqhan/steward/internal/suggest"
 )
 
 func cmdNew(args []string) error {
@@ -45,7 +47,7 @@ func cmdNew(args []string) error {
 		driverImport = `"gorm.io/driver/postgres"`
 		driverOpen = `postgres.Open(dsnOr("host=127.0.0.1 user=postgres dbname=app sslmode=disable"))`
 	default:
-		return fmt.Errorf("unknown --db %q (want sqlite, mysql, postgres)", db)
+		return fmt.Errorf("unknown --db %q%s", db, suggest.Block(db, dbDrivers))
 	}
 
 	files := map[string]string{
