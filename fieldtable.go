@@ -3,11 +3,15 @@ package steward
 import (
 	"fmt"
 	"reflect"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"gorm.io/gorm/schema"
+
+	"github.com/imfiqhan/steward/internal/suggest"
 )
 
 // fieldKind is the coarse value classification renderers and the scaffolder
@@ -148,7 +152,9 @@ func classify(t reflect.Type) fieldKind {
 	return kindOther
 }
 
-// lookup resolves a field path, error carrying suggestions for typos.
+// lookup resolves a field path. The error names the nearest field and the set
+// to choose from, since a path that does not resolve is almost always a typo
+// or a field on the wrong model.
 func (ft *fieldTable) lookup(path string) (*fieldInfo, error) {
 	if info, ok := ft.byPath[path]; ok {
 		return info, nil
@@ -159,7 +165,57 @@ func (ft *fieldTable) lookup(path string) (*fieldInfo, error) {
 			known = append(known, p)
 		}
 	}
-	return nil, fmt.Errorf("unknown field %q on %s (known fields: %s)", path, ft.model.Name, strings.Join(known, ", "))
+	return nil, fmt.Errorf("unknown field %q on %s%s",
+		path, ft.model.Name, suggest.Block(path, known))
+}
+
+// callerSite reports the file and line in the caller's own code, for an error
+// that names something they wrote. Frames inside this package are skipped, so
+// what comes back is the resource declaration rather than the builder that
+// read it.
+//
+// The path is trimmed to its last two segments: the whole thing is the
+// machine's, not the reader's, and the first line of an error has a budget.
+// It returns "" when no frame outside the package is found, which is what a
+// panel declared by generated code inside it would look like.
+func callerSite() string {
+	pc := make([]uintptr, 16)
+	n := runtime.Callers(2, pc[:])
+	if n == 0 {
+		return ""
+	}
+	frames := runtime.CallersFrames(pc[:n])
+	for {
+		f, more := frames.Next()
+		if f.File != "" && !strings.HasPrefix(f.Function, selfPackage) {
+			return shortPath(f.File) + ":" + strconv.Itoa(f.Line)
+		}
+		if !more {
+			return ""
+		}
+	}
+}
+
+// selfPackage is the prefix runtime gives every function in this package.
+// Frames matching it are the framework's own and never what a reader wrote.
+const selfPackage = "github.com/imfiqhan/steward."
+
+func shortPath(p string) string {
+	if i := strings.LastIndexByte(p, '/'); i > 0 {
+		if j := strings.LastIndexByte(p[:i], '/'); j >= 0 {
+			return p[j+1:]
+		}
+	}
+	return p
+}
+
+// at renders a declaration site for the tail of an error's first line, or ""
+// when it is not known.
+func at(site string) string {
+	if site == "" {
+		return ""
+	}
+	return " (" + site + ")"
 }
 
 // value reads the field at path from a model instance, dereferencing
