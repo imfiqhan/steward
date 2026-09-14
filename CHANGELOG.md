@@ -4,7 +4,7 @@ Steward is `0.x`: the API can change between releases, and this file is where
 those changes are written down. Read the **Upgrading** notes before moving a
 running panel to a new version.
 
-## Unreleased
+## v0.3.0
 
 ### Added
 
@@ -69,6 +69,28 @@ running panel to a new version.
   icon names pass rather than every one being reported missing, since there is
   no sprite to check against. `make noui` builds, vets and tests it, and CI
   runs that on every push.
+
+### Upgrading
+
+**Nothing has to change to build.** `Admin` is an alias of `Panel` and
+`Context.Admin` still holds the same pointer as `Context.Panel`, so a codebase
+on the old names compiles untouched — verified against an application with 90
+uses of them.
+
+Three things to know:
+
+- **`staticcheck` will now flag the old names** as `SA1019`. That is the one
+  visible cost of the deprecation, and it is why the rename is worth doing at
+  your own pace rather than not at all.
+- **A collapsed sidebar is now a rail of icons** rather than nothing. If a menu
+  entry has no `Icon`, it falls back to the first letter of its title —
+  legible, but a glyph says more. Set `Config.BrandIcon` for the panel's own
+  mark; without one the brand's first letter is used.
+- **`no_ui` builds compile again.** If you worked around that by not using the
+  tag, the workaround is no longer needed.
+
+The `contrib/*` modules require the framework at a minimum, not a maximum, so
+requiring `v0.3.0` alongside them is all it takes.
 
 ## v0.2.0
 
