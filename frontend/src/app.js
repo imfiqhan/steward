@@ -1167,9 +1167,11 @@ window.htmx = htmx;
     var sb = railSidebar();
     var label = link.querySelector(".steward-menu-label");
     if (!label || !sb || sb.dataset.rail !== "1") return;
-    if (!show) {
+        if (!show) {
+      // Only the flag that fades it. Clearing the placement here would drop the
+      // box back to where a fixed element with no offsets lands — behind the
+      // rail — and it would slide there while it faded.
       delete label.dataset.railTip;
-      label.style.cssText = "";
       return;
     }
     var r = link.getBoundingClientRect();
@@ -1196,10 +1198,22 @@ window.htmx = htmx;
     var link = railLinkOf(e);
     if (link) railTip(link, true);
   });
-  document.addEventListener("focusout", function (e) {
+    document.addEventListener("focusout", function (e) {
     var link = railLinkOf(e);
     if (link) railTip(link, false);
   });
+
+  // A menu long enough to scroll would otherwise leave a shown label behind at
+  // the coordinates it had when the pointer arrived.
+  document.addEventListener(
+    "scroll",
+    function (e) {
+      if (!e.target.closest || !e.target.closest("#sidebar-menu")) return;
+      var shown = document.querySelector("#sidebar-menu [data-rail-tip]");
+      if (shown) railTip(shown.closest("a"), true);
+    },
+    true
+  );
 
   /* ---- Tags ------------------------------------------------------------------- */
   /*

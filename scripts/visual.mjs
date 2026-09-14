@@ -1074,8 +1074,30 @@ if (await up.count()) {
       onScreen: r.right <= window.innerWidth && r.top >= 0 && r.width > 0,
     };
   });
-  check(tip.shown, `hovering an icon shows its label (${tip.text})`);
+    check(tip.shown, `hovering an icon shows its label (${tip.text})`);
   check(tip.outside && tip.onScreen, "the label sits beside the rail, not clipped by it");
+
+  // It has to fade where it stands. Clearing its placement on the way out sends
+  // a fixed box back to where one with no offsets lands — behind the rail — and
+  // it slides there in full view while it fades.
+  const at = () =>
+    page.evaluate(() => {
+      const l = document.querySelector('#sidebar-menu section a[href$="/authors"] .steward-menu-label');
+      const r = l.getBoundingClientRect();
+      return { x: Math.round(r.x), y: Math.round(r.y), opacity: +getComputedStyle(l).opacity };
+    });
+  const shownAt = await at();
+  await page.mouse.move(900, 400);
+  let drift = 0;
+  for (const step of [16, 24, 40]) {
+    await page.waitForTimeout(step);
+    const now = await at();
+    drift = Math.max(drift, Math.abs(now.x - shownAt.x) + Math.abs(now.y - shownAt.y));
+  }
+  check(drift <= 8, `and fades where it stands rather than flying off (${drift}px)`);
+  await page.waitForTimeout(200);
+  const gone = await at();
+  check(gone.opacity === 0, `and is gone when it is done (${gone.opacity})`);
 
     await page.click("[aria-label='Toggle sidebar']");
   await page.waitForTimeout(700);

@@ -1339,13 +1339,27 @@ tr.steward-dragging { opacity: 0.5; }
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    pointer-events: none;
+        pointer-events: none;
+    /* Eased out of the rail rather than appearing on top of it. The vertical
+       half is what centres it on its icon and does not animate. */
     opacity: 0;
-    transition: opacity 0.1s ease-in-out;
+    translate: -0.25rem -50%;
+    transition:
+      opacity 80ms ease-out,
+      translate 80ms ease-out;
   }
 
   .sidebar[data-rail] nav .steward-menu-label[data-rail-tip] {
     opacity: 1;
+    translate: 0 -50%;
+    transition-duration: 130ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar[data-rail] nav .steward-menu-label {
+      translate: 0 -50%;
+      transition: none;
+    }
   }
 
   .sidebar[data-rail] nav .steward-menu-mark {
