@@ -1001,8 +1001,11 @@ if (await up.count()) {
       const marks = [...nav.querySelectorAll("section a svg, section a .steward-menu-mark")];
       const brand = nav.querySelector(".steward-brand-mark");
       const label = nav.querySelector(".steward-menu-label");
+            const labelStyle = label && getComputedStyle(label);
       return {
-        hidden: sb.getAttribute("aria-hidden") === "true",
+        // The rail's state is its own attribute: a collapsed sidebar that is
+        // still on screen is neither aria-hidden nor inert.
+        railed: sb.dataset.rail === "1",
         width: Math.round(r.width),
         left: Math.round(r.x),
         marks: marks.length,
@@ -1011,8 +1014,10 @@ if (await up.count()) {
           const b = e.getBoundingClientRect();
           return b.left >= r.left - 1 && b.right <= r.right + 1;
         }),
-        brandShown: !!brand && brand.getBoundingClientRect().width > 0,
-        labelShown: !!label && label.getBoundingClientRect().width > 0,
+                brandShown: !!brand && brand.getBoundingClientRect().width > 0,
+        // A railed label is taken out of the flow and faded, not removed, so
+        // its box is still there — opacity and position are what say which.
+        labelShown: !!labelStyle && labelStyle.opacity === "1" && labelStyle.position !== "fixed",
         contentLeft: Math.round(sb.nextElementSibling.getBoundingClientRect().left),
       };
     });
@@ -1025,7 +1030,7 @@ if (await up.count()) {
   await page.waitForTimeout(700);
   const rail = await read();
 
-  check(rail.hidden, "the toggle collapses the sidebar");
+    check(rail.railed, "the toggle collapses the sidebar to a rail");
   check(rail.left === 0, `collapsed, the sidebar is still on screen (x=${rail.left})`);
   check(rail.width > 0 && rail.width < open.width / 2,
     `and narrower than it was (${open.width} → ${rail.width})`);
@@ -1034,14 +1039,58 @@ if (await up.count()) {
   check(rail.marksInside, "and no icon spills out of the rail");
   check(rail.brandShown, "the brand mark survives the collapse");
   check(!rail.labelShown, "the labels do not");
-  check(rail.contentLeft === rail.width,
+    check(rail.contentLeft === rail.width,
     `the page starts where the rail ends (${rail.contentLeft} vs ${rail.width})`);
 
-  await page.click("[aria-label='Toggle sidebar']");
+  // A rail the pointer cannot reach is a picture of a menu. The component
+  // library marks a closed sidebar inert, which is what this has to undo.
+  const live = await page.evaluate(() => {
+    const sb = document.getElementById("sidebar");
+    const a = document.querySelector('#sidebar-menu section a[href$="/authors"]');
+    const r = a.getBoundingClientRect();
+    const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return {
+      inert: sb.hasAttribute("inert"),
+      ariaHidden: sb.getAttribute("aria-hidden"),
+      hitsTheLink: top ? a.contains(top) || a === top : false,
+    };
+  });
+  check(!live.inert, "the rail is not inert");
+  check(live.ariaHidden !== "true", "and is not hidden from assistive technology while it is on screen");
+  check(live.hitsTheLink, "a click at an icon's centre lands on its link");
+
+  // Hover names the icon, outside the rail and on screen.
+  await page.hover('#sidebar-menu section a[href$="/authors"]');
+  await page.waitForTimeout(300);
+  const tip = await page.evaluate(() => {
+    const a = document.querySelector('#sidebar-menu section a[href$="/authors"]');
+    const l = a.querySelector(".steward-menu-label");
+    const r = l.getBoundingClientRect();
+    const nav = document.querySelector("#sidebar-menu").getBoundingClientRect();
+    return {
+      text: l.textContent.trim(),
+      shown: getComputedStyle(l).opacity === "1",
+      outside: r.left >= nav.right - 1,
+      onScreen: r.right <= window.innerWidth && r.top >= 0 && r.width > 0,
+    };
+  });
+  check(tip.shown, `hovering an icon shows its label (${tip.text})`);
+  check(tip.outside && tip.onScreen, "the label sits beside the rail, not clipped by it");
+
+    await page.click("[aria-label='Toggle sidebar']");
   await page.waitForTimeout(700);
   const reopened = await read();
   check(reopened.width === open.width && reopened.labelShown,
     `and it opens back to what it was (${reopened.width})`);
+
+  // Choosing an entry from the rail navigates, which is the whole point of
+  // keeping it reachable. Left last: it reloads, and the sidebar starts open.
+  await page.click("[aria-label='Toggle sidebar']");
+  await page.waitForTimeout(700);
+  const before = page.url();
+  await page.click('#sidebar-menu section a[href$="/authors"]');
+  await page.waitForTimeout(900);
+  check(page.url() !== before, `choosing an entry from the rail navigates (${page.url()})`);
 }
 
 // --- sidebar on a narrow screen stays an overlay -------------------------------

@@ -14,10 +14,15 @@ running panel to a new version.
   and the page moves over to meet it. Below `48rem` it is still an overlay that
   slides away — a rail on a phone spends a tenth of the screen on icons.
 
-  A label the rail hides stays on its link as a `title` and in the
-  accessibility tree, so hovering an icon names it. An entry with no icon falls
-  back to the first letter of its title. The rail's width is
-  `--sidebar-rail-width`, a theme token like any other.
+    The rail is a working menu: its entries are clickable and focusable, and
+  hovering or tabbing to one shows its label beside it. The component library
+  marks a closed sidebar `inert` and `aria-hidden`, which is right for a nav
+  that has left the screen and would make a rail a picture of a menu — neither
+  the pointer, the keyboard nor a screen reader could reach it — so both are
+  lifted while the rail is what is on screen.
+
+  An entry with no icon falls back to the first letter of its title. The rail's
+  width is `--sidebar-rail-width`, a theme token like any other.
 
 - **`Config.BrandIcon`** is the panel's own mark: a Lucide name shown beside the
   brand, and the only thing standing for the panel once the rail hides its name.

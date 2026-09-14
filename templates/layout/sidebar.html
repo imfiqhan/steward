@@ -22,9 +22,10 @@
         <ul>
           {{range .Items}}
           <li>
-            {{/* title carries the label to a rail, where it is the only thing
-                 naming an icon on hover. */}}
-            <a href="{{.URI}}" {{if .Active}}aria-current="page"{{end}} title="{{.Title}}"
+                        {{/* The label stays in the markup whatever the sidebar's width: a
+                 rail turns it into the tooltip that names the icon, and it is
+                 what names the link for a screen reader either way. */}}
+            <a href="{{.URI}}" {{if .Active}}aria-current="page"{{end}}
                {{/* The window does not scroll — #page-content does. */}}
                hx-get="{{.URI}}" hx-target="#page-content" hx-push-url="true"
                hx-swap="innerHTML scroll:#page-content:top">

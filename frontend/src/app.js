@@ -1098,6 +1098,109 @@ window.htmx = htmx;
     markUploadMissing(thumb.closest("[data-steward-upload]"));
   }, true);
 
+  /* ---- Sidebar rail ----------------------------------------------------------- */
+  /*
+   * Collapsed, the sidebar keeps a column of icons rather than leaving the
+   * screen. The component library does not have that state: closing sets
+   * aria-hidden="true" and inert, which is right for a nav that has gone and
+   * wrong for one that is still there — inert puts the links out of reach of the
+   * pointer, the keyboard and assistive technology alike, so a rail drawn that
+   * way is a picture of a menu.
+   *
+   * So the closed state is copied onto data-rail, which is what the stylesheet
+   * reads, and the two attributes that would kill it are lifted. The library's
+   * own open/closed flag is internal and is not read back from the DOM, so the
+   * toggle keeps working.
+   */
+
+  // The width the stylesheet switches at, and the component's own default.
+  var RAIL_MIN = 768;
+
+  function railSidebar() { return document.getElementById("sidebar"); }
+
+    function enterRail(sb) {
+    sb.dataset.rail = "1";
+    sb.removeAttribute("inert");
+    sb.removeAttribute("aria-hidden");
+  }
+
+  function syncRail() {
+    var sb = railSidebar();
+    if (!sb) return;
+    var wide = window.innerWidth >= RAIL_MIN;
+    var railed = sb.dataset.rail === "1";
+
+    switch (sb.getAttribute("aria-hidden")) {
+      case "false": // opened
+        delete sb.dataset.rail;
+        return;
+      case "true": // closed by the library
+        if (wide) {
+          enterRail(sb);
+        } else {
+          delete sb.dataset.rail;
+        }
+        return;
+    }
+    // No attribute at all: either a rail this file made, or a sidebar the
+    // library has not initialised yet. A rail that no longer fits becomes the
+    // hide it would have been.
+    if (railed && !wide) {
+      delete sb.dataset.rail;
+      sb.setAttribute("aria-hidden", "true");
+      sb.setAttribute("inert", "");
+    }
+  }
+
+  new MutationObserver(syncRail).observe(document.documentElement, {
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["aria-hidden", "inert"],
+  });
+  window.addEventListener("resize", syncRail);
+  document.addEventListener("DOMContentLoaded", syncRail);
+
+  /* A rail shows icons, so the label has to arrive on hover. It is positioned
+   * rather than laid out because the menu scrolls: an absolutely placed flyout
+   * is clipped by the scroll container it grows out of. */
+  function railTip(link, show) {
+    var sb = railSidebar();
+    var label = link.querySelector(".steward-menu-label");
+    if (!label || !sb || sb.dataset.rail !== "1") return;
+    if (!show) {
+      delete label.dataset.railTip;
+      label.style.cssText = "";
+      return;
+    }
+    var r = link.getBoundingClientRect();
+    label.dataset.railTip = "1";
+    label.style.top = Math.round(r.top + r.height / 2) + "px";
+    label.style.left = Math.round(r.right + 8) + "px";
+  }
+
+  function railLinkOf(e) {
+    return e.target.closest ? e.target.closest("#sidebar-menu section a") : null;
+  }
+
+  document.addEventListener("mouseover", function (e) {
+    var link = railLinkOf(e);
+    if (link) railTip(link, true);
+  });
+  document.addEventListener("mouseout", function (e) {
+    var link = railLinkOf(e);
+    if (link) railTip(link, false);
+  });
+  // Keyboard reaches the rail too, and a label that only answers a pointer
+  // leaves it unlabelled there.
+  document.addEventListener("focusin", function (e) {
+    var link = railLinkOf(e);
+    if (link) railTip(link, true);
+  });
+  document.addEventListener("focusout", function (e) {
+    var link = railLinkOf(e);
+    if (link) railTip(link, false);
+  });
+
   /* ---- Tags ------------------------------------------------------------------- */
   /*
    * Progressive enhancement over a hidden input holding a JSON array, which is

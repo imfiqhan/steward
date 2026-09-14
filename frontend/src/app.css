@@ -1272,49 +1272,84 @@ tr.steward-dragging { opacity: 0.5; }
 /* Collapsed means narrow, not gone. The component library's own rule slides the
    nav out by its full width and drops the content's margin to zero; from the
    rail width down, everything here is undoing that.
-   Below 48rem the sidebar is an overlay with a scrim, which is what a phone
-   wants — a rail there would spend a tenth of the screen on icons. */
+
+   Keyed on data-rail rather than on the library's aria-hidden: a rail is on
+   screen and reachable, so that attribute is lifted (see app.js) and cannot be
+   what the layout depends on.
+
+   Below 48rem there is no rail — the sidebar is an overlay with a scrim, which
+   is what a phone wants, since a rail there would spend a tenth of the screen
+   on icons. */
 :root {
   --sidebar-rail-width: 3.25rem;
 }
 
 @media (width >= 48rem) {
-  .sidebar[data-side="left"][aria-hidden="true"] nav,
-  .sidebar:not([data-side])[aria-hidden="true"] nav {
+  .sidebar[data-rail] nav {
     translate: none;
     width: var(--sidebar-rail-width);
-    overflow-x: hidden;
   }
 
-  .sidebar[data-side="left"][aria-hidden="true"] + *,
-  .sidebar:not([data-side])[aria-hidden="true"] + * {
+  .sidebar[data-rail] + * {
     margin-left: var(--sidebar-rail-width);
   }
 
-  /* What a rail drops: the labels, the group headings, and the brand's name.
-     The marks they sit beside are what it keeps. */
-  .sidebar[aria-hidden="true"] nav .steward-menu-label,
-  .sidebar[aria-hidden="true"] nav .steward-brand-name,
-  .sidebar[aria-hidden="true"] nav > section h3 {
+  /* What a rail drops: the group headings and the brand's name. The marks they
+     sit beside are what it keeps. */
+  .sidebar[data-rail] nav .steward-brand-name,
+  .sidebar[data-rail] nav > section h3 {
     display: none;
   }
 
   /* A group heading is also what separated one group from the next, so without
      it the runs need a rule of their own to stay apart. */
-  .sidebar[aria-hidden="true"] nav > section > [role="group"] + [role="group"] {
+  .sidebar[data-rail] nav > section > [role="group"] + [role="group"] {
     border-top: 1px solid var(--border);
     margin-top: 0.25rem;
     padding-top: 0.25rem;
   }
 
-  .sidebar[aria-hidden="true"] nav a {
+  .sidebar[data-rail] nav a {
     justify-content: center;
     padding-inline: 0;
+    overflow: visible;
   }
 
-  /* The icon is the whole control now, so it takes the whole hit area. */
-  .sidebar[aria-hidden="true"] nav a > svg {
+  .sidebar[data-rail] nav a > svg {
     flex: none;
+  }
+
+  /* The label is the tooltip. Taken out of the flow rather than out of the
+     document, so it still names its link for a screen reader; placed by script
+     because the menu scrolls and an absolutely placed flyout would be clipped
+     by the container it grows out of. */
+  .sidebar[data-rail] nav .steward-menu-label {
+    position: fixed;
+    z-index: 60;
+    translate: 0 -50%;
+    max-width: 14rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: calc(var(--radius) - 0.125rem);
+    background: var(--popover, var(--card));
+    color: var(--popover-foreground, var(--card-foreground));
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
+    font-size: 0.8125rem;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s ease-in-out;
+  }
+
+  .sidebar[data-rail] nav .steward-menu-label[data-rail-tip] {
+    opacity: 1;
+  }
+
+  .sidebar[data-rail] nav .steward-menu-mark {
+    display: inline-flex;
   }
 }
 
@@ -1349,12 +1384,6 @@ tr.steward-dragging { opacity: 0.5; }
   font-weight: 600;
   line-height: 1;
   color: var(--muted-foreground);
-}
-
-@media (width >= 48rem) {
-  .sidebar[aria-hidden="true"] nav .steward-menu-mark {
-    display: inline-flex;
-  }
 }
 
 /* ---- Tags (Form.Tags) ----------------------------------------------------- */

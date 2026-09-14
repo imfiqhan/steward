@@ -57,12 +57,12 @@ func TestBrandIconReplacesTheInitial(t *testing.T) {
 	}
 }
 
-// A label the rail hides still has to name its icon on hover, and the entry's
-// own mark is what a menu item without an icon falls back to.
-func TestMenuEntriesCarryATitleAndALabel(t *testing.T) {
+// The label is what a rail turns into a tooltip and what names the link for a
+// screen reader, so it stays in the markup whatever the sidebar's width.
+func TestMenuEntriesKeepTheirLabel(t *testing.T) {
 	html := sidebarOf(t, steward.Config{Brand: "Kominfo"})
-	if !strings.Contains(html, `title="Records"`) {
-		t.Error("a menu entry carries no title for the rail to show on hover")
+	if strings.Contains(html, `title="Records"`) {
+		t.Error("the native tooltip is back beside the rail's own, so both would show")
 	}
 	if !strings.Contains(html, `class="steward-menu-label">Records<`) {
 		t.Error("a menu entry's label is not in a class the rail can hide")
