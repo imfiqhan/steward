@@ -45,6 +45,7 @@ Runtime commands run through your app binary instead:
 `
 
 func run(args []string) error {
+	args = takeVerbose(args)
 	if len(args) == 0 {
 		fmt.Print(usage)
 		return nil
@@ -124,14 +125,15 @@ func cmdPublish(args []string) error {
 		if err := os.WriteFile(dst, raw, 0o644); err != nil {
 			return err
 		}
+		wrote(dst)
 		count++
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-	fmt.Printf("published %d files to %s\n", count, target)
-	fmt.Println("wire them in with Config.TemplatesFS / Config.AssetsFS (os.DirFS)")
+	note("published %d files to %s", count, target)
+	note("wire them in with Config.TemplatesFS / Config.AssetsFS (os.DirFS)")
 	return nil
 }
 
@@ -151,4 +153,35 @@ func pickPublishArg(args []string) string {
 		}
 	}
 	return ""
+}
+
+// Output is two streams with two audiences. What was written goes to stdout,
+// one bare path per line, so whatever runs this next can read the list without
+// parsing prose. Everything else — what to do now, what was skipped — is
+// commentary, and is silent unless asked for.
+var verbose bool
+
+// takeVerbose removes --verbose wherever it appears, so it works before or
+// after the subcommand rather than only in the one position a reader guesses.
+func takeVerbose(args []string) []string {
+	out := args[:0:0]
+	for _, a := range args {
+		if a == "--verbose" || a == "-verbose" {
+			verbose = true
+			continue
+		}
+		out = append(out, a)
+	}
+	return out
+}
+
+// wrote records one written file. This is the command's whole output on a
+// successful run.
+func wrote(path string) { fmt.Println(path) }
+
+// note is commentary, printed only under --verbose.
+func note(format string, args ...any) {
+	if verbose {
+		fmt.Printf(format+"\n", args...)
+	}
 }

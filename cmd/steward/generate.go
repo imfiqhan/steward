@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -294,7 +295,7 @@ func cmdMakeResource(args []string) error {
 		case "--dir":
 			i++
 			dir = rest[i]
-		case "--force":
+		case "--force", "--yes":
 			force = true
 		case "--from-db":
 			fromDB = true
@@ -469,19 +470,29 @@ func Register%s(a *steward.Admin) {
 	if !fromDB {
 		files[filepath.Join(dir, "migrations", ts+"_create_"+tableName+".go")] = migration
 	}
-	for path, content := range files {
-		if err := writeFile(path, []byte(content), force); err != nil {
+	// Sorted, because a map's order is not one: the same command has to print
+	// the same lines in the same order for the list to be worth diffing.
+	paths := make([]string, 0, len(files))
+	for path := range files {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	for _, path := range paths {
+		if err := writeFile(path, []byte(files[path]), force); err != nil {
 			return err
 		}
-		fmt.Println("created:", path)
+		wrote(path)
 	}
 
-	if err := insertRegistration(filepath.Join(dir, "resources", "registry.go"), "Register"+typeName+"(a)"); err != nil {
-		fmt.Printf("note: %v\nadd this line to resources.RegisterAll yourself:\n\tRegister%s(a)\n", err, typeName)
+	registry := filepath.Join(dir, "resources", "registry.go")
+	if err := insertRegistration(registry, "Register"+typeName+"(a)"); err != nil {
+		// Not a failure: everything asked for was written, and this is the one
+		// edit that needs a file the reader may have reshaped.
+		note("note: %v\nadd this line to resources.RegisterAll yourself:\n\tRegister%s(a)", err, typeName)
 	} else {
-		fmt.Println("registered in resources/registry.go")
+		wrote(registry)
 	}
-	fmt.Println("next: go run . migrate up && go run . serve")
+	note("next: go run . migrate up && go run . serve")
 	return nil
 }
 
@@ -589,7 +600,7 @@ func init() {
 	if err := writeFile(path, []byte(content), false); err != nil {
 		return err
 	}
-	fmt.Println("created:", path)
+	wrote(path)
 	return nil
 }
 

@@ -173,8 +173,8 @@ uploads/
 		if err := writeFile(filepath.Join(dir, rel), []byte(content), false); err != nil {
 			return err
 		}
-		fmt.Println("created:", filepath.Join(dir, rel))
+		wrote(filepath.Join(dir, rel))
 	}
-	fmt.Printf("\nproject ready — next:\n  cd %s\n  go mod tidy\n  go run . migrate up\n  go run . serve\n", dir)
+	note("\nproject ready — next:\n  cd %s\n  go mod tidy\n  go run . migrate up\n  go run . serve", dir)
 	return nil
 }

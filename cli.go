@@ -2,11 +2,14 @@ package steward
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 
@@ -75,6 +78,18 @@ func runCLI(app App, args []string) error {
 		cmd = "migrate"
 	}
 
+	// The command name is checked before the panel is built. Built first, a
+	// mistyped command reported whatever the database had to say about being
+	// unreachable, and `help` needed a working database to print a paragraph.
+	switch cmd {
+	case "help", "-h", "--help":
+		fmt.Println("commands: " + strings.Join(cliCommands, ", "))
+		return nil
+	}
+	if !slices.Contains(cliCommands, cmd) {
+		return fmt.Errorf("unknown command %q%s", cmd, suggest.Block(cmd, cliCommands))
+	}
+
 	a, err := app.Build()
 	if err != nil {
 		return err
@@ -83,9 +98,9 @@ func runCLI(app App, args []string) error {
 
 	switch cmd {
 	case "serve":
-		fs := flag.NewFlagSet("serve", flag.ExitOnError)
+		fs := flag.NewFlagSet("serve", flag.ContinueOnError)
 		addr := fs.String("addr", defaultAddr(app), "listen address")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if err := a.Build(); err != nil {
@@ -135,10 +150,11 @@ func runCLI(app App, args []string) error {
 			}
 			return nil
 		case "down":
-			fs := flag.NewFlagSet("migrate down", flag.ExitOnError)
+			fs := flag.NewFlagSet("migrate down", flag.ContinueOnError)
 			steps := fs.Int("steps", 0, "how many migrations to roll back (0 = last batch)")
 			force := fs.Bool("force", false, "roll back even when that is every migration applied")
-			if err := fs.Parse(args); err != nil {
+			yes := fs.Bool("yes", false, "same as -force")
+			if err := parseFlags(fs, args); err != nil {
 				return err
 			}
 			sts, err := runner.Status(ctx)
@@ -154,7 +170,7 @@ func runCLI(app App, args []string) error {
 			// so "the last batch" is all of them — the panel's own tables
 			// included. On a development machine the command reads as "undo
 			// the last change" and would empty the database instead.
-			if everything && !*force {
+			if everything && !*force && !*yes {
 				return fmt.Errorf(
 					"migrate down would roll back all %d applied migrations, including the panel's own tables: "+
 						"they were applied as one batch, so there is no earlier state to return to.\n"+
@@ -190,9 +206,9 @@ func runCLI(app App, args []string) error {
 	case "search:reindex":
 		// Indexing on write only ever covers what is written afterwards, so a
 		// table that already has rows needs this once before search is honest.
-		fs := flag.NewFlagSet("search:reindex", flag.ExitOnError)
+		fs := flag.NewFlagSet("search:reindex", flag.ContinueOnError)
 		batch := fs.Int("batch", 500, "rows read and sent per round trip")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		counts, err := a.Reindex(context.Background(), *batch)
@@ -208,21 +224,26 @@ func runCLI(app App, args []string) error {
 		return nil
 
 	case "admin:create-user":
-		fs := flag.NewFlagSet("admin:create-user", flag.ExitOnError)
+		fs := flag.NewFlagSet("admin:create-user", flag.ContinueOnError)
 		username := fs.String("username", "", "login username")
 		name := fs.String("name", "", "display name")
 		password := fs.String("password", "", "password (prompted when omitted)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if *username == "" {
-			return fmt.Errorf("-username is required")
+			return fmt.Errorf("admin:create-user needs a login name: pass -username")
 		}
 		if *name == "" {
 			*name = *username
 		}
 		pw := *password
 		if pw == "" {
+			// Reading from a pipe or a CI log here blocks forever, or worse
+			// takes the next line of a script as the password.
+			if !term.IsTerminal(int(os.Stdin.Fd())) {
+				return fmt.Errorf("no password given and stdin is not a terminal: pass -password")
+			}
 			fmt.Print("Password: ")
 			raw, err := term.ReadPassword(int(os.Stdin.Fd()))
 			fmt.Println()
@@ -245,11 +266,8 @@ func runCLI(app App, args []string) error {
 		fmt.Printf("created user %s (id %d)\n", u.Username, u.ID)
 		return nil
 
-	case "help", "-h", "--help":
-		fmt.Println("commands: " + strings.Join(cliCommands, ", "))
-		return nil
-
 	default:
+		// Unreachable: the name was checked before the panel was built.
 		return fmt.Errorf("unknown command %q%s", cmd, suggest.Block(cmd, cliCommands))
 	}
 }
@@ -315,3 +333,40 @@ var (
 	}
 	migrateSubcommands = []string{"up", "down", "status"}
 )
+
+// parseFlags reads a command's flags and reports a bad one the way every other
+// error here reads: what is wrong, the nearest flag that exists, and the set.
+//
+// flag's own ContinueOnError reporting is discarded rather than used. It writes
+// the message and the full usage itself and then returns the error, so letting
+// it through prints the failure twice in two different shapes.
+func parseFlags(fs *flag.FlagSet, args []string) error {
+	fs.SetOutput(io.Discard)
+	err := fs.Parse(args)
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, flag.ErrHelp) {
+		fs.SetOutput(os.Stdout)
+		fs.Usage()
+		return nil
+	}
+	var defined []string
+	fs.VisitAll(func(f *flag.Flag) { defined = append(defined, "-"+f.Name) })
+	// Read the offending name from the arguments rather than from the error's
+	// wording, which is flag's to change.
+	for _, a := range args {
+		if !strings.HasPrefix(a, "-") || a == "-" || a == "--" {
+			continue
+		}
+		name := strings.TrimLeft(a, "-")
+		if i := strings.IndexByte(name, '='); i >= 0 {
+			name = name[:i]
+		}
+		if name != "" && fs.Lookup(name) == nil {
+			return fmt.Errorf("%s: unknown flag -%s%s", fs.Name(), name,
+				suggest.Block("-"+name, defined))
+		}
+	}
+	return fmt.Errorf("%s: %w", fs.Name(), err)
+}
