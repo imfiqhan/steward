@@ -89,10 +89,10 @@ func newComboServerWith(t *testing.T, opts steward.Options, seen *seenTags) *htt
 			})
 		}
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv
 }
@@ -368,10 +368,10 @@ func TestSingleSelectRendersCombobox(t *testing.T) {
 	res.Form(func(f *steward.Form[comboRow]) {
 		f.Select("Name").Options(steward.Options{"one": "One", "two": "Two"})
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	page := getBody(t, srv.URL+"/admin/combo_rows/1/edit")

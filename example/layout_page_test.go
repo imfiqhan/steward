@@ -34,10 +34,10 @@ func newPageLayoutServer(t *testing.T, build func(c *steward.Context) error) *ht
 		t.Fatal(err)
 	}
 	steward.Register[pageLayoutRow](app).Page("GET", "report", build)
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv
 }
@@ -209,10 +209,10 @@ func TestDashboardRowsPlaceTiles(t *testing.T) {
 			),
 		)
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 
 	html := fetchOK(t, srv.URL+"/admin/")
@@ -262,10 +262,10 @@ func TestDashboardKeepsDeclarationOrder(t *testing.T) {
 		d.Row(steward.Col(12, d.Metric("Middle", num(2))))
 		d.Metric("Last", num(3))
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 
 	html := fetchOK(t, srv.URL+"/admin/")
@@ -339,7 +339,7 @@ func TestMetricRejectsUnknownIconAndColour(t *testing.T) {
 				t.Fatal(err)
 			}
 			app.Dashboard(tc.build)
-			if err := app.Build(); err != nil {
+			if err := buildPanel(t, app); err != nil {
 				t.Fatal(err)
 			}
 			err = app.Verify()

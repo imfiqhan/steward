@@ -43,10 +43,10 @@ func newAlbumServer(t *testing.T, child func(*steward.Form[track])) (*steward.Ad
 		f.Text("Title")
 		steward.HasMany(f, "Tracks", "AlbumID", child)
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return app, srv
 }

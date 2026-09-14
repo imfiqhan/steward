@@ -61,10 +61,10 @@ func newFilterServer(t *testing.T, calls *atomic.Int32) *httptest.Server {
 			})
 		})
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv
 }
@@ -212,10 +212,10 @@ func TestDateRangeIncludesTheWholeOfItsLastDay(t *testing.T) {
 			f.DateRange("At", "When")
 		})
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	count := func(query string) int {
@@ -298,13 +298,13 @@ func TestDateRangeWithTimesIsExact(t *testing.T) {
 			f.DateRange("At", "When").Datetime()
 		})
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	// The control asks for times, and says so in the markup.
@@ -356,7 +356,7 @@ func TestBetweenDatetimeIsRetired(t *testing.T) {
 			f.Between("At", "When").Datetime()
 		})
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	err = app.Verify()

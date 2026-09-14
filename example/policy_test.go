@@ -70,14 +70,14 @@ func newPolicyTestServer(t *testing.T) (*httptest.Server, map[string]uint) {
 	}
 	steward.Register[Doc](app).Policy(docPolicy{})
 	steward.Register[Secret](app).Policy(secretPolicy{})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
 		t.Fatal(err)
 	}
 
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	ids := map[string]uint{}
 	for _, d := range docs {

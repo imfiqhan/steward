@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"regexp"
 	"strings"
 	"testing"
@@ -63,10 +62,10 @@ func TestPageWrappersCannotBeWidenedByContent(t *testing.T) {
 		t.Fatal(err)
 	}
 	steward.Register[wideRow](app)
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	get := func(path string) string {
@@ -133,10 +132,10 @@ func TestActionsColumnIsPinned(t *testing.T) {
 		t.Fatal(err)
 	}
 	steward.Register[wideRow](app)
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	resp, err := http.Get(srv.URL + "/admin/wide_rows")
@@ -218,10 +217,10 @@ func builtStylesheet(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	page, err := http.Get(srv.URL + "/admin/auth/login")
@@ -339,10 +338,10 @@ func TestGridHeaderPinning(t *testing.T) {
 		t.Fatal(err)
 	}
 	steward.Register[wideRow](app)
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	resp, err := http.Get(srv.URL + "/admin/wide_rows")

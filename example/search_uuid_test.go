@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -73,14 +72,14 @@ func newUUIDSearchServer(t *testing.T) (*steward.Admin, *tfaClient) {
 			g.Column("SubmissionID")
 			g.QuickSearch("SubmissionID", "FieldKey")
 		})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
 		t.Fatal(err)
 	}
 
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	seedUser(t, app, "root", "correct-horse")
 	c := new2FAClient(t, srv)
@@ -199,14 +198,14 @@ func TestQuickSearchReadsAUUIDColumnThroughARelation(t *testing.T) {
 			g.Column("FieldKey")
 			g.QuickSearch("FieldKey", "Submission.ID")
 		})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
 		t.Fatal(err)
 	}
 
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	seedUser(t, app, "root", "correct-horse")
 	c := new2FAClient(t, srv)

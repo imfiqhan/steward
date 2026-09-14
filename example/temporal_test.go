@@ -62,10 +62,10 @@ func newTimeServer(t *testing.T, saving func(*steward.Context, *timeRow) error) 
 			f.Saving(saving)
 		}
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv, db
 }
@@ -242,10 +242,10 @@ func TestDateBoundsAreEnforced(t *testing.T) {
 			Min(time.Date(2026, 1, 1, 0, 0, 0, 0, time.Local)).
 			Max(time.Date(2026, 12, 31, 23, 59, 59, 0, time.Local))
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	page := getBody(t, srv.URL+"/admin/time_rows/1/edit")

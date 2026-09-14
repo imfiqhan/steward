@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/cookiejar"
-	"net/http/httptest"
 	"testing"
 
 	steward "github.com/imfiqhan/steward"
@@ -35,10 +34,10 @@ func TestPaletteSaysWhenASectionCouldNotAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 	steward.Register[paletteRow2](app).Command("Title")
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	seedUser(t, app, "root", "correct-horse")
 

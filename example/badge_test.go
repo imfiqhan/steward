@@ -52,10 +52,10 @@ func newBadgeServer(t *testing.T, grid func(*steward.Grid[badgeRow]), detail fun
 	res := steward.Register[badgeRow](app)
 	res.Grid(grid)
 	res.Detail(detail)
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv.URL
 }
@@ -199,7 +199,7 @@ func TestBoolRejectsOneLabel(t *testing.T) {
 	}
 	res := steward.Register[badgeRow](app)
 	res.Grid(func(g *steward.Grid[badgeRow]) { g.Column("Status").Bool("Ya") })
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	err = app.Verify()
@@ -254,13 +254,13 @@ func TestDetailFieldFunc(t *testing.T) {
 			return template.HTML(`<span class="badge">row-` + itoa(r.ID) + `</span>`)
 		})
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
 		t.Fatalf("a computed row has no path to verify: %v", err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	html := fetchOK(t, srv.URL+"/admin/badge_rows/1")
@@ -312,10 +312,10 @@ func TestDetailPreloadsItsOwnRelations(t *testing.T) {
 		d.Field("Name")
 		d.Field("Owner.Name", "Parent")
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	html := fetchOK(t, srv.URL+"/admin/rel_owners/2")
@@ -333,10 +333,10 @@ func TestRBACDetailPagesShowTheirGrants(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	seedUser(t, app, "root", "correct-horse")
 
@@ -402,13 +402,13 @@ func TestCommandDisplayNamesWhatARowShows(t *testing.T) {
 	steward.Register[paletteRow](app).
 		Command("Title").
 		CommandDisplay("Title", "Category.Name", "PostDate")
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	seedUser(t, app, "root", "correct-horse")
 
@@ -439,7 +439,7 @@ func TestCommandDisplayRejectsAnUnknownPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	steward.Register[paletteRow](app).Command("Title").CommandDisplay("Titel")
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	err = app.Verify()
@@ -463,10 +463,10 @@ func TestCommandSearchReportsBeingCutShort(t *testing.T) {
 		t.Fatal(err)
 	}
 	steward.Register[paletteRow](app).Command("Title")
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	seedUser(t, app, "root", "correct-horse")
 
@@ -510,10 +510,10 @@ func TestCommandSearchSkipsTheCount(t *testing.T) {
 		t.Fatal(err2)
 	}
 	steward.Register[paletteRow](app).Command("Title")
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	seedUser(t, app, "root", "correct-horse")
 
@@ -585,10 +585,10 @@ func TestAssetURLChangesWithTheAssets(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := app.Build(); err != nil {
+		if err := buildPanel(t, app); err != nil {
 			t.Fatal(err)
 		}
-		srv := httptest.NewServer(app)
+		srv := serve(t, app)
 		t.Cleanup(srv.Close)
 		m := regexp.MustCompile(`/admin/_assets/([^/]+)/`).FindStringSubmatch(fetchOK(t, srv.URL+"/admin/login"))
 		if m == nil {
@@ -659,7 +659,7 @@ func TestSearchTotalSaysWhenItIsAFloor(t *testing.T) {
 		g.Column("Title")
 		g.QuickSearch("Title")
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 3; i++ {
@@ -667,7 +667,7 @@ func TestSearchTotalSaysWhenItIsAFloor(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 
 	full := fetchOK(t, srv.URL+"/admin/palette_rows?q=headline")
@@ -697,7 +697,7 @@ func TestSearchTotalIsExactWhenItFits(t *testing.T) {
 		g.Column("Title")
 		g.QuickSearch("Title")
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 3; i++ {
@@ -705,7 +705,7 @@ func TestSearchTotalIsExactWhenItFits(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 
 	out := fetchOK(t, srv.URL+"/admin/palette_rows?q=headline")
@@ -768,13 +768,13 @@ func TestFilterSpans(t *testing.T) {
 			f.Like("Title", "Wide").Span(12)
 		})
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 
 	html := fetchOK(t, srv.URL+"/admin/palette_rows")
@@ -816,10 +816,10 @@ func TestFilterSpanIsClamped(t *testing.T) {
 			f.Like("Slug", "Too narrow").Span(-3)
 		})
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 
 	html := fetchOK(t, srv.URL+"/admin/palette_rows")
@@ -865,13 +865,13 @@ func newRangeFormServer(t *testing.T) *httptest.Server {
 		f.Text("Title").Rules("required")
 		f.DateRange("DateStart", "DateEnd", "Runs")
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv
 }
@@ -923,10 +923,10 @@ func TestFormDateRangeSavesBothEnds(t *testing.T) {
 		f.Text("Title").Rules("required")
 		f.DateRange("DateStart", "DateEnd", "Runs")
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	seedUser(t, app, "root", "correct-horse")
 
@@ -1009,13 +1009,13 @@ func TestFilterLayouts(t *testing.T) {
 					f.DateRange("PostDate", "Posted")
 				})
 			})
-			if err := app.Build(); err != nil {
+			if err := buildPanel(t, app); err != nil {
 				t.Fatal(err)
 			}
 			if err := app.Verify(); err != nil {
 				t.Fatal(err)
 			}
-			srv := httptest.NewServer(app)
+			srv := serve(t, app)
 			t.Cleanup(srv.Close)
 
 			html := fetchOK(t, srv.URL+"/admin/palette_rows")
@@ -1054,7 +1054,7 @@ func TestFilterLayoutIsVerified(t *testing.T) {
 		g.Column("Title")
 		g.FilterLayout("sidebar")
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	err = app.Verify()
@@ -1082,10 +1082,10 @@ func TestFormDateRangeWithTimes(t *testing.T) {
 		f.Text("Title").Rules("required")
 		f.DateRange("DateStart", "DateEnd", "Runs").Datetime()
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	seedUser(t, app, "root", "correct-horse")
 

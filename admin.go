@@ -211,8 +211,11 @@ type Admin struct {
 	registry []resourceEntry
 
 	// exportWake nudges the queued-export worker; nil when the panel is not
-	// running one.
+	// running one. exportStop ends it, and bg is what Close waits on.
 	exportWake chan struct{}
+	exportStop chan struct{}
+	bg         sync.WaitGroup
+	closeOnce  sync.Once
 	bySlug     map[string]resourceEntry
 	byType     map[reflect.Type]resourceEntry
 
@@ -564,4 +567,23 @@ func (a *Admin) clearSession(c *Context) {
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
+}
+
+// Close stops the panel's background work and waits for it to finish. A panel
+// built with the export worker on holds one goroutine polling for queued
+// exports; this is what ends it.
+//
+// Call it before closing Config.DB, which it deliberately leaves alone: the
+// caller opened that and owns it. An export already running is finished rather
+// than abandoned, so this can take as long as one job.
+//
+// Safe to call more than once, and on a panel that was never built.
+func (a *Admin) Close() error {
+	a.closeOnce.Do(func() {
+		if a.exportStop != nil {
+			close(a.exportStop)
+		}
+	})
+	a.bg.Wait()
+	return nil
 }

@@ -49,10 +49,10 @@ func newFieldServer(t *testing.T, symbol string, cfgSymbol string) (*httptest.Se
 		}
 		f.Display("Slug")
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv, db
 }

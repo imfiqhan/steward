@@ -46,13 +46,13 @@ func newMarkupServer(t *testing.T, layout steward.GridFilterLayout) *httptest.Se
 			f.Equal("Status").Select(steward.Options{"1": "Open", "2": "Closed"})
 		})
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv
 }

@@ -55,10 +55,10 @@ func newUploadServer(t *testing.T) (*httptest.Server, string, *steward.Admin) {
 		f.Image("Pic")
 		f.Richtext("Body").MaxSize(1 << 10)
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv, dir, app
 }
@@ -258,10 +258,10 @@ func TestFilesFieldHoldsAJSONArray(t *testing.T) {
 	steward.Register[uploadRow](app).Form(func(f *steward.Form[uploadRow]) {
 		f.Files("Doc").Dir("docs").MaxFiles(3)
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	page := getBody(t, srv.URL+"/admin/upload_rows/1/edit")
@@ -313,10 +313,10 @@ func TestUploadNeedsWritePermission(t *testing.T) {
 	res := steward.Register[uploadRow](app)
 	res.Form(func(f *steward.Form[uploadRow]) { f.File("Doc") })
 	res.Policy(readOnly[uploadRow]{})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	// The create form is unreachable for this policy, so the token comes from
@@ -357,10 +357,10 @@ func TestReplacedUploadIsRemoved(t *testing.T) {
 	steward.Register[uploadRow](app).Form(func(f *steward.Form[uploadRow]) {
 		f.File("Doc")
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	// Two files on disk; the record points at the first.

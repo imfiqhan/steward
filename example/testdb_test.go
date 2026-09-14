@@ -2,16 +2,18 @@ package main
 
 import (
 	"fmt"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 
-	"os"
-
 	"github.com/glebarez/sqlite"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+
+	steward "github.com/imfiqhan/steward"
 )
 
 // testDB opens the database a test runs against: SQLite by default, PostgreSQL
@@ -129,4 +131,30 @@ func localZone() string {
 		}
 	}
 	return "UTC"
+}
+
+// serve starts a test server for a panel and stops both when the test ends.
+//
+// The panel is closed as well as the server: a built panel holds a goroutine
+// polling for queued exports, which otherwise outlives the database the test
+// opened. This cleanup is registered after testDB's, so it runs before it —
+// the worker stops, then the database closes.
+func serve(t *testing.T, app *steward.Admin) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(app)
+	t.Cleanup(func() {
+		srv.Close()
+		_ = app.Close()
+	})
+	return srv
+}
+
+// build builds a panel and stops it when the test ends. A built panel holds a
+// goroutine polling for queued exports; nothing else in a test stops it, and
+// it outlives the database testDB opened.
+func buildPanel(t *testing.T, app *steward.Admin) error {
+	t.Helper()
+	err := app.Build()
+	t.Cleanup(func() { _ = app.Close() })
+	return err
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"net/http/httptest"
 	"os"
 	"reflect"
 	"strings"
@@ -173,7 +172,7 @@ func TestDocumentedFieldKindsAllWork(t *testing.T) {
 		d.Field("Notes").Block()
 	})
 
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	// Verify resolves every path and checks colours, disks and label counts, so
@@ -250,13 +249,13 @@ func TestDocumentedWidgetsAllWork(t *testing.T) {
 		)
 	})
 
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
 		t.Fatalf("the documented calls should verify: %v", err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 
 	html := fetchOK(t, srv.URL+"/admin/docs_rows/widgets")
@@ -346,7 +345,7 @@ func TestDocumentedConfigSourcesCompile(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		if err := app.Build(); err != nil {
+		if err := buildPanel(t, app); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
 	}
@@ -377,7 +376,7 @@ func TestDocumentedSettingsStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
@@ -520,7 +519,7 @@ func TestDocumentedNotificationHook(t *testing.T) {
 			})
 		})
 
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
@@ -557,7 +556,7 @@ func TestDocumentedExportJobCalls(t *testing.T) {
 		t.Fatal(err)
 	}
 	steward.Register[hookPost](app)
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 
@@ -602,7 +601,7 @@ func TestDocumentedExportDiskArrangement(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
@@ -647,7 +646,7 @@ func TestDocumentedRepeaterCalls(t *testing.T) {
 			return nil
 		})
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {

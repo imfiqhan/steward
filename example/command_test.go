@@ -71,10 +71,10 @@ func newCommandServer(t *testing.T, withSource bool) *httptest.Server {
 			return []steward.CommandResult{{Title: "How to " + q, URL: "/docs/" + q}}
 		})
 	}
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv
 }

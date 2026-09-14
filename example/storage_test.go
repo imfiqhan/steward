@@ -47,10 +47,10 @@ func newStorageServer(t *testing.T, public bool) (*httptest.Server, *steward.Adm
 		t.Fatal(err)
 	}
 	steward.Register[storeRow](app).Form(func(f *steward.Form[storeRow]) { f.File("Doc") })
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv, app
 }
@@ -207,10 +207,10 @@ func TestDisksAreSeparate(t *testing.T) {
 		t.Fatal(err)
 	}
 	steward.Register[storeRow](app).Form(func(f *steward.Form[storeRow]) { f.File("Doc") })
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	if got := app.DiskNames(); len(got) != 2 {
@@ -286,10 +286,10 @@ func TestFieldDiskDecidesWhereAnUploadLands(t *testing.T) {
 	steward.Register[storeRow](app).Form(func(f *steward.Form[storeRow]) {
 		f.File("Doc").Disk("media")
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	page := getBody(t, srv.URL+"/admin/store_rows/1/edit")

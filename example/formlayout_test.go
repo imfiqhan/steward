@@ -43,10 +43,10 @@ func newLayoutServer(t *testing.T, width steward.FormWidth) *httptest.Server {
 		})
 		f.Text("Outside").Span(99) // out of range
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv
 }

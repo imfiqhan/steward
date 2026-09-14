@@ -104,14 +104,14 @@ func newRelationServer(t *testing.T) (*httptest.Server, *gorm.DB) {
 				f.Like("Notes.Body", "Note")     // has many
 			})
 		})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	// The whole point: these paths must be accepted at boot, because they work.
 	if err := app.Verify(); err != nil {
 		t.Fatalf("Verify rejected a filterable relation path: %v", err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv, db
 }
@@ -247,7 +247,7 @@ func TestRelationSortIsRejectedAtBoot(t *testing.T) {
 			t.Fatal(err)
 		}
 		steward.Register[rfArticle](app).Grid(configure)
-		if err := app.Build(); err != nil {
+		if err := buildPanel(t, app); err != nil {
 			return err
 		}
 		return app.Verify()

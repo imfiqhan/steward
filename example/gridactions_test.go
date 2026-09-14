@@ -3,7 +3,6 @@ package main
 import (
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -51,10 +50,10 @@ func newActionServer(t *testing.T, global steward.GridActionStyle, override stew
 				return steward.Success("done"), nil
 			}).Danger())
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/admin/action_rows")
@@ -178,10 +177,10 @@ func TestRowMenuIdsAreUnique(t *testing.T) {
 		t.Fatal(err)
 	}
 	steward.Register[actionRow](app)
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	resp, err := http.Get(srv.URL + "/admin/action_rows")

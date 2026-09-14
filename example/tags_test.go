@@ -46,10 +46,10 @@ func newTagServer(t *testing.T) (*httptest.Server, *gorm.DB) {
 			d.Field("Name")
 			d.Field("Keywords").Tags()
 		})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv, db
 }
@@ -167,10 +167,10 @@ func TestTagsFieldHonoursReadOnly(t *testing.T) {
 		f.Text("Name")
 		f.Tags("Keywords").ReadOnly()
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 
 	page := getBody(t, srv.URL+"/admin/tag_rows/1/edit")

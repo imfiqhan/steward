@@ -66,7 +66,7 @@ func newExportApp(t *testing.T, threshold int, uploadDir string) (*steward.Admin
 			f.Equal("Kind").Select(steward.Options{"keep": "Keep", "skip": "Skip"})
 		})
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
@@ -88,7 +88,7 @@ func exportClient(t *testing.T, srv *httptest.Server) *http.Client {
 // one at a batch boundary.
 func TestStreamedExportCoversEveryRowOnce(t *testing.T) {
 	app, _ := newExportApp(t, -1, t.TempDir()) // negative: never in the background
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	client := exportClient(t, srv)
 
@@ -169,7 +169,7 @@ func TestKeysetWalkCrossesBatchBoundaries(t *testing.T) {
 func TestLargeExportBecomesAJob(t *testing.T) {
 	dir := t.TempDir()
 	app, _ := newExportApp(t, 10, dir) // 60 rows, threshold 10
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	client := exportClient(t, srv)
 	ctx := context.Background()
@@ -253,7 +253,7 @@ func TestLargeExportBecomesAJob(t *testing.T) {
 // query string is carried into the background.
 func TestJobKeepsTheFiltersItWasAskedWith(t *testing.T) {
 	app, _ := newExportApp(t, 10, t.TempDir())
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	client := exportClient(t, srv)
 	ctx := context.Background()
@@ -283,7 +283,7 @@ func TestJobKeepsTheFiltersItWasAskedWith(t *testing.T) {
 func TestOneAccountCannotDownloadAnothersExport(t *testing.T) {
 	dir := t.TempDir()
 	app, db := newExportApp(t, 10, dir)
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	client := exportClient(t, srv)
 	ctx := context.Background()
@@ -322,7 +322,7 @@ func TestOneAccountCannotDownloadAnothersExport(t *testing.T) {
 // Two runners must not build the same file twice.
 func TestAJobIsClaimedOnce(t *testing.T) {
 	app, _ := newExportApp(t, 10, t.TempDir())
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	client := exportClient(t, srv)
 	ctx := context.Background()
@@ -349,7 +349,7 @@ func TestAJobIsClaimedOnce(t *testing.T) {
 func TestPruneExportsRemovesTheFileToo(t *testing.T) {
 	dir := t.TempDir()
 	app, db := newExportApp(t, 10, dir)
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	client := exportClient(t, srv)
 	ctx := context.Background()
@@ -415,14 +415,14 @@ func TestExportGoesToItsOwnDisk(t *testing.T) {
 		t.Fatal(err)
 	}
 	steward.Register[Record](app).Grid(func(g *steward.Grid[Record]) { g.Column("Title") })
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
 		t.Fatal(err)
 	}
 
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	client := exportClient(t, srv)
 	ctx := context.Background()

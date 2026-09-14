@@ -49,10 +49,10 @@ func newMediaServer(t *testing.T, rows ...mediaRow) *httptest.Server {
 		d.Field("Cover").Image(480, 0)
 		d.Field("Doc").Link()
 	})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv
 }

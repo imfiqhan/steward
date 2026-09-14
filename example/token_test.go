@@ -45,13 +45,13 @@ func newTokenTestServer(t *testing.T) (*httptest.Server, *gorm.DB) {
 		t.Fatal(err)
 	}
 	steward.Register[Note](app)
-	if err := app.Build(); err != nil { // runs framework migrations; seeds admin/admin
+	if err := buildPanel(t, app); err != nil { // runs framework migrations; seeds admin/admin
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv, db
 }
@@ -189,10 +189,10 @@ func TestTokenRateLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	base := srv.URL + "/admin"
 
@@ -233,10 +233,10 @@ func TestTokenAuthDisabled(t *testing.T) {
 		t.Fatal(err)
 	}
 	steward.Register[Note](app)
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	base := srv.URL + "/admin"
 

@@ -82,10 +82,10 @@ func newSearchServer(t *testing.T, s steward.Searcher) (*httptest.Server, *gorm.
 				f.Equal("Status").Select(steward.Options{"live": "Live", "draft": "Draft"})
 			})
 		})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv, db, app
 }

@@ -54,13 +54,13 @@ func newSavedServer(t *testing.T, hook func(*steward.Context, *memo, bool) error
 				f.Saved(hook)
 			}
 		})
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	seedUser(t, app, "root", "correct-horse")
 	return srv

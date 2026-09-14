@@ -122,6 +122,7 @@ func runCLI(app App, args []string) error {
 		}
 		wctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 		defer stop()
+		defer func() { _ = a.Close() }()
 		s.Start(wctx)
 		a.log.Info("steward: worker running", "jobs", len(s.Jobs()))
 		<-wctx.Done()

@@ -42,13 +42,13 @@ func newThemeServer(t *testing.T, css string) (*steward.Admin, *httptest.Server)
 		t.Fatal(err)
 	}
 	steward.Register[themeRow](app)
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return app, srv
 }

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -51,10 +50,10 @@ func dashboardServer(t *testing.T, dsn string, widgets func(*steward.Dashboard))
 	if widgets != nil {
 		app.Dashboard(widgets)
 	}
-	if err := app.Build(); err != nil { // runs migrations; seeds admin/admin
+	if err := buildPanel(t, app); err != nil { // runs migrations; seeds admin/admin
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	base := srv.URL + "/admin"
 

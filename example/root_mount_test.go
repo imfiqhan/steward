@@ -47,13 +47,13 @@ func newRootServer(t *testing.T, prefix string) *httptest.Server {
 		t.Fatal(err)
 	}
 	steward.Register[Memo](app)
-	if err := app.Build(); err != nil {
+	if err := buildPanel(t, app); err != nil {
 		t.Fatal(err)
 	}
 	if err := app.Verify(); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 	return srv
 }
@@ -203,7 +203,7 @@ func TestServeMuxRoutesBothMounts(t *testing.T) {
 				t.Fatal(err)
 			}
 			steward.Register[Memo](app)
-			if err := app.Build(); err != nil {
+			if err := buildPanel(t, app); err != nil {
 				t.Fatal(err)
 			}
 

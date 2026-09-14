@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"regexp"
 	"strings"
@@ -170,7 +169,7 @@ func TestChartRuntimeShipsWithTheModule(t *testing.T) {
 	if err := app.Verify(); err != nil {
 		t.Fatalf("a dashboard with a chart does not verify: %v", err)
 	}
-	srv := httptest.NewServer(app)
+	srv := serve(t, app)
 	defer srv.Close()
 
 	// The dashboard names the runtime's URL; follow it as a browser would.

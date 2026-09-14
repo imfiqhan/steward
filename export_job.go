@@ -368,7 +368,8 @@ func (a *Admin) storeExport(ctx context.Context, disk, name string, body []byte)
 	return name, nil
 }
 
-// startExportWorker runs queued exports inside the panel process.
+// startExportWorker runs queued exports inside the panel process. Admin.Close
+// stops it.
 //
 // A panel is usually its own binary, and requiring a second process before an
 // export completes would make the feature look broken. One job at a time, woken
@@ -379,16 +380,28 @@ func (a *Admin) startExportWorker() {
 		return
 	}
 	a.exportWake = make(chan struct{}, 1)
+	a.exportStop = make(chan struct{})
+	a.bg.Add(1)
 	go func() {
+		defer a.bg.Done()
 		tick := time.NewTicker(time.Minute)
 		defer tick.Stop()
 		for {
+			// Checked before the run as well as after the wait: Close between
+			// the two would otherwise start one more job on the way out.
+			select {
+			case <-a.exportStop:
+				return
+			default:
+			}
 			if _, err := a.RunPendingExports(context.Background()); err != nil {
 				a.log.Error("steward: running queued exports", "err", err)
 			}
 			select {
 			case <-a.exportWake:
 			case <-tick.C:
+			case <-a.exportStop:
+				return
 			}
 		}
 	}()
