@@ -284,7 +284,7 @@ func TestEveryConfigFieldIsDocumented(t *testing.T) {
 		"UploadDir":    true, "Storage": true, "Disks": true, "DefaultDisk": true,
 		"ExportDisk":    true,
 		"PublicUploads": true, "SignedURLTTL": true,
-		"TablePrefix": true, "DisableAutoMigrate": true,
+		"TablePrefix": true, "DisableAutoMigrate": true, "DisableQueryProbe": true,
 		"DisableNotifications": true,
 		"BackgroundExportRows": true, "DisableExportWorker": true,
 		"Require2FA": true, "LoginCheck": true, "AuthExcept": true,

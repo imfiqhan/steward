@@ -98,6 +98,12 @@ type Config struct {
 	// needs no migration.
 	DisableNotifications bool
 
+	// DisableQueryProbe stops Verify from running the statements a panel's
+	// declarations build. They are bounded with LIMIT 0 and cost a round trip
+	// each, which is worth it in a test and may not be wherever else Verify is
+	// called.
+	DisableQueryProbe bool
+
 	// DisableAutoMigrate skips running the embedded framework migrations at
 	// Build. Recommended in production: run them explicitly via the app's
 	// `migrate up` command instead.
@@ -342,11 +348,25 @@ func (a *Admin) resourceTypeNames() []string {
 // Verify runs Build and returns every configuration error collected during
 // resource compilation, joined. Assert it in a test to catch bad column
 // references at CI time instead of request time.
+//
+// It also runs the statements a panel's declarations build — every search,
+// filter and sort — bounded with LIMIT 0, so a column no migration added and a
+// predicate the dialect refuses are reported here rather than the first time
+// someone uses the panel. Set Config.DisableQueryProbe to skip that.
 func (a *Admin) Verify() error {
 	if err := a.Build(); err != nil {
 		return err
 	}
-	return errors.Join(a.verifyErrs...)
+	errs := append([]error(nil), a.verifyErrs...)
+	if !a.cfg.DisableQueryProbe {
+		ctx := context.Background()
+		for _, r := range a.registry {
+			if p, ok := r.(queryProber); ok {
+				errs = append(errs, p.probeQueries(ctx, a)...)
+			}
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func (a *Admin) build() error {
