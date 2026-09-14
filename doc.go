@@ -1,8 +1,10 @@
-// Package steward is a server-rendered admin-panel framework for Go — a
-// rewrite of the Laravel dcat-admin package.
+// Package steward is a fullstack framework for Go — a rewrite of the Laravel
+// dcat-admin package.
 //
-// Steward gives an application a full admin panel from fluent, typed
-// resource builders:
+// Declare a model and Steward builds the rest from fluent, typed resource
+// builders: grids, forms, detail views, auth, RBAC and migrations, rendered on
+// the server and served from one binary. Admin panels, dashboards and internal
+// tools are what it is usually pointed at:
 //
 //	app, _ := steward.New(steward.Config{DB: db, SecretKey: key})
 //	posts := steward.Register[Post](app).Title("Posts").Icon("news")

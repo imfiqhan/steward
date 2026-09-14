@@ -1,9 +1,16 @@
 # Steward
 
-A server-rendered admin-panel framework for Go — a rewrite of the excellent
+A fullstack framework for Go — a rewrite of the excellent
 [dcat-admin](https://github.com/jqhph/dcat-admin) (Laravel), built on
 [Basecoat](https://basecoatui.com) (shadcn/ui-style components on Tailwind CSS),
 HTMX, GORM, and Go generics.
+
+Declare a model and Steward builds the rest: grids, forms, detail views, auth,
+RBAC and migrations, rendered on the server and served from one binary — no
+Node, no separate frontend. Admin panels, dashboards and internal tools are
+what it is usually pointed at.
+
+**Documentation: [steward.fiqhan.dev](https://steward.fiqhan.dev)**
 
 > **Status: pre-release, under active development.** APIs will change.
 
