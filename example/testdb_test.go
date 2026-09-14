@@ -33,6 +33,14 @@ func testDB(t *testing.T) *gorm.DB {
 		if err != nil {
 			t.Fatal(err)
 		}
+		// An open SQLite connection keeps its -wal and -shm files, and
+		// t.TempDir's own cleanup runs last and fails on a directory that is
+		// not empty. The test passes and the run reports it as failed.
+		t.Cleanup(func() {
+			if sql, err := db.DB(); err == nil {
+				_ = sql.Close()
+			}
+		})
 		return db
 	}
 
