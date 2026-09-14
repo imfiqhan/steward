@@ -422,7 +422,7 @@ func TestDocumentedNotificationCalls(t *testing.T) {
 
 	n := steward.Notification{
 		Title: "Article awaiting review",
-		Body:  `"Pemprov Jatim gelar sosialisasi" was submitted by Editor.`,
+		Body:  `"River restoration begins" was submitted by Editor.`,
 		URL:   "/admin/posts/4182",
 		Icon:  "file-text",
 		Type:  "post.submitted",

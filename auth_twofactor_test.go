@@ -218,15 +218,15 @@ func TestTwoFactorEnabledNeedsConfirmation(t *testing.T) {
 }
 
 func TestOtpauthURI(t *testing.T) {
-	a := &Panel{cfg: Config{Brand: "Kominfo Jatim"}}
+	a := &Panel{cfg: Config{Brand: "Riverton Civic"}}
 	uri := a.otpauthURI("reporter01", "JBSWY3DPEHPK3PXP")
 	if !strings.HasPrefix(uri, "otpauth://totp/") {
 		t.Fatalf("wrong scheme: %s", uri)
 	}
 	for _, want := range []string{
-		"Kominfo%20Jatim:reporter01",
+		"Riverton%20Civic:reporter01",
 		"secret=JBSWY3DPEHPK3PXP",
-		"issuer=Kominfo+Jatim",
+		"issuer=Riverton+Civic",
 	} {
 		if !strings.Contains(uri, want) {
 			t.Errorf("URI %s is missing %q", uri, want)

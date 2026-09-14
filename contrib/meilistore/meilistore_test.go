@@ -65,10 +65,10 @@ func TestIndexQueryDelete(t *testing.T) {
 
 	err := s.Index(ctx,
 		steward.SearchDoc{ID: "1", Type: "berita", Fields: map[string]string{
-			"Title": "Bank Jatim sabet dua penghargaan digital",
+			"Title": "Riverton Bank wins two digital awards",
 		}},
 		steward.SearchDoc{ID: "2", Type: "berita", Fields: map[string]string{
-			"Title": "Koni Jatim persiapkan puslatda",
+			"Title": "Riverton Sports prepares its camp",
 		}},
 		// A different resource, same ID: the two must not collide.
 		steward.SearchDoc{ID: "1", Type: "auth/users", Fields: map[string]string{
@@ -79,7 +79,7 @@ func TestIndexQueryDelete(t *testing.T) {
 		t.Fatalf("index: %v", err)
 	}
 
-	hits := settle(t, s, "berita", "bank jatim", 1)
+	hits := settle(t, s, "berita", "riverton bank", 1)
 	if hits[0].ID != "1" {
 		t.Errorf("hit = %+v, want id 1", hits[0])
 	}
@@ -96,12 +96,12 @@ func TestIndexQueryDelete(t *testing.T) {
 
 	// Both terms must be present, which is what makes search useful rather than
 	// merely non-empty.
-	settle(t, s, "berita", "jatim", 2)
+	settle(t, s, "berita", "riverton", 2)
 
 	if err := s.Delete(ctx, "berita", "1"); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
-	settle(t, s, "berita", "bank jatim", 0)
+	settle(t, s, "berita", "riverton bank", 0)
 	// Deleting from one index leaves the other alone.
 	settle(t, s, "auth/users", "bank", 1)
 }

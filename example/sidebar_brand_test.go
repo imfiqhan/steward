@@ -37,22 +37,22 @@ func sidebarOf(t *testing.T, cfg steward.Config) string {
 // The rail shows marks, not labels, so a panel that configured no icon would
 // collapse to a column of blanks. The brand's first letter stands in.
 func TestBrandFallsBackToItsInitial(t *testing.T) {
-	html := sidebarOf(t, steward.Config{Brand: "Kominfo"})
+	html := sidebarOf(t, steward.Config{Brand: "Riverton Civic"})
 	if !strings.Contains(html, `class="steward-brand-mark"`) {
 		t.Fatal("the sidebar rendered no brand mark")
 	}
-	if !strings.Contains(html, ">K<") && !strings.Contains(html, ">\n          K\n        <") {
+	if !strings.Contains(html, ">R<") && !strings.Contains(html, ">\n          R\n        <") {
 		t.Errorf("the brand's initial is not in the mark: %s", brandMarkOf(html))
 	}
 }
 
 func TestBrandIconReplacesTheInitial(t *testing.T) {
-	html := sidebarOf(t, steward.Config{Brand: "Kominfo", BrandIcon: "newspaper"})
+	html := sidebarOf(t, steward.Config{Brand: "Riverton Civic", BrandIcon: "newspaper"})
 	mark := brandMarkOf(html)
 	if !strings.Contains(mark, "<svg") {
 		t.Errorf("BrandIcon did not reach the mark: %s", mark)
 	}
-	if strings.Contains(mark, ">K<") {
+	if strings.Contains(mark, ">R<") {
 		t.Errorf("the initial is still there beside the icon: %s", mark)
 	}
 }
@@ -60,7 +60,7 @@ func TestBrandIconReplacesTheInitial(t *testing.T) {
 // The label is what a rail turns into a tooltip and what names the link for a
 // screen reader, so it stays in the markup whatever the sidebar's width.
 func TestMenuEntriesKeepTheirLabel(t *testing.T) {
-	html := sidebarOf(t, steward.Config{Brand: "Kominfo"})
+	html := sidebarOf(t, steward.Config{Brand: "Riverton Civic"})
 	if strings.Contains(html, `title="Records"`) {
 		t.Error("the native tooltip is back beside the rail's own, so both would show")
 	}
@@ -75,7 +75,7 @@ func TestVerifyCatchesAnUnknownBrandIcon(t *testing.T) {
 	db := testDB(t)
 	app, err := steward.New(steward.Config{
 		DB: db, SecretKey: []byte("sidebar-brand-test-secret0"), Prefix: "/admin",
-		Brand: "Kominfo", BrandIcon: "newspapr",
+		Brand: "Riverton Civic", BrandIcon: "newspapr",
 	})
 	if err != nil {
 		t.Fatal(err)

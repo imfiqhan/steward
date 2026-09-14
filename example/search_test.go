@@ -54,8 +54,8 @@ func newSearchServer(t *testing.T, s steward.Searcher) (*httptest.Server, *gorm.
 		t.Fatal(err)
 	}
 	for _, r := range []searchRow{
-		{Title: "Bank Jatim sabet penghargaan", Status: "live"},
-		{Title: "Koni Jatim persiapkan puslatda", Status: "live"},
+		{Title: "Riverton Bank wins an award", Status: "live"},
+		{Title: "Riverton Sports prepares its camp", Status: "live"},
 		{Title: "Nothing to do with either", Status: "draft"},
 	} {
 		if err := db.Create(&r).Error; err != nil {
@@ -118,9 +118,9 @@ func TestQuickSearchUsesTheEngine(t *testing.T) {
 		t.Fatalf("backfill indexed %d rows, want 3", s.indexed.Load())
 	}
 
-	got := rowTitles(t, srv, "q=jatim")
+	got := rowTitles(t, srv, "q=riverton")
 	if len(got) != 2 {
-		t.Errorf("q=jatim returned %d rows: %v", len(got), got)
+		t.Errorf("q=riverton returned %d rows: %v", len(got), got)
 	}
 	if s.queries.Load() == 0 {
 		t.Error("the engine was never asked; the SQL path answered instead")
@@ -138,12 +138,12 @@ func TestEngineResultsStillPassThroughFilters(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	both := rowTitles(t, srv, "q=jatim")
+	both := rowTitles(t, srv, "q=riverton")
 	if len(both) != 2 {
 		t.Fatalf("expected two matches before filtering, got %v", both)
 	}
 	// Same query, plus a filter that only one of them satisfies.
-	filtered := rowTitles(t, srv, "q=jatim&f_Status=draft")
+	filtered := rowTitles(t, srv, "q=riverton&f_Status=draft")
 	if len(filtered) != 0 {
 		t.Errorf("the filter did not narrow the engine's hits: %v", filtered)
 	}
@@ -173,10 +173,10 @@ func TestWritesKeepTheIndexCurrent(t *testing.T) {
 	}
 
 	if code, body := putRow2(t, srv, "/admin/search_rows/3/edit", "/admin/search_rows/3",
-		map[string]string{"Title": "Now mentions Jatim too", "Status": "draft"}); code >= 400 {
+		map[string]string{"Title": "Now mentions Riverton too", "Status": "draft"}); code >= 400 {
 		t.Fatalf("PUT = %d %s", code, body)
 	}
-	if got := rowTitles(t, srv, "q=jatim"); len(got) != 3 {
+	if got := rowTitles(t, srv, "q=riverton"); len(got) != 3 {
 		t.Errorf("after an edit the index holds %d matches, want 3: %v", len(got), got)
 	}
 
@@ -188,7 +188,7 @@ func TestWritesKeepTheIndexCurrent(t *testing.T) {
 	if s.deleted.Load() == before {
 		t.Error("deleting a record left it in the index")
 	}
-	if got := rowTitles(t, srv, "q=jatim"); len(got) != 2 {
+	if got := rowTitles(t, srv, "q=riverton"); len(got) != 2 {
 		t.Errorf("after a delete the index holds %d matches, want 2: %v", len(got), got)
 	}
 }
@@ -197,7 +197,7 @@ func TestWritesKeepTheIndexCurrent(t *testing.T) {
 // that configures no engine must behave exactly as it did.
 func TestFallsBackToSQLWithoutASearcher(t *testing.T) {
 	srv, _, _ := newSearchServer(t, nil)
-	got := rowTitles(t, srv, "q=jatim")
+	got := rowTitles(t, srv, "q=riverton")
 	if len(got) != 2 {
 		t.Errorf("the SQL path returned %d rows: %v", len(got), got)
 	}
@@ -259,7 +259,7 @@ func TestEngineRankingReachesTheRows(t *testing.T) {
 	if err := db.First(&best, 1).Error; err != nil {
 		t.Fatal(err)
 	}
-	best.Title = "jatim jatim jatim strongest match"
+	best.Title = "riverton riverton riverton strongest match"
 	if err := db.Save(&best).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -267,18 +267,18 @@ func TestEngineRankingReachesTheRows(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := rowTitles(t, srv, "q=jatim")
+	got := rowTitles(t, srv, "q=riverton")
 	if len(got) == 0 {
 		t.Fatal("no rows")
 	}
-	if got[0] != "jatim jatim jatim strongest match" {
+	if got[0] != "riverton riverton riverton strongest match" {
 		t.Errorf("first row is %q; the engine ranked the oldest row first, "+
 			"so the grid is still ordering by its own sort", got[0])
 	}
 
 	// A reader who picks a column to sort by has said what they want, and that
 	// beats relevance.
-	sorted := rowTitles(t, srv, "q=jatim&sort=Title")
+	sorted := rowTitles(t, srv, "q=riverton&sort=Title")
 	if len(sorted) < 2 {
 		t.Fatalf("expected several rows, got %v", sorted)
 	}

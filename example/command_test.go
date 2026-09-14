@@ -39,14 +39,14 @@ func newCommandServer(t *testing.T, withSource bool) *httptest.Server {
 		t.Fatal(err)
 	}
 	for _, p := range []cmdPost{
-		{Title: "Bank Jatim wins an award", Body: "irrelevant"},
-		{Title: "Something else entirely", Body: "bank jatim in the body only"},
+		{Title: "Riverton Bank wins an award", Body: "irrelevant"},
+		{Title: "Something else entirely", Body: "riverton bank in the body only"},
 	} {
 		if err := db.Create(&p).Error; err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := db.Create(&cmdSecret{Name: "bank jatim classified"}).Error; err != nil {
+	if err := db.Create(&cmdSecret{Name: "riverton bank classified"}).Error; err != nil {
 		t.Fatal(err)
 	}
 	app, err := steward.New(steward.Config{
@@ -101,11 +101,11 @@ func commandSearch(t *testing.T, srv *httptest.Server, q string) []steward.Comma
 func TestCommandSearchesOnlyDeclaredPaths(t *testing.T) {
 	srv := newCommandServer(t, false)
 
-	got := commandSearch(t, srv, "bank jatim")
+	got := commandSearch(t, srv, "riverton bank")
 	if len(got) != 1 {
 		t.Fatalf("want one hit, got %d: %+v", len(got), got)
 	}
-	if got[0].Title != "Bank Jatim wins an award" {
+	if got[0].Title != "Riverton Bank wins an award" {
 		t.Errorf("matched the wrong row: %+v", got[0])
 	}
 	if got[0].Group != "cmd Posts" {
@@ -126,7 +126,7 @@ func TestCommandSearchesOnlyDeclaredPaths(t *testing.T) {
 // become a way around a resource nobody may list.
 func TestCommandRespectsThePolicy(t *testing.T) {
 	srv := newCommandServer(t, false)
-	for _, r := range commandSearch(t, srv, "bank jatim") {
+	for _, r := range commandSearch(t, srv, "riverton bank") {
 		if strings.Contains(strings.ToLower(r.Title), "classified") {
 			t.Errorf("a row behind a closed policy was returned: %+v", r)
 		}

@@ -317,7 +317,7 @@ func TestRichtextKeepsEditorialMarkupOnSave(t *testing.T) {
 	base := srv.URL + "/admin"
 
 	body := `<p style="text-align: justify;" class="MsoNormal">` +
-		`<span lang="EN-US" style="font-family: Arial; font-size: 12pt;">Jatim Newsroom</span></p>` +
+		`<span lang="EN-US" style="font-family: Arial; font-size: 12pt;">Riverton Newsroom</span></p>` +
 		`<table border="1"><tbody><tr><td>Jan</td><td>100</td></tr></tbody></table>` +
 		`<figure><img src="/uploads/foto.jpg" alt="Foto" width="800"><figcaption>Ket</figcaption></figure>`
 
