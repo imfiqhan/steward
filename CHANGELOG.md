@@ -6,6 +6,35 @@ running panel to a new version.
 
 ## Unreleased
 
+### Added
+
+- **The sidebar collapses to a rail rather than disappearing.** The header's
+  toggle used to slide it off screen entirely, so a panel with the sidebar shut
+  had no navigation at all. It now keeps a narrow column of the entries' icons,
+  and the page moves over to meet it. Below `48rem` it is still an overlay that
+  slides away — a rail on a phone spends a tenth of the screen on icons.
+
+    The rail is a working menu: its entries are clickable and focusable, and
+  hovering or tabbing to one shows its label beside it. The component library
+  marks a closed sidebar `inert` and `aria-hidden`, which is right for a nav
+  that has left the screen and would make a rail a picture of a menu — neither
+  the pointer, the keyboard nor a screen reader could reach it — so both are
+  lifted while the rail is what is on screen.
+
+    An entry with no icon falls back to the first letter of its title. The rail's
+  width is `--sidebar-rail-width`, a theme token like any other.
+
+- **The entry you are on is told apart from the one you are hovering.** Both
+  were given the same background, so the only thing between "selected" and
+  "under the pointer" was a font weight. The current entry is a shade past that
+  colour now — mixed from it, so it stays a step beyond hover whichever way a
+  theme's palette runs, darker on a light sidebar and lighter on a dark one.
+
+- **`Config.BrandIcon`** is the panel's own mark: a Lucide name shown beside the
+  brand, and the only thing standing for the panel once the rail hides its name.
+  Unset, the brand's first letter is used. `Verify` reports a name that does not
+  resolve, since a blank mark is the whole of what a rail shows.
+
 ### Changed
 
 - **`steward.Admin` is now `steward.Panel`.** The type is one panel inside an
@@ -40,35 +69,6 @@ running panel to a new version.
   icon names pass rather than every one being reported missing, since there is
   no sprite to check against. `make noui` builds, vets and tests it, and CI
   runs that on every push.
-
-### Added
-
-- **The sidebar collapses to a rail rather than disappearing.** The header's
-  toggle used to slide it off screen entirely, so a panel with the sidebar shut
-  had no navigation at all. It now keeps a narrow column of the entries' icons,
-  and the page moves over to meet it. Below `48rem` it is still an overlay that
-  slides away — a rail on a phone spends a tenth of the screen on icons.
-
-    The rail is a working menu: its entries are clickable and focusable, and
-  hovering or tabbing to one shows its label beside it. The component library
-  marks a closed sidebar `inert` and `aria-hidden`, which is right for a nav
-  that has left the screen and would make a rail a picture of a menu — neither
-  the pointer, the keyboard nor a screen reader could reach it — so both are
-  lifted while the rail is what is on screen.
-
-    An entry with no icon falls back to the first letter of its title. The rail's
-  width is `--sidebar-rail-width`, a theme token like any other.
-
-- **The entry you are on is told apart from the one you are hovering.** Both
-  were given the same background, so the only thing between "selected" and
-  "under the pointer" was a font weight. The current entry is a shade past that
-  colour now — mixed from it, so it stays a step beyond hover whichever way a
-  theme's palette runs, darker on a light sidebar and lighter on a dark one.
-
-- **`Config.BrandIcon`** is the panel's own mark: a Lucide name shown beside the
-  brand, and the only thing standing for the panel once the rail hides its name.
-  Unset, the brand's first letter is used. `Verify` reports a name that does not
-  resolve, since a blank mark is the whole of what a rail shows.
 
 ## v0.2.0
 
