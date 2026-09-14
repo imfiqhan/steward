@@ -53,6 +53,11 @@ jobs:
       - name: vet
         run: make vet
 
+      # A separate compilation of the whole package, so only building it finds
+      # a reference that the UI half alone provides.
+      - name: headless build
+        run: make noui
+
       # -race, and both modules. The tests reach PostgreSQL only when
       # STEWARD_TEST_PG names one; without it they open SQLite.
       - name: test

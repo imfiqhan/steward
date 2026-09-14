@@ -17,7 +17,7 @@ else
   TW_OS := linux
 endif
 
-.PHONY: build test lint vet run e2e tidy assets assets-dev tailwind-bin vendor-chart vendor-lucide
+.PHONY: build test lint vet noui run e2e tidy assets assets-dev tailwind-bin vendor-chart vendor-lucide
 
 # One-shot frontend build (esbuild via Go + Tailwind standalone — no Node).
 assets: tailwind-bin
@@ -93,6 +93,21 @@ vet:
 
 lint:
 	@for dir in $(MODULES); do echo "== $$dir"; (cd $$dir && golangci-lint run ./...) || exit 1; done
+
+# The no_ui tag compiles the templates and assets out. It is a separate
+# compilation of the whole package, so nothing short of building it catches a
+# reference to something only the UI half provides — which is how it sat broken
+# through several releases.
+#
+# The example's own suite is not run under the tag: most of it asserts HTML,
+# which is the thing this build does not produce. The tests written for it are.
+noui:
+	$(GO) build -tags no_ui ./...
+	$(GO) vet -tags no_ui ./...
+	$(GO) test -tags no_ui ./...
+	cd example && $(GO) build -tags no_ui ./...
+	cd example && $(GO) vet -tags no_ui ./...
+	cd example && $(GO) test -tags no_ui -count=1 -run TestNoUI ./
 
 run:
 	cd example && $(GO) run . -addr $(EXAMPLE_ADDR)

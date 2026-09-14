@@ -23,6 +23,20 @@ running panel to a new version.
   `Config.TablePrefix`; and the mount path was never `/admin` to begin with —
   `Config.Prefix` defaults to the root and is yours to set.
 
+### Fixed
+
+- **The `no_ui` build compiles again.** It had not for several releases: the
+  tagged stub renderer was missing methods the rest of the package reaches for,
+  and a page's view model happened to live in the file the tag excludes.
+  Nothing caught it, because a build tag is a separate compilation and no gate
+  built it.
+
+  A headless panel now serves the JSON API, refuses HTML with `503` naming the
+  tag, serves `Config.AssetsFS` if one is set, and leaves `Verify` useful —
+  icon names pass rather than every one being reported missing, since there is
+  no sprite to check against. `make noui` builds, vets and tests it, and CI
+  runs that on every push.
+
 ### Added
 
 - **The sidebar collapses to a rail rather than disappearing.** The header's
