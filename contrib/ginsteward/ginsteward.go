@@ -14,7 +14,10 @@ import (
 // Mount builds the admin and registers it under its prefix. Build errors
 // (bad config, failed migrations, invalid resource definitions) surface here
 // rather than on the first request.
-func Mount(r gin.IRouter, a *steward.Admin) error {
+// The parameter is the deprecated name on purpose: this module requires the
+// framework at v0.1.0, which has Admin and not Panel. It moves when the
+// require does.
+func Mount(r gin.IRouter, a *steward.Admin) error { //nolint:staticcheck // pinned to a version without Panel
 	if err := a.Build(); err != nil {
 		return err
 	}
@@ -32,4 +35,4 @@ func Mount(r gin.IRouter, a *steward.Admin) error {
 	return nil
 }
 
-var _ http.Handler = (*steward.Admin)(nil)
+var _ http.Handler = (*steward.Admin)(nil) //nolint:staticcheck // as above

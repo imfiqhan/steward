@@ -32,9 +32,10 @@ tailwind-bin:
 	@test -x frontend/.bin/tailwindcss || ( \
 	  mkdir -p frontend/.bin && \
 	  echo "downloading tailwindcss $(TAILWIND_VERSION) ($(TW_OS)-$(TW_ARCH))..." && \
-	  curl -sSL -o frontend/.bin/tailwindcss \
+	  	  curl -sSfL --retry 3 -o frontend/.bin/tailwindcss \
 	    https://github.com/tailwindlabs/tailwindcss/releases/download/$(TAILWIND_VERSION)/tailwindcss-$(TW_OS)-$(TW_ARCH) && \
-	  chmod +x frontend/.bin/tailwindcss )
+	  chmod +x frontend/.bin/tailwindcss && \
+	  frontend/.bin/tailwindcss --help >/dev/null )
 
 # Re-vendors Chart.js. The result is committed, like Lucide's sprite, so a panel
 # built from a released module has working charts — a consumer cannot run this
@@ -50,9 +51,9 @@ vendor-chart:
 	@test -f frontend/vendor/chartjs/chart.umd.min.js || ( \
 	  mkdir -p frontend/vendor/chartjs && \
 	  echo "downloading chart.js $(CHARTJS_VERSION)..." && \
-	  curl -sSL -o frontend/vendor/chartjs/chart.umd.min.js \
+	  	  curl -sSfL --retry 3 -o frontend/vendor/chartjs/chart.umd.min.js \
 	    https://cdn.jsdelivr.net/npm/chart.js@$(CHARTJS_VERSION)/dist/chart.umd.min.js && \
-	  curl -sSL -o frontend/vendor/chartjs/LICENSE.md \
+	  	  curl -sSfL --retry 3 -o frontend/vendor/chartjs/LICENSE.md \
 	    https://raw.githubusercontent.com/chartjs/Chart.js/v$(CHARTJS_VERSION)/LICENSE.md )
 	@mkdir -p assets/dist
 	@cp frontend/vendor/chartjs/chart.umd.min.js assets/dist/chart.umd.min.js
@@ -82,8 +83,15 @@ $$(grep -o '<symbol' assets/dist/lucide-sprite.svg | wc -l | tr -d ' ') icons"
 # them — which is how the scaffolder went unvetted and untested entirely.
 MODULES = . example cmd/steward
 
+# Linted and built, not tested: they have no tests of their own, and they are
+# separately versioned, so they are not part of the test gate. CI lints them,
+# and a gate narrower than CI's is a gate that reports green on a red push.
+CONTRIB = contrib/ginsteward contrib/redcache contrib/meilistore contrib/s3store
+
 build:
-	@for dir in $(MODULES); do echo "== $$dir"; (cd $$dir && $(GO) build ./...) || exit 1; done
+	@for dir in $(MODULES) $(CONTRIB); do echo "== $$dir"; (cd $$dir && $(GO) build ./...) || exit 1; done
+	@echo "== each module on its own, the way a consumer resolves it"
+	@for dir in $(MODULES) $(CONTRIB); do (cd $$dir && GOWORK=off $(GO) build ./...) || exit 1; done
 
 test:
 	@for dir in $(MODULES); do echo "== $$dir"; (cd $$dir && $(GO) test -race ./...) || exit 1; done
@@ -92,7 +100,7 @@ vet:
 	@for dir in $(MODULES); do echo "== $$dir"; (cd $$dir && $(GO) vet ./...) || exit 1; done
 
 lint:
-	@for dir in $(MODULES); do echo "== $$dir"; (cd $$dir && golangci-lint run ./...) || exit 1; done
+	@for dir in $(MODULES) $(CONTRIB) tools/assets; do echo "== $$dir"; (cd $$dir && golangci-lint run ./...) || exit 1; done
 
 # The no_ui tag compiles the templates and assets out. It is a separate
 # compilation of the whole package, so nothing short of building it catches a
