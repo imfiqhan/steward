@@ -11,7 +11,7 @@ type handlerFunc func(c *Context) error
 // middleware chain resolved and rendering returned errors.
 func (a *Panel) h(fn handlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		c := &Context{W: w, R: r, Panel: a, Admin: a, User: userOf(r), sess: sessionOf(r)}
+		c := &Context{W: w, R: r, Panel: a, User: userOf(r), sess: sessionOf(r)}
 		if err := fn(c); err != nil {
 			a.log.Error("steward: handler", "path", r.URL.Path, "err", err)
 			a.renderError(c, http.StatusInternalServerError, "Something went wrong", err)

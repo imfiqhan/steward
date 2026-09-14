@@ -180,7 +180,7 @@ func (a *Panel) withPermission(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		c := &Context{W: w, R: r, Panel: a, Admin: a, User: user, sess: sessionOf(r)}
+		c := &Context{W: w, R: r, Panel: a, User: user, sess: sessionOf(r)}
 		if c.WantsJSON() {
 			_ = c.JSON(http.StatusForbidden, Error("You do not have permission to do this."))
 			return

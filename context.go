@@ -18,12 +18,6 @@ type Context struct {
 	R     *http.Request
 	Panel *Panel
 
-	// Admin is the previous name for Panel. A struct field cannot be aliased
-	// the way a type can, so both are set and both hold the same pointer.
-	//
-	// Deprecated: use Panel.
-	Admin *Panel
-
 	// User is the authenticated account, nil on public routes (login).
 	User *AdminUser
 

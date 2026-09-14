@@ -254,16 +254,6 @@ type resourceEntry interface {
 	menuVisible(c *Context) bool
 }
 
-// Admin is the previous name for Panel.
-//
-// An alias rather than a removal: a panel is one object threaded through every
-// handler and helper an application has, so renaming the type outright would
-// be a rename of every file that touches it. Both names are the same type, so
-// a package on the old one and a package on the new interoperate.
-//
-// Deprecated: use Panel.
-type Admin = Panel
-
 // New validates the config and returns an unbuilt Panel. Resource
 // registration happens between New and Build.
 func New(cfg Config) (*Panel, error) {

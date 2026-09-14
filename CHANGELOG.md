@@ -4,6 +4,22 @@ Steward is `0.x`: the API can change between releases, and this file is where
 those changes are written down. Read the **Upgrading** notes before moving a
 running panel to a new version.
 
+## Unreleased
+
+### Removed
+
+- **`Admin` and `Context.Admin` are gone.** They were kept as an alias and a
+  duplicate field through v0.3.0 so a codebase could move at its own pace; the
+  names are `Panel` and `Context.Panel` now, and nothing answers to the old
+  ones.
+
+  This is a break. `0.x` is where it belongs — before anything is promised —
+  and keeping a deprecated pair forever costs more than a rename does once.
+
+  **What to do:** replace `steward.Admin` with `steward.Panel` and `c.Admin`
+  with `c.Panel`. They were the same type and the same pointer, so nothing but
+  the spelling changes. `gopls rename` does it across a workspace in one pass.
+
 ## v0.3.0
 
 ### Added

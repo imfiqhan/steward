@@ -226,7 +226,7 @@ func wantsJSONLike(r *http.Request) bool {
 // deny writes a small error response in the client's preferred shape.
 func (a *Panel) deny(w http.ResponseWriter, r *http.Request, code int, msg string) {
 	if wantsJSONLike(r) || r.Header.Get("HX-Request") == "true" {
-		c := &Context{W: w, R: r, Panel: a, Admin: a}
+		c := &Context{W: w, R: r, Panel: a}
 		_ = c.JSON(code, Error(msg))
 		return
 	}
@@ -235,6 +235,6 @@ func (a *Panel) deny(w http.ResponseWriter, r *http.Request, code int, msg strin
 
 // saveSessionW is the writer-level session save used before a Context exists.
 func (a *Panel) saveSessionW(w http.ResponseWriter, r *http.Request, sess *session.Data) {
-	c := &Context{W: w, R: r, Panel: a, Admin: a, sess: sess}
+	c := &Context{W: w, R: r, Panel: a, sess: sess}
 	a.saveSession(c)
 }

@@ -224,7 +224,7 @@ func (a *Panel) runExport(ctx context.Context, job *ExportJob) error {
 	if err != nil {
 		return err
 	}
-	c := &Context{R: req, Panel: a, Admin: a, User: &user}
+	c := &Context{R: req, Panel: a, User: &user}
 
 	var buf bytes.Buffer
 	rows, err := ex.exportRows(c, &buf, req.URL.Query())
