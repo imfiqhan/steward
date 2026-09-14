@@ -4,7 +4,7 @@ Steward is `0.x`: the API can change between releases, and this file is where
 those changes are written down. Read the **Upgrading** notes before moving a
 running panel to a new version.
 
-## Unreleased
+## v0.2.0
 
 ### Added
 
@@ -42,6 +42,13 @@ running panel to a new version.
   goes on polling a database the test has closed.
 
 - **`Config.DisableQueryProbe`** turns off the `Verify` probe described below.
+
+- **`Context.NestedIDs`** maps a HasMany relation's rows from the key the form
+  gave them — `new_3_a1b2` for a row the browser added, its own id for one that
+  was already there — to the primary key they were saved as. `Create` filled
+  that id and the row went out of scope with it; it is kept now, because it is
+  what a record referring to a sibling row has to resolve against. Read it from
+  a `Saved` hook; the rows do not exist when `Saving` runs.
 
 ### Changed
 
@@ -150,6 +157,10 @@ Four things to look at, none of them large:
   what changed; which errors are reported, and when, is the same.
 - **Anything reading the scaffolder's stdout** now gets bare paths rather than
   `created: <path>`. `--verbose` restores the commentary, not the old shape.
+
+The `contrib/*` modules are unchanged and stay at `v0.1.0`. They require the
+framework at a minimum, not a maximum, so requiring `v0.2.0` alongside them is
+all it takes.
 
 ## v0.1.2
 
