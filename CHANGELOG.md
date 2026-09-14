@@ -21,8 +21,16 @@ running panel to a new version.
   the pointer, the keyboard nor a screen reader could reach it — so both are
   lifted while the rail is what is on screen.
 
-  An entry with no icon falls back to the first letter of its title. The rail's
+    An entry with no icon falls back to the first letter of its title. The rail's
   width is `--sidebar-rail-width`, a theme token like any other.
+
+- **The entry you are on is told apart from the one you are hovering.** Both
+  were given the same background, so the only thing between "selected" and
+  "under the pointer" was a font weight — and against the sidebar the selected
+  one was a 3% tint. It now carries a bar down its edge, which hover cannot
+  produce, over a fill a clear step beyond the hover colour in either theme,
+  and the entries you are not on have their icons dimmed. The bar is an inset
+  shadow, so it costs no layout and reaches the rail as well.
 
 - **`Config.BrandIcon`** is the panel's own mark: a Lucide name shown beside the
   brand, and the only thing standing for the panel once the rail hides its name.

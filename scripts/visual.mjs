@@ -1022,9 +1022,43 @@ if (await up.count()) {
       };
     });
 
-  const open = await read();
+    const open = await read();
   check(open.brandShown, "the sidebar carries a brand mark");
   check(open.labelShown, "an open sidebar shows its labels");
+
+  // The entry you are on has to differ from the one the pointer happens to be
+  // over. The component library gives both the same background, so without a
+  // marker of its own "selected" and "hovered" are the same picture.
+  //
+  // Lightness is read out of the computed colour rather than converted: these
+  // are oklab/oklch either way, and canvas will not parse them.
+  const lightnessOf = (css) => {
+    const m = /^okl(?:ab|ch)\(\s*([\d.]+)(%?)/.exec(css || "");
+    if (!m) return null;
+    return m[2] === "%" ? +m[1] / 100 : +m[1];
+  };
+  const styleOf = (sel) =>
+    page.evaluate((s) => {
+      const cs = getComputedStyle(document.querySelector(s));
+      return { bg: cs.backgroundColor, weight: +cs.fontWeight, shadow: cs.boxShadow };
+    }, sel);
+
+  const activeSel = '#sidebar-menu section a[aria-current="page"]';
+  const otherSel = '#sidebar-menu section a[href$="/authors"]';
+  const activeStyle = await styleOf(activeSel);
+  await page.hover(otherSel);
+  await page.waitForTimeout(200);
+  const hoverStyle = await styleOf(otherSel);
+  await page.mouse.move(900, 400);
+  await page.waitForTimeout(200);
+
+  check(activeStyle.shadow !== "none" && hoverStyle.shadow === "none",
+    "the current entry carries a marker hover cannot produce");
+  const la = lightnessOf(activeStyle.bg);
+  const lh = lightnessOf(hoverStyle.bg);
+  check(la !== null && lh !== null && Math.abs(la - lh) >= 0.05,
+    `and a fill a step beyond the hover it would otherwise match (${la} vs ${lh})`);
+  check(activeStyle.weight >= 600, `and is heavier than the rest (${activeStyle.weight})`);
 
   await page.click("[aria-label='Toggle sidebar']");
   await page.waitForTimeout(700);
@@ -1037,7 +1071,11 @@ if (await up.count()) {
   check(rail.marksShown === rail.marks && rail.marks > 0,
     `every entry still shows its icon (${rail.marksShown} of ${rail.marks})`);
   check(rail.marksInside, "and no icon spills out of the rail");
-  check(rail.brandShown, "the brand mark survives the collapse");
+    check(rail.brandShown, "the brand mark survives the collapse");
+
+  const railActiveStyle = await styleOf(activeSel);
+  check(railActiveStyle.shadow !== "none",
+    "the marker survives it too, which is where it matters most");
   check(!rail.labelShown, "the labels do not");
     check(rail.contentLeft === rail.width,
     `the page starts where the rail ends (${rail.contentLeft} vs ${rail.width})`);

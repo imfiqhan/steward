@@ -1267,6 +1267,38 @@ tr.steward-dragging { opacity: 0.5; }
   list-style: none;
 }
 
+/* ---- Sidebar: the entry you are on ---------------------------------------- */
+
+/* The component library gives the current entry the same background it gives
+   whatever the pointer happens to be over, so "selected" and "hovered" were the
+   same picture and a font weight was the only thing between them.
+
+   The bar is what hover cannot produce. It is an inset shadow rather than a
+   border so it costs no layout, and it lands on the rail's edge as well as the
+   open sidebar's. The fill is mixed from the accent hover already uses, so it
+   is a step beyond it in either theme rather than a colour that only reads in
+   one. */
+.sidebar nav li > a[aria-current="page"],
+.sidebar nav li > a[data-active="true"] {
+  background-color: color-mix(in oklab, var(--primary) 18%, var(--sidebar-accent));
+  color: var(--sidebar-accent-foreground);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.sidebar nav li > a[aria-current="page"]:hover,
+.sidebar nav li > a[data-active="true"]:hover {
+  background-color: color-mix(in oklab, var(--primary) 26%, var(--sidebar-accent));
+}
+
+/* An entry you are not on sits back, so the one you are on is what the eye
+   finds first. The label keeps its own colour; only the mark is dimmed, which
+   is the difference that survives a rail where the label is gone. */
+.sidebar nav li > a:not([aria-current="page"]):not([data-active="true"]) > svg,
+.sidebar nav li > a:not([aria-current="page"]):not([data-active="true"]) > .steward-menu-mark {
+  color: var(--muted-foreground);
+}
+
 /* ---- Sidebar rail (collapsed) --------------------------------------------- */
 
 /* Collapsed means narrow, not gone. The component library's own rule slides the
