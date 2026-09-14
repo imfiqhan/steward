@@ -26,11 +26,9 @@ running panel to a new version.
 
 - **The entry you are on is told apart from the one you are hovering.** Both
   were given the same background, so the only thing between "selected" and
-  "under the pointer" was a font weight — and against the sidebar the selected
-  one was a 3% tint. It now carries a bar down its edge, which hover cannot
-  produce, over a fill a clear step beyond the hover colour in either theme,
-  and the entries you are not on have their icons dimmed. The bar is an inset
-  shadow, so it costs no layout and reaches the rail as well.
+  "under the pointer" was a font weight. The current entry is a shade past that
+  colour now — mixed from it, so it stays a step beyond hover whichever way a
+  theme's palette runs, darker on a light sidebar and lighter on a dark one.
 
 - **`Config.BrandIcon`** is the panel's own mark: a Lucide name shown beside the
   brand, and the only thing standing for the panel once the rail hides its name.

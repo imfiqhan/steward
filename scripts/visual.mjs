@@ -1052,13 +1052,10 @@ if (await up.count()) {
   await page.mouse.move(900, 400);
   await page.waitForTimeout(200);
 
-  check(activeStyle.shadow !== "none" && hoverStyle.shadow === "none",
-    "the current entry carries a marker hover cannot produce");
-  const la = lightnessOf(activeStyle.bg);
+    const la = lightnessOf(activeStyle.bg);
   const lh = lightnessOf(hoverStyle.bg);
-  check(la !== null && lh !== null && Math.abs(la - lh) >= 0.05,
-    `and a fill a step beyond the hover it would otherwise match (${la} vs ${lh})`);
-  check(activeStyle.weight >= 600, `and is heavier than the rest (${activeStyle.weight})`);
+  check(la !== null && lh !== null && Math.abs(la - lh) >= 0.03,
+    `the current entry is a shade past the hover it would otherwise match (${la} vs ${lh})`);
 
   await page.click("[aria-label='Toggle sidebar']");
   await page.waitForTimeout(700);
@@ -1073,9 +1070,9 @@ if (await up.count()) {
   check(rail.marksInside, "and no icon spills out of the rail");
     check(rail.brandShown, "the brand mark survives the collapse");
 
-  const railActiveStyle = await styleOf(activeSel);
-  check(railActiveStyle.shadow !== "none",
-    "the marker survives it too, which is where it matters most");
+    const railActive = lightnessOf((await styleOf(activeSel)).bg);
+  check(railActive !== null && Math.abs(railActive - lh) >= 0.03,
+    `and stays that way in the rail, where no label says which it is (${railActive})`);
   check(!rail.labelShown, "the labels do not");
     check(rail.contentLeft === rail.width,
     `the page starts where the rail ends (${rail.contentLeft} vs ${rail.width})`);

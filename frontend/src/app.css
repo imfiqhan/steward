@@ -1269,34 +1269,17 @@ tr.steward-dragging { opacity: 0.5; }
 
 /* ---- Sidebar: the entry you are on ---------------------------------------- */
 
-/* The component library gives the current entry the same background it gives
-   whatever the pointer happens to be over, so "selected" and "hovered" were the
-   same picture and a font weight was the only thing between them.
+/* The component library fills the current entry with the same colour it gives
+   whatever the pointer is over, which leaves a font weight as the only thing
+   between "selected" and "hovered". One step darker than that accent is enough
+   to tell them apart.
 
-   The bar is what hover cannot produce. It is an inset shadow rather than a
-   border so it costs no layout, and it lands on the rail's edge as well as the
-   open sidebar's. The fill is mixed from the accent hover already uses, so it
-   is a step beyond it in either theme rather than a colour that only reads in
-   one. */
+   Mixed from the accent rather than set outright, so it stays a step beyond
+   hover whichever way a theme's palette runs: darker on a light sidebar,
+   lighter on a dark one. */
 .sidebar nav li > a[aria-current="page"],
 .sidebar nav li > a[data-active="true"] {
-  background-color: color-mix(in oklab, var(--primary) 18%, var(--sidebar-accent));
-  color: var(--sidebar-accent-foreground);
-  font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--primary);
-}
-
-.sidebar nav li > a[aria-current="page"]:hover,
-.sidebar nav li > a[data-active="true"]:hover {
-  background-color: color-mix(in oklab, var(--primary) 26%, var(--sidebar-accent));
-}
-
-/* An entry you are not on sits back, so the one you are on is what the eye
-   finds first. The label keeps its own colour; only the mark is dimmed, which
-   is the difference that survives a rail where the label is gone. */
-.sidebar nav li > a:not([aria-current="page"]):not([data-active="true"]) > svg,
-.sidebar nav li > a:not([aria-current="page"]):not([data-active="true"]) > .steward-menu-mark {
-  color: var(--muted-foreground);
+  background-color: color-mix(in oklab, var(--primary) 8%, var(--sidebar-accent));
 }
 
 /* ---- Sidebar rail (collapsed) --------------------------------------------- */
