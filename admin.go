@@ -34,6 +34,11 @@ type Config struct {
 	// Brand names the panel in the sidebar and titles (default "Steward").
 	Brand string
 
+	// BrandIcon is the Lucide icon shown beside the brand, and the mark that
+	// stands for the panel when the sidebar is collapsed to its rail. Unset,
+	// the brand's first letter is used.
+	BrandIcon string
+
 	// ThemeCSS is inlined in every page's head, after the stylesheet, so it can
 	// redefine the design tokens the components read — --primary, --radius,
 	// --background and the rest — without replacing the stylesheet itself. It
@@ -415,6 +420,14 @@ func (a *Admin) build() error {
 	// after the renderer rather than during resource compilation. An unknown
 	// name renders blank at runtime instead of failing, which is easy to miss —
 	// reporting it here means a test asserting Verify catches it.
+	// The brand's mark is the only thing a collapsed sidebar shows for the
+	// panel itself, so a name that resolves to nothing leaves it blank.
+	if a.cfg.BrandIcon != "" && !rend.hasIcon(a.cfg.BrandIcon) {
+		a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+			"Config.BrandIcon %q not found%s",
+			a.cfg.BrandIcon, suggest.Block(a.cfg.BrandIcon, rend.iconNames())))
+	}
+
 	for _, r := range a.registry {
 		m := r.meta()
 		if m.icon != "" && !rend.hasIcon(m.icon) {

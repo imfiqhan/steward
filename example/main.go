@@ -41,6 +41,8 @@ func run(addr, dbPath string) error {
 	app, err := steward.New(steward.Config{
 		DB:    db,
 		Brand: "Steward Blog",
+		// The mark the sidebar keeps when it is collapsed to its rail.
+		BrandIcon: "newspaper",
 		// Dev-only key: hardcoded so example sessions survive restarts.
 		// Real apps must load a secret from the environment.
 		SecretKey: []byte("example-dev-secret-do-not-reuse"),

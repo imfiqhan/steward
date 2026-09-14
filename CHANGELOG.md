@@ -4,6 +4,26 @@ Steward is `0.x`: the API can change between releases, and this file is where
 those changes are written down. Read the **Upgrading** notes before moving a
 running panel to a new version.
 
+## Unreleased
+
+### Added
+
+- **The sidebar collapses to a rail rather than disappearing.** The header's
+  toggle used to slide it off screen entirely, so a panel with the sidebar shut
+  had no navigation at all. It now keeps a narrow column of the entries' icons,
+  and the page moves over to meet it. Below `48rem` it is still an overlay that
+  slides away — a rail on a phone spends a tenth of the screen on icons.
+
+  A label the rail hides stays on its link as a `title` and in the
+  accessibility tree, so hovering an icon names it. An entry with no icon falls
+  back to the first letter of its title. The rail's width is
+  `--sidebar-rail-width`, a theme token like any other.
+
+- **`Config.BrandIcon`** is the panel's own mark: a Lucide name shown beside the
+  brand, and the only thing standing for the panel once the rail hides its name.
+  Unset, the brand's first letter is used. `Verify` reports a name that does not
+  resolve, since a blank mark is the whole of what a rail shows.
+
 ## v0.2.0
 
 ### Added

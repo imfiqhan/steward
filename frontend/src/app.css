@@ -1267,6 +1267,96 @@ tr.steward-dragging { opacity: 0.5; }
   list-style: none;
 }
 
+/* ---- Sidebar rail (collapsed) --------------------------------------------- */
+
+/* Collapsed means narrow, not gone. The component library's own rule slides the
+   nav out by its full width and drops the content's margin to zero; from the
+   rail width down, everything here is undoing that.
+   Below 48rem the sidebar is an overlay with a scrim, which is what a phone
+   wants — a rail there would spend a tenth of the screen on icons. */
+:root {
+  --sidebar-rail-width: 3.25rem;
+}
+
+@media (width >= 48rem) {
+  .sidebar[data-side="left"][aria-hidden="true"] nav,
+  .sidebar:not([data-side])[aria-hidden="true"] nav {
+    translate: none;
+    width: var(--sidebar-rail-width);
+    overflow-x: hidden;
+  }
+
+  .sidebar[data-side="left"][aria-hidden="true"] + *,
+  .sidebar:not([data-side])[aria-hidden="true"] + * {
+    margin-left: var(--sidebar-rail-width);
+  }
+
+  /* What a rail drops: the labels, the group headings, and the brand's name.
+     The marks they sit beside are what it keeps. */
+  .sidebar[aria-hidden="true"] nav .steward-menu-label,
+  .sidebar[aria-hidden="true"] nav .steward-brand-name,
+  .sidebar[aria-hidden="true"] nav > section h3 {
+    display: none;
+  }
+
+  /* A group heading is also what separated one group from the next, so without
+     it the runs need a rule of their own to stay apart. */
+  .sidebar[aria-hidden="true"] nav > section > [role="group"] + [role="group"] {
+    border-top: 1px solid var(--border);
+    margin-top: 0.25rem;
+    padding-top: 0.25rem;
+  }
+
+  .sidebar[aria-hidden="true"] nav a {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  /* The icon is the whole control now, so it takes the whole hit area. */
+  .sidebar[aria-hidden="true"] nav a > svg {
+    flex: none;
+  }
+}
+
+/* The brand mark stands in for the panel: the configured icon, or the first
+   letter of its name when there is none. Sized the same either way so the rail
+   does not jump between panels that set one and panels that do not. */
+.steward-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: calc(var(--radius) - 0.125rem);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* A menu entry that declared no icon still needs something in the rail. It is
+   hidden while the labels are there, so an open sidebar looks as it did. */
+.steward-menu-mark {
+  display: none;
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--muted-foreground);
+}
+
+@media (width >= 48rem) {
+  .sidebar[aria-hidden="true"] nav .steward-menu-mark {
+    display: inline-flex;
+  }
+}
+
 /* ---- Tags (Form.Tags) ----------------------------------------------------- */
 
 /* The box is the field: the chips and the input where the next value is typed

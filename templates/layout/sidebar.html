@@ -1,8 +1,14 @@
 <aside id="sidebar" class="sidebar" data-side="left">
   <nav id="sidebar-menu" aria-label="Sidebar navigation">
     <header>
-      <a href="{{.Page.Prefix}}/" class="flex items-center gap-2 px-2 py-1.5 font-semibold text-lg">
-        {{.Page.Brand}}
+      {{/* The mark is what the rail keeps when the labels go, so it is always
+           rendered: the configured icon, or the brand's first letter. */}}
+      <a href="{{.Page.Prefix}}/" class="flex items-center gap-2 px-2 py-1.5 font-semibold text-lg"
+         title="{{.Page.Brand}}">
+        <span class="steward-brand-mark" aria-hidden="true">
+          {{if .Page.BrandIcon}}{{icon .Page.BrandIcon "size-5"}}{{else}}{{initial .Page.Brand}}{{end}}
+        </span>
+        <span class="steward-brand-name">{{.Page.Brand}}</span>
       </a>
     </header>
     <section class="scrollbar-sm">
@@ -16,12 +22,14 @@
         <ul>
           {{range .Items}}
           <li>
-            <a href="{{.URI}}" {{if .Active}}aria-current="page"{{end}}
+            {{/* title carries the label to a rail, where it is the only thing
+                 naming an icon on hover. */}}
+            <a href="{{.URI}}" {{if .Active}}aria-current="page"{{end}} title="{{.Title}}"
                {{/* The window does not scroll — #page-content does. */}}
                hx-get="{{.URI}}" hx-target="#page-content" hx-push-url="true"
                hx-swap="innerHTML scroll:#page-content:top">
-              {{if .Icon}}{{icon .Icon}}{{end}}
-              <span>{{.Title}}</span>
+              {{if .Icon}}{{icon .Icon}}{{else}}<span class="steward-menu-mark" aria-hidden="true">{{initial .Title}}</span>{{end}}
+              <span class="steward-menu-label">{{.Title}}</span>
             </a>
           </li>
           {{end}}

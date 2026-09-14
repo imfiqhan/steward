@@ -983,6 +983,92 @@ if (await up.count()) {
   }
 }
 
+// --- sidebar rail: collapsed is narrow, not gone ------------------------------
+//
+// The component library's own collapse slides the nav out by its full width and
+// drops the content's margin to zero. A rail is that rule undone, which only a
+// browser can confirm: the markup is identical either way.
+{
+  await page.goto(BASE + "/posts");
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(400);
+
+  const read = () =>
+    page.evaluate(() => {
+      const sb = document.getElementById("sidebar");
+      const nav = sb.querySelector("nav");
+      const r = nav.getBoundingClientRect();
+      const marks = [...nav.querySelectorAll("section a svg, section a .steward-menu-mark")];
+      const brand = nav.querySelector(".steward-brand-mark");
+      const label = nav.querySelector(".steward-menu-label");
+      return {
+        hidden: sb.getAttribute("aria-hidden") === "true",
+        width: Math.round(r.width),
+        left: Math.round(r.x),
+        marks: marks.length,
+        marksShown: marks.filter((e) => e.getBoundingClientRect().width > 0).length,
+        marksInside: marks.every((e) => {
+          const b = e.getBoundingClientRect();
+          return b.left >= r.left - 1 && b.right <= r.right + 1;
+        }),
+        brandShown: !!brand && brand.getBoundingClientRect().width > 0,
+        labelShown: !!label && label.getBoundingClientRect().width > 0,
+        contentLeft: Math.round(sb.nextElementSibling.getBoundingClientRect().left),
+      };
+    });
+
+  const open = await read();
+  check(open.brandShown, "the sidebar carries a brand mark");
+  check(open.labelShown, "an open sidebar shows its labels");
+
+  await page.click("[aria-label='Toggle sidebar']");
+  await page.waitForTimeout(700);
+  const rail = await read();
+
+  check(rail.hidden, "the toggle collapses the sidebar");
+  check(rail.left === 0, `collapsed, the sidebar is still on screen (x=${rail.left})`);
+  check(rail.width > 0 && rail.width < open.width / 2,
+    `and narrower than it was (${open.width} → ${rail.width})`);
+  check(rail.marksShown === rail.marks && rail.marks > 0,
+    `every entry still shows its icon (${rail.marksShown} of ${rail.marks})`);
+  check(rail.marksInside, "and no icon spills out of the rail");
+  check(rail.brandShown, "the brand mark survives the collapse");
+  check(!rail.labelShown, "the labels do not");
+  check(rail.contentLeft === rail.width,
+    `the page starts where the rail ends (${rail.contentLeft} vs ${rail.width})`);
+
+  await page.click("[aria-label='Toggle sidebar']");
+  await page.waitForTimeout(700);
+  const reopened = await read();
+  check(reopened.width === open.width && reopened.labelShown,
+    `and it opens back to what it was (${reopened.width})`);
+}
+
+// --- sidebar on a narrow screen stays an overlay -------------------------------
+//
+// A rail on a phone spends a tenth of the screen on icons, so below the
+// breakpoint the sidebar still slides off entirely.
+{
+  await page.setViewportSize({ width: 420, height: 800 });
+  await page.goto(BASE + "/posts");
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(500);
+
+  const phone = await page.evaluate(() => {
+    const sb = document.getElementById("sidebar");
+    const r = sb.querySelector("nav").getBoundingClientRect();
+    return {
+      left: Math.round(r.x),
+      width: Math.round(r.width),
+      contentLeft: Math.round(sb.nextElementSibling.getBoundingClientRect().left),
+    };
+  });
+  check(phone.left <= -phone.width + 1,
+    `on a phone the collapsed sidebar is off screen, not a rail (x=${phone.left})`);
+  check(phone.contentLeft === 0, `and the page takes the full width (${phone.contentLeft})`);
+  await page.setViewportSize({ width: 1400, height: 900 });
+}
+
 await page.screenshot({
   path: "/tmp/steward-visual.png",
   fullPage: false,

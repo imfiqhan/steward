@@ -140,6 +140,14 @@ func (r *renderer) funcs() template.FuncMap {
 			return r.a.url(parts...)
 		},
 		"icon": r.icon,
+		// initial is the mark a rail falls back to when there is no icon: the
+		// first letter, upper-cased, by rune so a multi-byte one survives.
+		"initial": func(s string) string {
+			for _, r := range s {
+				return strings.ToUpper(string(r))
+			}
+			return ""
+		},
 		"safe": func(s string) template.HTML { return template.HTML(s) },
 		// slugid turns a path into something usable as an element id, for the
 		// aria-activedescendant a menu needs.
@@ -266,9 +274,10 @@ func (r *renderer) hasIcon(name string) bool {
 
 // pageMeta is the layout-level data every template can reach via .Page.
 type pageMeta struct {
-	Brand  string
-	Title  string
-	Prefix string
+	Brand     string
+	BrandIcon string
+	Title     string
+	Prefix    string
 
 	// ThemeCSS is Config.ThemeCSS, typed so the head emits it as CSS rather
 	// than escaping it as text.
@@ -321,6 +330,7 @@ func (a *Admin) pageMetaFor(c *Context, title string) pageMeta {
 	menu := a.buildMenu(c)
 	return pageMeta{
 		Brand:         a.cfg.Brand,
+		BrandIcon:     a.cfg.BrandIcon,
 		Title:         title,
 		Prefix:        a.cfg.Prefix,
 		ThemeCSS:      template.CSS(a.cfg.ThemeCSS),
