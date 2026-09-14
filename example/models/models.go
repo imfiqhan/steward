@@ -19,7 +19,10 @@ type Post struct {
 	Body     string `gorm:"type:text"`
 	Status   string `gorm:"size:20;default:draft"` // draft | published
 	Featured bool   `gorm:"default:false"`
-	Cover    string `gorm:"size:255"`
+	// A cover is a stored path or a URL, and a data URI is a URL. 255
+	// characters is enough for the first and not for the last, which SQLite
+	// does not mind and PostgreSQL refuses outright.
+	Cover string `gorm:"type:text"`
 	// A Files field's column: a JSON array of storage paths, so text rather
 	// than a sized string.
 	Attachments string `gorm:"type:text"`
