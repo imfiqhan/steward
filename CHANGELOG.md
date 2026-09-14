@@ -23,6 +23,10 @@ running panel to a new version.
   `Config.TablePrefix`; and the mount path was never `/admin` to begin with —
   `Config.Prefix` defaults to the root and is yours to set.
 
+  The `contrib/*` modules stay on `Admin`. They require the framework at
+  `v0.1.0`, which does not have `Panel`; they move once they are bumped to a
+  version that does.
+
 ### Fixed
 
 - **The `no_ui` build compiles again.** It had not for several releases: the
