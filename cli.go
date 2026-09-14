@@ -25,13 +25,13 @@ import (
 // the app binary — `go run . migrate up` — while the `steward` CLI handles
 // code generation only.
 type App struct {
-	// Build constructs the configured Admin (required). It runs for every
+	// Build constructs the configured Panel (required). It runs for every
 	// command; keep it side-effect free beyond wiring.
-	Build func() (*Admin, error)
+	Build func() (*Panel, error)
 
 	// Serve starts the HTTP server (optional). The default serves the
 	// admin on Addr with net/http.
-	Serve func(a *Admin) error
+	Serve func(a *Panel) error
 
 	// Addr is the default listen address for the built-in server (":8080").
 	Addr string
@@ -43,7 +43,7 @@ type App struct {
 	// `worker` command — a separate process from `serve` — so the panel and
 	// background work deploy, restart, and scale independently. Use a.DB()
 	// for database access.
-	Jobs func(a *Admin, s Scheduler) error
+	Jobs func(a *Panel, s Scheduler) error
 }
 
 // CLI parses os.Args and runs one command:
@@ -295,7 +295,7 @@ func defaultAddr(app App) string {
 // At the root the panel is the whole mux. The bare-prefix and catch-all
 // patterns needed otherwise are then either a second registration of "/",
 // which panics, or, built from an empty prefix, not valid patterns at all.
-func ServeMux(a *Admin) *http.ServeMux {
+func ServeMux(a *Panel) *http.ServeMux {
 	mux := http.NewServeMux()
 	if p := a.Prefix(); p != "" {
 		mux.Handle(p+"/", a)

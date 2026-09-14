@@ -15,7 +15,7 @@ import (
 // registerBuiltins dogfoods the framework's own admin pages — users, roles,
 // permissions, menu, operation log, settings — through the same Register API
 // applications use. Called at the start of Build.
-func (a *Admin) registerBuiltins() {
+func (a *Panel) registerBuiltins() {
 	a.registerUsersResource()
 	a.registerRolesResource()
 	a.registerPermissionsResource()
@@ -25,7 +25,7 @@ func (a *Admin) registerBuiltins() {
 }
 
 // syncPivot replaces the pivot rows owned by ownerID with the given ids.
-func (a *Admin) syncPivot(c *Context, table, ownerCol string, ownerID uint, relCol string, ids []string) error {
+func (a *Panel) syncPivot(c *Context, table, ownerCol string, ownerID uint, relCol string, ids []string) error {
 	if err := a.db.WithContext(c.Ctx()).Exec(
 		"DELETE FROM "+table+" WHERE "+ownerCol+" = ?", ownerID).Error; err != nil {
 		return err
@@ -50,10 +50,10 @@ func (a *Admin) syncPivot(c *Context, table, ownerCol string, ownerID uint, relC
 	return a.db.WithContext(c.Ctx()).Table(table).Create(rows).Error
 }
 
-func (a *Admin) rolesOptions() func(c *Context) Options {
+func (a *Panel) rolesOptions() func(c *Context) Options {
 	return func(c *Context) Options {
 		var roles []Role
-		if err := c.Admin.db.WithContext(c.Ctx()).Order("id").Find(&roles).Error; err != nil {
+		if err := c.Panel.db.WithContext(c.Ctx()).Order("id").Find(&roles).Error; err != nil {
 			return Options{}
 		}
 		o := Options{}
@@ -64,7 +64,7 @@ func (a *Admin) rolesOptions() func(c *Context) Options {
 	}
 }
 
-func (a *Admin) registerUsersResource() {
+func (a *Panel) registerUsersResource() {
 	repo, err := NewGormRepository[AdminUser](a.db)
 	if err != nil {
 		a.verifyErrs = append(a.verifyErrs, err)
@@ -167,7 +167,7 @@ func grantBadges[T interface{ grantName() string }](items []T) template.HTML {
 func (r Role) grantName() string       { return r.Name }
 func (p Permission) grantName() string { return p.Name }
 
-func (a *Admin) registerRolesResource() {
+func (a *Panel) registerRolesResource() {
 	repo, err := NewGormRepository[Role](a.db)
 	if err != nil {
 		a.verifyErrs = append(a.verifyErrs, err)
@@ -201,7 +201,7 @@ func (a *Admin) registerRolesResource() {
 
 	permOptions := func(c *Context) Options {
 		var perms []Permission
-		if err := c.Admin.db.WithContext(c.Ctx()).
+		if err := c.Panel.db.WithContext(c.Ctx()).
 			Order(clause.OrderByColumn{Column: clause.Column{Name: "order"}}).
 			Order("id").Find(&perms).Error; err != nil {
 			return Options{}
@@ -224,7 +224,7 @@ func (a *Admin) registerRolesResource() {
 				}
 				var ids []string
 				var rows []RolePermission
-				if err := c.Admin.db.WithContext(c.Ctx()).Where("role_id = ?", r.ID).Find(&rows).Error; err != nil {
+				if err := c.Panel.db.WithContext(c.Ctx()).Where("role_id = ?", r.ID).Find(&rows).Error; err != nil {
 					return nil
 				}
 				for _, row := range rows {
@@ -238,7 +238,7 @@ func (a *Admin) registerRolesResource() {
 		f.Deleting(func(c *Context, ids []string) error {
 			for _, id := range ids {
 				var role Role
-				if err := c.Admin.db.WithContext(c.Ctx()).First(&role, id).Error; err == nil &&
+				if err := c.Panel.db.WithContext(c.Ctx()).First(&role, id).Error; err == nil &&
 					role.Slug == RoleAdministrator {
 					return errors.New("the administrator role cannot be deleted")
 				}
@@ -248,7 +248,7 @@ func (a *Admin) registerRolesResource() {
 	})
 }
 
-func (a *Admin) registerPermissionsResource() {
+func (a *Panel) registerPermissionsResource() {
 	res := Register[Permission](a).Slug("auth/permissions").Title("Permissions").
 		Icon("key").Group("Admin")
 
@@ -272,7 +272,7 @@ func (a *Admin) registerPermissionsResource() {
 	})
 }
 
-func (a *Admin) registerLogResource() {
+func (a *Panel) registerLogResource() {
 	res := Register[OperationLog](a).Slug("auth/logs").Title("Operation Log").
 		Icon("history").Group("Admin")
 
@@ -302,7 +302,7 @@ func (a *Admin) registerLogResource() {
 	})
 }
 
-func (a *Admin) registerSettingsResource() {
+func (a *Panel) registerSettingsResource() {
 	res := Register[Setting](a).Slug("auth/settings").Title("Settings").
 		Icon("settings-2").Group("Admin")
 
@@ -318,7 +318,7 @@ func (a *Admin) registerSettingsResource() {
 		f.Display("Slug").OnlyOnUpdate()
 		f.Textarea("Value")
 		f.Saved(func(c *Context, s *Setting, _ bool) error {
-			return c.Admin.cfg.Cache.Delete(c.Ctx(), settingsCacheKey+s.Slug)
+			return c.Panel.cfg.Cache.Delete(c.Ctx(), settingsCacheKey+s.Slug)
 		})
 	})
 }

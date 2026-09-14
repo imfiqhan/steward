@@ -147,7 +147,7 @@ func verifyTOTP(secret, code string, now time.Time, notBefore int64) (int64, boo
 // otpauthURI builds the enrolment URI an authenticator app reads from the QR
 // code. Digits, period, and algorithm are left implicit at their defaults so
 // the URI stays short enough for a small, dense-free QR symbol.
-func (a *Admin) otpauthURI(username, secret string) string {
+func (a *Panel) otpauthURI(username, secret string) string {
 	issuer := a.cfg.Brand
 	label := url.PathEscape(issuer + ":" + username)
 	q := url.Values{}
@@ -222,12 +222,12 @@ func countRecoveryCodes(stored string) int {
 // twoFactorRequired reports whether the user must clear a second factor before
 // the session becomes authenticated: either they enrolled, or the panel
 // mandates enrolment for everyone.
-func (a *Admin) twoFactorRequired(u *AdminUser) bool {
+func (a *Panel) twoFactorRequired(u *AdminUser) bool {
 	return u.TwoFactorEnabled() || a.cfg.Require2FA
 }
 
 // beginTwoFactor parks a password-verified session at the challenge.
-func (a *Admin) beginTwoFactor(c *Context, uid uint) error {
+func (a *Panel) beginTwoFactor(c *Context, uid uint) error {
 	c.sess.UID = 0
 	c.sess.Pending2FA = uid
 	c.sess.PendingAt = time.Now().Unix()
@@ -237,7 +237,7 @@ func (a *Admin) beginTwoFactor(c *Context, uid uint) error {
 
 // pendingTwoFactorUser resolves the parked account, or nil when there is none
 // or the wait has expired.
-func (a *Admin) pendingTwoFactorUser(c *Context) *AdminUser {
+func (a *Panel) pendingTwoFactorUser(c *Context) *AdminUser {
 	if c.sess == nil || c.sess.Pending2FA == 0 {
 		return nil
 	}
@@ -252,14 +252,14 @@ func (a *Admin) pendingTwoFactorUser(c *Context) *AdminUser {
 }
 
 // clearPendingTwoFactor drops the parked state.
-func (a *Admin) clearPendingTwoFactor(c *Context) {
+func (a *Panel) clearPendingTwoFactor(c *Context) {
 	c.sess.Pending2FA = 0
 	c.sess.PendingAt = 0
 }
 
 // twoFactorChallengePage renders the code prompt. A user who lands here
 // without a parked session goes back to the login form.
-func (a *Admin) twoFactorChallengePage(c *Context) error {
+func (a *Panel) twoFactorChallengePage(c *Context) error {
 	user := a.pendingTwoFactorUser(c)
 	if user == nil {
 		return c.Redirect(a.url("auth/login"))
@@ -277,7 +277,7 @@ func (a *Admin) twoFactorChallengePage(c *Context) error {
 
 // twoFactorChallengeSubmit verifies a TOTP code or a recovery code and, on
 // success, completes the login.
-func (a *Admin) twoFactorChallengeSubmit(c *Context) error {
+func (a *Panel) twoFactorChallengeSubmit(c *Context) error {
 	if err := c.R.ParseForm(); err != nil {
 		return err
 	}
@@ -365,7 +365,7 @@ type twoFactorSetup struct {
 // code. The secret is persisted before confirmation so the QR the user scanned
 // still matches when they submit the code; TwoFactorConfirmedAt staying nil is
 // what keeps 2FA switched off until then.
-func (a *Admin) prepareEnrolment(ctx context.Context, user *AdminUser) (*twoFactorSetup, error) {
+func (a *Panel) prepareEnrolment(ctx context.Context, user *AdminUser) (*twoFactorSetup, error) {
 	if user.TwoFactorSecret == "" || user.TwoFactorConfirmedAt != nil {
 		secret, err := newTOTPSecret()
 		if err != nil {
@@ -394,7 +394,7 @@ func (a *Admin) prepareEnrolment(ctx context.Context, user *AdminUser) (*twoFact
 
 // twoFactorEnrolPage renders forced enrolment during login (Require2FA with an
 // account that has not enrolled yet).
-func (a *Admin) twoFactorEnrolPage(c *Context, user *AdminUser, errMsg string) error {
+func (a *Panel) twoFactorEnrolPage(c *Context, user *AdminUser, errMsg string) error {
 	setup, err := a.prepareEnrolment(c.Ctx(), user)
 	if err != nil {
 		return err
@@ -407,7 +407,7 @@ func (a *Admin) twoFactorEnrolPage(c *Context, user *AdminUser, errMsg string) e
 }
 
 // twoFactorEnrolSubmit confirms a forced enrolment and completes the login.
-func (a *Admin) twoFactorEnrolSubmit(c *Context, user *AdminUser) error {
+func (a *Panel) twoFactorEnrolSubmit(c *Context, user *AdminUser) error {
 	if !a.allowTwoFactorAttempt("2fa-enrol:" + fmt.Sprint(user.ID)) {
 		return a.twoFactorEnrolPage(c, user, "Too many attempts — wait a minute and try again.")
 	}
@@ -454,7 +454,7 @@ type twoFactorVM struct {
 }
 
 // twoFactorProfileVM builds the section for a normal profile render.
-func (a *Admin) twoFactorProfileVM(c *Context) *twoFactorVM {
+func (a *Panel) twoFactorProfileVM(c *Context) *twoFactorVM {
 	return &twoFactorVM{
 		Enabled:      c.User.TwoFactorEnabled(),
 		Required:     a.cfg.Require2FA,
@@ -463,7 +463,7 @@ func (a *Admin) twoFactorProfileVM(c *Context) *twoFactorVM {
 }
 
 // twoFactorEnableStart shows the QR code and asks for a confirming code.
-func (a *Admin) twoFactorEnableStart(c *Context) error {
+func (a *Panel) twoFactorEnableStart(c *Context) error {
 	if c.User.TwoFactorEnabled() {
 		return c.Redirect(a.url("auth/profile"))
 	}
@@ -477,7 +477,7 @@ func (a *Admin) twoFactorEnableStart(c *Context) error {
 }
 
 // twoFactorConfirm completes enrolment from the profile page.
-func (a *Admin) twoFactorConfirm(c *Context) error {
+func (a *Panel) twoFactorConfirm(c *Context) error {
 	if err := c.R.ParseForm(); err != nil {
 		return err
 	}
@@ -510,7 +510,7 @@ func (a *Admin) twoFactorConfirm(c *Context) error {
 }
 
 // twoFactorReject re-renders the enrolment step with an error.
-func (a *Admin) twoFactorReject(c *Context, msg string) error {
+func (a *Panel) twoFactorReject(c *Context, msg string) error {
 	setup, err := a.prepareEnrolment(c.Ctx(), c.User)
 	if err != nil {
 		return err
@@ -523,7 +523,7 @@ func (a *Admin) twoFactorReject(c *Context, msg string) error {
 
 // twoFactorDisable turns 2FA off, re-authenticating with the account password
 // first so a borrowed session cannot strip the second factor.
-func (a *Admin) twoFactorDisable(c *Context) error {
+func (a *Panel) twoFactorDisable(c *Context) error {
 	if err := c.R.ParseForm(); err != nil {
 		return err
 	}
@@ -552,7 +552,7 @@ func (a *Admin) twoFactorDisable(c *Context) error {
 
 // twoFactorRegenerateCodes issues a fresh set of recovery codes, invalidating
 // the old ones. Password-gated for the same reason as disabling.
-func (a *Admin) twoFactorRegenerateCodes(c *Context) error {
+func (a *Panel) twoFactorRegenerateCodes(c *Context) error {
 	if err := c.R.ParseForm(); err != nil {
 		return err
 	}
@@ -580,7 +580,7 @@ func (a *Admin) twoFactorRegenerateCodes(c *Context) error {
 }
 
 // checkPassword compares a plaintext password against the stored hash.
-func (a *Admin) checkPassword(u *AdminUser, password string) bool {
+func (a *Panel) checkPassword(u *AdminUser, password string) bool {
 	if password == "" {
 		return false
 	}
@@ -593,7 +593,7 @@ func (a *Admin) checkPassword(u *AdminUser, password string) bool {
 // Unlike the token endpoint's limiter this one is never disabled: a six-digit
 // code is small enough that unbounded guessing would defeat the second factor
 // entirely.
-func (a *Admin) allowTwoFactorAttempt(key string) bool {
+func (a *Panel) allowTwoFactorAttempt(key string) bool {
 	if a.twoFALimiter == nil {
 		return true
 	}
@@ -603,7 +603,7 @@ func (a *Admin) allowTwoFactorAttempt(key string) bool {
 
 // twoFactorGate redirects a signed-in but unenrolled user to the profile
 // page when Config.Require2FA is set. It runs after auth, so the user exists.
-func (a *Admin) twoFactorGate(next http.Handler) http.Handler {
+func (a *Panel) twoFactorGate(next http.Handler) http.Handler {
 	if !a.cfg.Require2FA {
 		return next
 	}

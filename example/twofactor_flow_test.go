@@ -26,7 +26,7 @@ import (
 // The unit tests in the root package cover the TOTP arithmetic; these check the
 // wiring — that a password alone really does not get you in.
 
-func new2FAServer(t *testing.T, require2FA bool) (*httptest.Server, *steward.Admin) {
+func new2FAServer(t *testing.T, require2FA bool) (*httptest.Server, *steward.Panel) {
 	t.Helper()
 	db := testDB(t)
 	app, err := steward.New(steward.Config{
@@ -156,7 +156,7 @@ func firstLine(s string) string {
 	return s
 }
 
-func seedUser(t *testing.T, a *steward.Admin, username, password string) {
+func seedUser(t *testing.T, a *steward.Panel, username, password string) {
 	t.Helper()
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
 	if err != nil {

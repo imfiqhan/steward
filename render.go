@@ -27,7 +27,7 @@ var templatesFS embed.FS
 // same resolution path runs in dev and production — overriding a template is
 // always "drop a file at the documented relative path".
 type renderer struct {
-	a            *Admin
+	a            *Panel
 	tmplLayers   []fs.FS
 	assetLayers  []fs.FS
 	assetVersion string
@@ -40,7 +40,7 @@ type renderer struct {
 	iconSet *iconSet
 }
 
-func newRenderer(a *Admin) (*renderer, error) {
+func newRenderer(a *Panel) (*renderer, error) {
 	embTmpl, err := fs.Sub(templatesFS, "templates")
 	if err != nil {
 		return nil, err
@@ -325,7 +325,7 @@ func themeFrom(req *http.Request) string {
 	return "light"
 }
 
-func (a *Admin) pageMetaFor(c *Context, title string) pageMeta {
+func (a *Panel) pageMetaFor(c *Context, title string) pageMeta {
 	// Built once and shared: the sections are a view of the same tree.
 	menu := a.buildMenu(c)
 	return pageMeta{
@@ -348,7 +348,7 @@ func (a *Admin) pageMetaFor(c *Context, title string) pageMeta {
 
 // render writes a page: content-only for HTMX fragment navigation (with an
 // inline <title> htmx picks up), the full layout otherwise.
-func (a *Admin) render(c *Context, name, title string, data any) error {
+func (a *Panel) render(c *Context, name, title string, data any) error {
 	page := a.pageMetaFor(c, title)
 
 	var content bytes.Buffer
@@ -375,7 +375,7 @@ func (a *Admin) render(c *Context, name, title string, data any) error {
 }
 
 // renderStandalone executes a self-contained full-page template (login).
-func (a *Admin) renderStandalone(c *Context, name string, data any) error {
+func (a *Panel) renderStandalone(c *Context, name string, data any) error {
 	c.W.Header().Set("Content-Type", "text/html; charset=utf-8")
 	return a.renderer.execute(c.W, name, a.pageMetaFor(c, a.cfg.Brand), data)
 }
@@ -408,7 +408,7 @@ func (o overlayFS) Open(name string) (fs.File, error) { return openLayered(o, na
 // serveAsset streams an embedded (or overlaid) static file. URLs carry a
 // content-hash version segment ({prefix}/_assets/{version}/dist/app.css)
 // so cache headers can be immutable outside dev.
-func (a *Admin) serveAsset(w http.ResponseWriter, r *http.Request) {
+func (a *Panel) serveAsset(w http.ResponseWriter, r *http.Request) {
 	rel := strings.TrimPrefix(r.URL.Path, a.url("_assets")+"/")
 	i := strings.IndexByte(rel, '/')
 	if i < 0 {

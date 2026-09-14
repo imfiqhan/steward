@@ -62,7 +62,7 @@ func getPath(t *testing.T, client *http.Client, url string) (int, string) {
 	return resp.StatusCode, readBody(t, resp)
 }
 
-func newNotifyApp(t *testing.T) (*steward.Admin, *gorm.DB) {
+func newNotifyApp(t *testing.T) (*steward.Panel, *gorm.DB) {
 	t.Helper()
 	// Through testDB rather than SQLite directly: the bell orders by
 	// "read_at IS NULL DESC", and whether that is accepted is the dialect's

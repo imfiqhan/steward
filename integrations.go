@@ -54,7 +54,7 @@ type JobInfo struct {
 }
 
 // Scheduler runs recurring jobs. It is deliberately not wired into the
-// Admin: run it in a worker process (see steward.CLI's worker command) so
+// panel: run it in a worker process (see steward.CLI's worker command) so
 // the panel and background jobs deploy and scale independently.
 type Scheduler interface {
 	Add(cronSpec, name string, fn func(context.Context) error) error
@@ -160,7 +160,7 @@ func (c *MemoryCache) Delete(_ context.Context, keys ...string) error {
 // Use this inside a Display or Link function, where the URL is yours to compute:
 //
 //	g.Column("File").Link(func(m *Magazine) string { return app.StorageURL(m.File) })
-func (a *Admin) StorageURL(name string) string {
+func (a *Panel) StorageURL(name string) string {
 	if name == "" || absoluteRef(name) {
 		return name
 	}
@@ -171,7 +171,7 @@ func (a *Admin) StorageURL(name string) string {
 }
 
 // StorageURLOn is StorageURL against a named disk.
-func (a *Admin) StorageURLOn(disk, name string) string { return a.DiskURL(disk, name) }
+func (a *Panel) StorageURLOn(disk, name string) string { return a.DiskURL(disk, name) }
 
 // resolvedRef carries a stored value alongside its fetchable URL, so a presenter
 // can put one in an href and still show the other. The render substitutes it for
@@ -208,11 +208,11 @@ func absoluteRef(s string) bool {
 type LocalStorage struct {
 	Dir     string
 	BaseURL string
-	// name is the disk this backend serves, filled in by the Admin. It is part
+	// name is the disk this backend serves, filled in by the panel. It is part
 	// of what a signature covers, so a link to one disk cannot be pointed at
 	// another holding a file of the same name.
 	name string
-	// SigningKey signs time-limited URLs. The Admin sets it from Config.SecretKey
+	// SigningKey signs time-limited URLs. The panel sets it from Config.SecretKey
 	// when it wires up the backend; left empty, SignedURL reports ErrNotSigned
 	// and links fall back to the authenticated route.
 	SigningKey []byte

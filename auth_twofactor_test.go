@@ -218,7 +218,7 @@ func TestTwoFactorEnabledNeedsConfirmation(t *testing.T) {
 }
 
 func TestOtpauthURI(t *testing.T) {
-	a := &Admin{cfg: Config{Brand: "Kominfo Jatim"}}
+	a := &Panel{cfg: Config{Brand: "Kominfo Jatim"}}
 	uri := a.otpauthURI("reporter01", "JBSWY3DPEHPK3PXP")
 	if !strings.HasPrefix(uri, "otpauth://totp/") {
 		t.Fatalf("wrong scheme: %s", uri)
@@ -239,7 +239,7 @@ func TestTwoFactorRequired(t *testing.T) {
 	enrolled := &AdminUser{TwoFactorSecret: "ABC", TwoFactorConfirmedAt: &now}
 	bare := &AdminUser{}
 
-	optional := &Admin{cfg: Config{}}
+	optional := &Panel{cfg: Config{}}
 	if !optional.twoFactorRequired(enrolled) {
 		t.Error("an enrolled user always faces a challenge")
 	}
@@ -247,7 +247,7 @@ func TestTwoFactorRequired(t *testing.T) {
 		t.Error("an unenrolled user should pass straight through when 2FA is optional")
 	}
 
-	mandatory := &Admin{cfg: Config{Require2FA: true}}
+	mandatory := &Panel{cfg: Config{Require2FA: true}}
 	if !mandatory.twoFactorRequired(bare) {
 		t.Error("Require2FA must stop an unenrolled user")
 	}

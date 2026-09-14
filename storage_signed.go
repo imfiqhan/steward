@@ -87,7 +87,7 @@ func (s *LocalStorage) SignedURL(_ context.Context, name string, ttl time.Durati
 }
 
 // signedURLTTL is the configured lifetime, or the default.
-func (a *Admin) signedURLTTL() time.Duration {
+func (a *Panel) signedURLTTL() time.Duration {
 	if a.cfg.SignedURLTTL > 0 {
 		return a.cfg.SignedURLTTL
 	}
@@ -100,7 +100,7 @@ func (a *Admin) signedURLTTL() time.Duration {
 // The route used to be open: the file server was mounted outside the panel's
 // authentication, so anyone who knew a path could read any upload without
 // logging in.
-func (a *Admin) uploadGuard(disk string, next http.Handler) http.Handler {
+func (a *Panel) uploadGuard(disk string, next http.Handler) http.Handler {
 	prefix := a.uploadRoutePrefix(disk)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		name := strings.TrimPrefix(r.URL.Path, prefix)
@@ -117,7 +117,7 @@ func (a *Admin) uploadGuard(disk string, next http.Handler) http.Handler {
 
 // uploadRequestAllowed is the check itself: a public disk, a valid signature, or
 // a session that may see the panel at all.
-func (a *Admin) uploadRequestAllowed(r *http.Request, disk, name string) bool {
+func (a *Panel) uploadRequestAllowed(r *http.Request, disk, name string) bool {
 	if d, ok := a.Disk(disk); ok && d.Public {
 		return true
 	}

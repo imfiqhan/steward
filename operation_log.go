@@ -20,7 +20,7 @@ func maskValue(v string) string {
 
 // withOperationLog records mutating requests (method, path, ip, masked
 // input) after the handler runs. Failures are logged, never surfaced.
-func (a *Admin) withOperationLog(next http.Handler) http.Handler {
+func (a *Panel) withOperationLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := userOf(r)
 		mutating := r.Method == http.MethodPost || r.Method == http.MethodPut ||

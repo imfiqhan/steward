@@ -55,7 +55,7 @@ func newTokenValue() (string, error) {
 
 // tokenTTL resolves Config.TokenTTL: zero means the default, negative means
 // tokens never expire.
-func (a *Admin) tokenTTL() time.Duration {
+func (a *Panel) tokenTTL() time.Duration {
 	if a.cfg.TokenTTL == 0 {
 		return defaultTokenTTL
 	}
@@ -69,14 +69,14 @@ const defaultTokenRateLimit = 5
 // because a proxy puts every client behind a single address.
 const ipRateMultiple = 6
 
-func (a *Admin) tokenRateLimit() int {
+func (a *Panel) tokenRateLimit() int {
 	if a.cfg.TokenRateLimit == 0 {
 		return defaultTokenRateLimit
 	}
 	return a.cfg.TokenRateLimit
 }
 
-func (a *Admin) tokenRateWindow() time.Duration {
+func (a *Panel) tokenRateWindow() time.Duration {
 	if a.cfg.TokenRateWindow <= 0 {
 		return time.Minute
 	}
@@ -84,7 +84,7 @@ func (a *Admin) tokenRateWindow() time.Duration {
 }
 
 // allowTokenAttempt consumes one unit of the given bucket's budget.
-func (a *Admin) allowTokenAttempt(key string, limit int) (bool, time.Duration) {
+func (a *Panel) allowTokenAttempt(key string, limit int) (bool, time.Duration) {
 	if a.cfg.TokenRateLimit < 0 || a.tokenLimiter == nil {
 		return true, 0
 	}
@@ -92,7 +92,7 @@ func (a *Admin) allowTokenAttempt(key string, limit int) (bool, time.Duration) {
 }
 
 // tooManyAttempts answers a throttled caller with Retry-After.
-func (a *Admin) tooManyAttempts(c *Context, retry time.Duration) error {
+func (a *Panel) tooManyAttempts(c *Context, retry time.Duration) error {
 	secs := max(int(retry.Seconds()), 1)
 	c.W.Header().Set("Retry-After", strconv.Itoa(secs))
 	return c.JSON(http.StatusTooManyRequests, Error("Too many attempts — try again shortly."))
@@ -117,7 +117,7 @@ func tokenOf(r *http.Request) *AdminToken {
 // resolveToken looks up a presented token and its owner. A missing, expired,
 // or orphaned token is reported as errBadCredentials; anything else is a real
 // failure worth surfacing.
-func (a *Admin) resolveToken(ctx context.Context, raw string) (*AdminToken, *AdminUser, error) {
+func (a *Panel) resolveToken(ctx context.Context, raw string) (*AdminToken, *AdminUser, error) {
 	var tok AdminToken
 	err := a.db.WithContext(ctx).Where("hash = ?", tokenHash(raw)).First(&tok).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -142,7 +142,7 @@ func (a *Admin) resolveToken(ctx context.Context, raw string) (*AdminToken, *Adm
 }
 
 // touchToken records last use, at most once per touchInterval.
-func (a *Admin) touchToken(ctx context.Context, tok *AdminToken) {
+func (a *Panel) touchToken(ctx context.Context, tok *AdminToken) {
 	now := time.Now()
 	if tok.LastUsedAt != nil && now.Sub(*tok.LastUsedAt) < touchInterval {
 		return
@@ -156,7 +156,7 @@ func (a *Admin) touchToken(ctx context.Context, tok *AdminToken) {
 // withToken resolves a bearer token into the request's principal. It runs
 // before withCSRF so that CSRF can be skipped for token callers, and before
 // withAuth, which defers to a principal that is already resolved.
-func (a *Admin) withToken(next http.Handler) http.Handler {
+func (a *Panel) withToken(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		raw := ""
 		if a.cfg.EnableTokenAuth {
@@ -185,7 +185,7 @@ func (a *Admin) withToken(next http.Handler) http.Handler {
 
 // tokenEndpoint reports the credential-issuing path, which is exempt from CSRF
 // (it is authenticated by the body, not by an ambient cookie).
-func (a *Admin) tokenEndpoint(p string) bool {
+func (a *Panel) tokenEndpoint(p string) bool {
 	rel := "/" + strings.TrimLeft(strings.TrimPrefix(p, a.cfg.Prefix), "/")
 	return rel == "/auth/token"
 }
@@ -203,7 +203,7 @@ type tokenIssueRequest struct {
 // This endpoint accepts passwords, so it is a brute-force target. Steward does
 // not rate-limit it; put a limiter in front of {Prefix}/auth/token in any
 // internet-facing deployment.
-func (a *Admin) issueToken(c *Context) error {
+func (a *Panel) issueToken(c *Context) error {
 	// Checked before the body is read, so a flood costs nothing to reject.
 	if ok, retry := a.allowTokenAttempt("ip:"+ratelimit.ClientIP(c.R), a.tokenRateLimit()*ipRateMultiple); !ok {
 		return a.tooManyAttempts(c, retry)
@@ -271,7 +271,7 @@ func (a *Admin) issueToken(c *Context) error {
 
 // revokeToken deletes the token that authenticated the request: logout for a
 // client that holds no cookie.
-func (a *Admin) revokeToken(c *Context) error {
+func (a *Panel) revokeToken(c *Context) error {
 	tok := tokenOf(c.R)
 	if tok == nil {
 		return c.JSON(http.StatusUnauthorized, Error("Present the token you want to revoke as a bearer credential."))

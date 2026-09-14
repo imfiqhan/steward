@@ -47,7 +47,7 @@ func (c *countingSearcher) Query(ctx context.Context, typ, q string, limit int) 
 	return c.MemorySearcher.Query(ctx, typ, q, limit)
 }
 
-func newSearchServer(t *testing.T, s steward.Searcher) (*httptest.Server, *gorm.DB, *steward.Admin) {
+func newSearchServer(t *testing.T, s steward.Searcher) (*httptest.Server, *gorm.DB, *steward.Panel) {
 	t.Helper()
 	db := testDB(t)
 	if err := db.AutoMigrate(&searchRow{}); err != nil {

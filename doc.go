@@ -17,7 +17,7 @@
 //
 // # Source layout
 //
-// Admin, Context, Resource[T], Grid[T], Form[T], and Detail[T] all refer to one
+// Panel, Context, Resource[T], Grid[T], Form[T], and Detail[T] all refer to one
 // another, so splitting them across packages would only buy import cycles. They
 // stay one package and the file names carry the grouping:
 //

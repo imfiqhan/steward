@@ -168,7 +168,7 @@ func (t *typedResource[T]) Reindex(ctx context.Context, batch int) (int, error) 
 
 // Reindex rebuilds every searchable resource's documents. It reports what it
 // wrote per resource, so a backfill that skipped something says so.
-func (a *Admin) Reindex(ctx context.Context, batch int) (map[string]int, error) {
+func (a *Panel) Reindex(ctx context.Context, batch int) (map[string]int, error) {
 	if err := a.Build(); err != nil {
 		return nil, err
 	}

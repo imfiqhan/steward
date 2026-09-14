@@ -9,9 +9,9 @@ type handlerFunc func(c *Context) error
 
 // h adapts a handlerFunc onto net/http, building the Context from what the
 // middleware chain resolved and rendering returned errors.
-func (a *Admin) h(fn handlerFunc) http.HandlerFunc {
+func (a *Panel) h(fn handlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		c := &Context{W: w, R: r, Admin: a, User: userOf(r), sess: sessionOf(r)}
+		c := &Context{W: w, R: r, Panel: a, Admin: a, User: userOf(r), sess: sessionOf(r)}
 		if err := fn(c); err != nil {
 			a.log.Error("steward: handler", "path", r.URL.Path, "err", err)
 			a.renderError(c, http.StatusInternalServerError, "Something went wrong", err)
@@ -20,7 +20,7 @@ func (a *Admin) h(fn handlerFunc) http.HandlerFunc {
 }
 
 // renderError writes the error page (or envelope) without failing further.
-func (a *Admin) renderError(c *Context, code int, title string, err error) {
+func (a *Panel) renderError(c *Context, code int, title string, err error) {
 	if c.WantsJSON() {
 		_ = c.JSON(code, Error(title))
 		return
@@ -41,9 +41,9 @@ func (a *Admin) renderError(c *Context, code int, title string, err error) {
 }
 
 // buildRoutes constructs the panel's route table on a net/http ServeMux.
-// Every pattern is registered with the full prefix so the Admin can be
+// Every pattern is registered with the full prefix so the panel can be
 // mounted on any router without path rewriting.
-func (a *Admin) buildRoutes() *http.ServeMux {
+func (a *Panel) buildRoutes() *http.ServeMux {
 	mux := http.NewServeMux()
 	p := a.cfg.Prefix
 

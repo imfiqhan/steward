@@ -142,7 +142,7 @@ func TestDashboardLazyFragment(t *testing.T) {
 }
 
 // TestDashboardDefaultsWithoutBuilder proves the built-in overview still serves
-// when Admin.Dashboard was never called.
+// when Panel.Dashboard was never called.
 func TestDashboardDefaultsWithoutBuilder(t *testing.T) {
 	base, token := dashboardServer(t, "file:dashdefault?mode=memory&cache=shared", nil)
 

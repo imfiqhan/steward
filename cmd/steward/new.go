@@ -75,7 +75,7 @@ func main() {
 		Migrations: migrations.All,
 		// Jobs run in a separate process ("go run . worker"), deployed
 		// alongside "serve" so background work never blocks the panel.
-		// Jobs: func(a *steward.Admin, s steward.Scheduler) error {
+		// Jobs: func(a *steward.Panel, s steward.Scheduler) error {
 		// 	return s.Add("@every 10m", "cleanup", func(ctx context.Context) error {
 		// 		return a.DB().WithContext(ctx).Exec("...").Error
 		// 	})
@@ -107,7 +107,7 @@ func dsnOr(def string) string {
 
 // Build constructs the configured admin. steward.CLI calls it for every
 // command (serve, migrate, ...).
-func Build() (*steward.Admin, error) {
+func Build() (*steward.Panel, error) {
 	db, err := gorm.Open(%s, &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %%w", err)
@@ -140,7 +140,7 @@ package resources
 import steward "github.com/imfiqhan/steward"
 
 // RegisterAll wires every resource; steward make:resource appends here.
-func RegisterAll(a *steward.Admin) {
+func RegisterAll(a *steward.Panel) {
 	_ = a
 	// steward:register
 }

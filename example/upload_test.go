@@ -29,7 +29,7 @@ type uploadRow struct {
 	Body string
 }
 
-func newUploadServer(t *testing.T) (*httptest.Server, string, *steward.Admin) {
+func newUploadServer(t *testing.T) (*httptest.Server, string, *steward.Panel) {
 	t.Helper()
 	dir := t.TempDir()
 	db := testDB(t)

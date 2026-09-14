@@ -280,25 +280,25 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 				fv.OptionsURL = optionsURL(c, m.slug, fd.path)
 			}
 		case FieldIcon:
-			rend := c.Admin.renderer
+			rend := c.Panel.renderer
 			for _, name := range rend.iconNames() {
 				fv.Icons = append(fv.Icons, iconChoiceVM{Name: name, Selected: name == fv.Value})
 			}
-			fv.SpriteURL = c.Admin.url("_assets", rend.assetVersion, spritePath)
+			fv.SpriteURL = c.Panel.url("_assets", rend.assetVersion, spritePath)
 			if fv.Value != "" {
 				fv.CurrentIcon = rend.icon(fv.Value)
 			}
 		case FieldCurrency:
 			fv.Symbol = fd.symbol
 			if fv.Symbol == "" {
-				fv.Symbol = c.Admin.cfg.CurrencySymbol
+				fv.Symbol = c.Panel.cfg.CurrencySymbol
 			}
 		case FieldMarkdown:
 			fv.RenderURL = previewURL(c, m.slug, fd.path, rowID)
 		case FieldRichtext:
 			// The editor draws its own toolbar, so it needs the sprite the rest
 			// of the panel draws from, and somewhere to put a pasted image.
-			fv.SpriteURL = c.Admin.url("_assets", c.Admin.renderer.assetVersion, spritePath)
+			fv.SpriteURL = c.Panel.url("_assets", c.Panel.renderer.assetVersion, spritePath)
 			fv.UploadURL = uploadURL(c, m.slug, fd.path, rowID)
 		case FieldBelongsTo:
 			// Always fetched: the target is a table, and how big it is now says
@@ -309,7 +309,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 		case FieldFile, FieldImage:
 			fv.UploadURL = uploadURL(c, m.slug, fd.path, rowID)
 			if fv.Value != "" {
-				fv.PreviewURL = c.Admin.DiskURL(fd.disk, fv.Value)
+				fv.PreviewURL = c.Panel.DiskURL(fd.disk, fv.Value)
 				fv.FileName = displayFileName(fv.Value)
 			}
 			fv.MaxSizeLabel = sizeLabel(fd.maxSize)
@@ -324,7 +324,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			}
 			for _, p := range decodeStringList(fv.Value) {
 				fv.Files = append(fv.Files, uploadedVM{
-					Path: p, URL: c.Admin.DiskURL(fd.disk, p), Name: displayFileName(p),
+					Path: p, URL: c.Panel.DiskURL(fd.disk, p), Name: displayFileName(p),
 				})
 			}
 		}
@@ -333,7 +333,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 	for _, n := range t.form.nested {
 		nvm, err := n.buildVM(c, row)
 		if err != nil {
-			c.Admin.log.Error("steward: nested form", "relation", n.fieldName(), "err", err)
+			c.Panel.log.Error("steward: nested form", "relation", n.fieldName(), "err", err)
 			continue
 		}
 		vm.Nested = append(vm.Nested, nvm)
@@ -382,12 +382,12 @@ func (t *typedResource[T]) belongsToOptions(c *Context, fd *Field[T], selected s
 	if fd.relTable == "" {
 		return nil
 	}
-	rows, err := c.Admin.db.WithContext(c.Ctx()).
+	rows, err := c.Panel.db.WithContext(c.Ctx()).
 		Table(fd.relTable).
 		Select(fd.relPKCol + ", " + fd.relTitleCol).
 		Limit(optionSearchLimit).Rows()
 	if err != nil {
-		c.Admin.log.Error("steward: belongsTo options", "field", fd.path, "err", err)
+		c.Panel.log.Error("steward: belongsTo options", "field", fd.path, "err", err)
 		return nil
 	}
 	defer func() { _ = rows.Close() }()
@@ -409,7 +409,7 @@ func (t *typedResource[T]) belongsToOptions(c *Context, fd *Field[T], selected s
 	// nowhere but its option to read a label from.
 	if selected != "" && !found {
 		var title string
-		err := c.Admin.db.WithContext(c.Ctx()).
+		err := c.Panel.db.WithContext(c.Ctx()).
 			Table(fd.relTable).
 			Select(fd.relTitleCol).
 			Where(fd.relPKCol+" = ?", selected).
@@ -428,14 +428,14 @@ func (t *typedResource[T]) createPage(c *Context) error {
 		return t.denyPolicy(c)
 	}
 	vm := t.buildFormVM(c, nil, true, nil)
-	return c.Admin.render(c, "form/page.html", "New "+t.res.m.title, vm)
+	return c.Panel.render(c, "form/page.html", "New "+t.res.m.title, vm)
 }
 
 func (t *typedResource[T]) editPage(c *Context) error {
 	row, err := t.repo.Find(c.Ctx(), c.R.PathValue("id"))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.Admin.renderError(c, http.StatusNotFound, "Record not found", nil)
+			c.Panel.renderError(c, http.StatusNotFound, "Record not found", nil)
 			return nil
 		}
 		return err
@@ -444,7 +444,7 @@ func (t *typedResource[T]) editPage(c *Context) error {
 		return t.denyPolicy(c)
 	}
 	vm := t.buildFormVM(c, row, false, nil)
-	return c.Admin.render(c, "form/page.html", "Edit "+t.res.m.title, vm)
+	return c.Panel.render(c, "form/page.html", "Edit "+t.res.m.title, vm)
 }
 
 // formValue fetches a submitted value; ok=false when absent entirely.
@@ -671,7 +671,7 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 			spec += "|" + fd.updateRules
 		}
 		if spec != "" {
-			target := rules.Field{DB: c.Admin.db, Ctx: c.Ctx(), Label: fd.label, RecordID: id}
+			target := rules.Field{DB: c.Panel.db, Ctx: c.Ctx(), Label: fd.label, RecordID: id}
 			if msgs := rules.Validate(target, spec, raw); len(msgs) > 0 {
 				errs[fd.path] = append(errs[fd.path], msgs...)
 				continue
@@ -774,7 +774,7 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	var savedErr error
 	if f.savedFn != nil {
 		if savedErr = f.savedFn(c, m, creating); savedErr != nil {
-			c.Admin.log.Error("steward: saved hook", "err", savedErr)
+			c.Panel.log.Error("steward: saved hook", "err", savedErr)
 		}
 	}
 
@@ -906,7 +906,7 @@ func (t *typedResource[T]) optionsJSON(c *Context) error {
 		}
 		if fd.kind == FieldBelongsTo && fd.relTable != "" {
 			q := strings.TrimSpace(c.R.URL.Query().Get("q"))
-			db := c.Admin.db.WithContext(c.Ctx()).Table(fd.relTable).
+			db := c.Panel.db.WithContext(c.Ctx()).Table(fd.relTable).
 				Select(fd.relPKCol + ", " + fd.relTitleCol).Limit(50)
 			if q != "" {
 				db = db.Where(fd.relTitleCol+" LIKE ?", "%"+q+"%")
@@ -1087,14 +1087,14 @@ func (t *typedResource[T]) uploadFile(c *Context) error {
 	stored += ext
 	// The field's own disk, so an Image marked public lands somewhere a website
 	// can read and a File left private does not.
-	disk := c.Admin.diskOf(target.disk)
+	disk := c.Panel.diskOf(target.disk)
 	if _, err := disk.Storage.Put(c.Ctx(), stored, file, header.Size, header.Header.Get("Content-Type")); err != nil {
 		return err
 	}
 	// Put's own URL is the plain one. What the browser is handed has to be the
 	// signed one, or the thumbnail it inserts is refused by the route serving it.
 	return c.JSON(http.StatusOK, map[string]any{
-		"status": true, "path": stored, "url": c.Admin.DiskURL(target.disk, stored)})
+		"status": true, "path": stored, "url": c.Panel.DiskURL(target.disk, stored)})
 }
 
 // defaultMaxUpload bounds a field that names no limit of its own.
@@ -1339,8 +1339,8 @@ func (t *typedResource[T]) dropReplacedUploads(c *Context, m *T, held map[string
 			}
 			// The field's own disk: deleting from the default one would leave the
 			// replaced file in place and remove whatever shared its path there.
-			if err := c.Admin.diskOf(fd.disk).Storage.Delete(c.Ctx(), p); err != nil {
-				c.Admin.log.Warn("steward: removing a replaced upload",
+			if err := c.Panel.diskOf(fd.disk).Storage.Delete(c.Ctx(), p); err != nil {
+				c.Panel.log.Warn("steward: removing a replaced upload",
 					"field", fd.path, "path", p, "err", err)
 			}
 		}

@@ -317,7 +317,7 @@ func TestEveryConfigFieldIsDocumented(t *testing.T) {
 // environment variables, and a fetch that can fail.
 func TestDocumentedConfigSourcesCompile(t *testing.T) {
 	// Environment, as a generated project starts.
-	fromEnv := func(db *gorm.DB) (*steward.Admin, error) {
+	fromEnv := func(db *gorm.DB) (*steward.Panel, error) {
 		return steward.New(steward.Config{
 			// These exercise a prefixed mount; the default is the root.
 			Prefix:    "/admin",
@@ -328,7 +328,7 @@ func TestDocumentedConfigSourcesCompile(t *testing.T) {
 	}
 
 	// A secrets manager: Build returns an error, so it is a fine place to fetch.
-	fromSecrets := func(ctx context.Context, db *gorm.DB) (*steward.Admin, error) {
+	fromSecrets := func(ctx context.Context, db *gorm.DB) (*steward.Panel, error) {
 		key, err := fakeSecret(ctx, "prod/panel/session-key")
 		if err != nil {
 			return nil, fmt.Errorf("reading the session key: %w", err)
@@ -337,9 +337,9 @@ func TestDocumentedConfigSourcesCompile(t *testing.T) {
 	}
 
 	db := testDB(t)
-	for name, build := range map[string]func() (*steward.Admin, error){
-		"environment": func() (*steward.Admin, error) { return fromEnv(db) },
-		"secrets":     func() (*steward.Admin, error) { return fromSecrets(context.Background(), db) },
+	for name, build := range map[string]func() (*steward.Panel, error){
+		"environment": func() (*steward.Panel, error) { return fromEnv(db) },
+		"secrets":     func() (*steward.Panel, error) { return fromSecrets(context.Background(), db) },
 	} {
 		app, err := build()
 		if err != nil {
@@ -509,7 +509,7 @@ func TestDocumentedNotificationHook(t *testing.T) {
 				if p.Status != statusPending {
 					return nil
 				}
-				return c.Admin.NotifyRole(c.Ctx(), steward.Notification{
+				return c.Panel.NotifyRole(c.Ctx(), steward.Notification{
 					Title: "Article awaiting review",
 					Body:  p.Title,
 					URL:   c.URL("hook_posts", fmt.Sprint(p.ID)),
@@ -561,7 +561,7 @@ func TestDocumentedExportJobCalls(t *testing.T) {
 	}
 
 	// The worker snippet.
-	jobs := func(a *steward.Admin, s steward.Scheduler) error {
+	jobs := func(a *steward.Panel, s steward.Scheduler) error {
 		return s.Add("@every 30s", "exports", func(ctx context.Context) error {
 			_, err := a.RunPendingExports(ctx)
 			return err

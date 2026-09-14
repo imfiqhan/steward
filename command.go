@@ -26,7 +26,7 @@ type CommandResult struct {
 }
 
 // CommandSource answers the palette for one kind of thing. Register it with
-// Admin.CommandSource; it runs on every keystroke past the minimum length, so
+// Panel.CommandSource; it runs on every keystroke past the minimum length, so
 // it should be a bounded query rather than a scan.
 type CommandSource func(c *Context, query string) []CommandResult
 
@@ -59,7 +59,7 @@ const commandDeadline = 800 * time.Millisecond
 //
 // Resources that declare QuickSearch are searched already and need no source of
 // their own.
-func (a *Admin) CommandSource(name string, fn CommandSource) *Admin {
+func (a *Panel) CommandSource(name string, fn CommandSource) *Panel {
 	if a.built {
 		panic("steward: CommandSource called after Build")
 	}
@@ -99,7 +99,7 @@ func (t *typedResource[T]) searchCommand(c *Context, query string, limit int) ([
 	t.applyRowScope(c, q)
 	items, _, err := t.repo.List(c.Ctx(), q)
 	if err != nil {
-		c.Admin.log.Warn("steward: command search", "resource", t.res.m.slug, "err", err)
+		c.Panel.log.Warn("steward: command search", "resource", t.res.m.slug, "err", err)
 		return nil, err
 	}
 
@@ -203,7 +203,7 @@ func (t *typedResource[T]) commandText(col *Column[T], row *T) string {
 // commandSearch handles GET {prefix}/_command?q=. It answers the palette as the
 // reader types, so it stays bounded: a minimum query length, a cap per section,
 // and every resource gated by the policy that gates its own list.
-func (a *Admin) commandSearch(c *Context) error {
+func (a *Panel) commandSearch(c *Context) error {
 	query := strings.TrimSpace(c.R.URL.Query().Get("q"))
 	results := []CommandResult{}
 	if len([]rune(query)) < commandMinQuery {

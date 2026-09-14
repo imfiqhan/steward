@@ -445,7 +445,7 @@ import (
 )
 
 // Register%s wires the %s admin resource.
-func Register%s(a *steward.Admin) {
+func Register%s(a *steward.Panel) {
 	steward.Register[models.%s](a).
 		Title(%q).
 		Icon("file").

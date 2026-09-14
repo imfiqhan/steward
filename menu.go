@@ -53,7 +53,7 @@ func menuSections(roots []MenuNode) []MenuSection {
 // registered resources at Build, editable at auth/menu). Visibility derives
 // from the same permission rules that guard the routes: an entry the user
 // cannot GET is not shown — no separate role↔menu bookkeeping.
-func (a *Admin) buildMenu(c *Context) []MenuNode {
+func (a *Panel) buildMenu(c *Context) []MenuNode {
 	items, err := a.menuItems(c.Ctx())
 	if err != nil {
 		a.log.Error("steward: menu", "err", err)

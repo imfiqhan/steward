@@ -179,7 +179,7 @@ func (r *renderer) iconNames() []string {
 
 // Icons lists the icon names available to this panel, sorted — for a form field
 // or a custom page that lets someone choose one.
-func (a *Admin) Icons() []string {
+func (a *Panel) Icons() []string {
 	if a.renderer == nil {
 		return nil
 	}

@@ -49,7 +49,7 @@ func (n *Nested) Label(s string) *Nested {
 // hasManyForm.
 type nestedForm[T any] interface {
 	fieldName() string
-	compile(a *Admin, parent *typedResource[T]) error
+	compile(a *Panel, parent *typedResource[T]) error
 	buildVM(c *Context, parent *T) (nestedVM, error)
 	validate(c *Context) (payload any, errs map[string][]string)
 	persist(c *Context, parent *T, payload any) error
@@ -95,7 +95,7 @@ type hasManyForm[T, C any] struct {
 
 func (h *hasManyForm[T, C]) fieldName() string { return h.relation }
 
-func (h *hasManyForm[T, C]) compile(a *Admin, parent *typedResource[T]) error {
+func (h *hasManyForm[T, C]) compile(a *Panel, parent *typedResource[T]) error {
 	if h.label == "" {
 		h.label = splitCamel(h.relation)
 	}
@@ -315,7 +315,7 @@ func (h *hasManyForm[T, C]) validate(c *Context) (any, map[string][]string) {
 			}
 			field := fmt.Sprintf("%s[%s][%s]", h.relation, key, fd.path)
 			if fd.rules != "" {
-				target := rules.Field{DB: c.Admin.db, Ctx: c.Ctx(), Label: fd.label}
+				target := rules.Field{DB: c.Panel.db, Ctx: c.Ctx(), Label: fd.label}
 				if msgs := rules.Validate(target, fd.rules, raw); len(msgs) > 0 {
 					errs[field] = append(errs[field], msgs...)
 					continue

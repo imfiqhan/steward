@@ -107,7 +107,7 @@ func (s *Storage) URL(name string) string {
 // SignedURL implements steward.SignedURLStorage: a presigned GET good for ttl,
 // so the bucket behind it never needs a public read policy.
 //
-// steward.Admin.StorageURL prefers this over URL when a backend offers it, which
+// steward.Panel.StorageURL prefers this over URL when a backend offers it, which
 // is what makes a private bucket work without changing anything in a resource.
 func (s *Storage) SignedURL(ctx context.Context, name string, ttl time.Duration) (string, error) {
 	u, err := s.client.PresignedGetObject(ctx, s.bucket, strings.TrimLeft(name, "/"), ttl, nil)

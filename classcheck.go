@@ -110,7 +110,7 @@ func skipClassName(name string) bool {
 // warnUnknownClasses logs what the overlay uses and the stylesheet lacks. It
 // runs in development only: the answer cannot change at runtime, and the cost
 // is reading every overlay template.
-func (a *Admin) warnUnknownClasses() {
+func (a *Panel) warnUnknownClasses() {
 	if !a.cfg.Dev || a.cfg.TemplatesFS == nil {
 		return
 	}

@@ -28,7 +28,7 @@ type Record struct {
 // so the same table can exercise both paths.
 const exportRows = 60
 
-func newExportApp(t *testing.T, threshold int, uploadDir string) (*steward.Admin, *gorm.DB) {
+func newExportApp(t *testing.T, threshold int, uploadDir string) (*steward.Panel, *gorm.DB) {
 	t.Helper()
 	db := testDB(t)
 	if err := db.AutoMigrate(&Record{}); err != nil {

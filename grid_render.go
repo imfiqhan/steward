@@ -453,8 +453,8 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		ExportPageURL:  urlWith(c, map[string]string{"export": "page"}),
 		ResetURL:       c.URL(m.slug),
 		DeleteURLBase:  c.URL(m.slug),
-		ActionStyle:    string(g.actionStyle.resolve(c.Admin.cfg.GridActions)),
-		FilterLayout:   string(g.filterLayout.resolve(c.Admin.cfg.FilterLayout)),
+		ActionStyle:    string(g.actionStyle.resolve(c.Panel.cfg.GridActions)),
+		FilterLayout:   string(g.filterLayout.resolve(c.Panel.cfg.FilterLayout)),
 		RowActions:     actionVMs(c.URL(m.slug), g.rowActions),
 		BatchActions:   actionVMs(c.URL(m.slug), g.batchActions),
 		ToolActions:    actionVMs(c.URL(m.slug), g.toolActions),
@@ -730,7 +730,7 @@ func (t *typedResource[T]) index(c *Context) error {
 		}
 		vm := t.buildVM(c, st, items, total)
 		t.decorateTree(vm, depths)
-		return c.Admin.render(c, "grid/index.html", t.res.m.title, vm)
+		return c.Panel.render(c, "grid/index.html", t.res.m.title, vm)
 	}
 
 	items, total, err := t.repo.List(c.Ctx(), st.query)
@@ -738,7 +738,7 @@ func (t *typedResource[T]) index(c *Context) error {
 		return err
 	}
 	vm := t.buildVM(c, st, items, total)
-	return c.Admin.render(c, "grid/index.html", t.res.m.title, vm)
+	return c.Panel.render(c, "grid/index.html", t.res.m.title, vm)
 }
 
 // loadTree fetches every row and orders it depth-first under the parent key.
@@ -860,7 +860,7 @@ func (t *typedResource[T]) destroy(c *Context) error {
 	t.unindexRows(c.Ctx(), ids)
 	if t.form.deletedFn != nil {
 		if err := t.form.deletedFn(c, ids); err != nil {
-			c.Admin.log.Error("steward: deleted hook", "err", err)
+			c.Panel.log.Error("steward: deleted hook", "err", err)
 		}
 	}
 	noun := "record"
@@ -881,7 +881,7 @@ func (t *typedResource[T]) exportCSV(c *Context, st *gridState) error {
 		return c.Envelope(Error("Nothing selected.").Code(http.StatusBadRequest))
 	}
 	if st.export != "page" {
-		queued, err := c.Admin.maybeQueueExport(c, t.res.m.slug, st)
+		queued, err := c.Panel.maybeQueueExport(c, t.res.m.slug, st)
 		if err != nil {
 			return err
 		}

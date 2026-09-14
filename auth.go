@@ -25,7 +25,7 @@ const dummyHash = "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5B0Wxb1c9dyO0uMYPZ1a1C6q1n1Ga"
 // authenticate verifies a username/password pair with Roles preloaded for
 // downstream permission checks. Used by both the login form and, when
 // Config.EnableTokenAuth is set, the token endpoint.
-func (a *Admin) authenticate(ctx context.Context, username, password string) (*AdminUser, error) {
+func (a *Panel) authenticate(ctx context.Context, username, password string) (*AdminUser, error) {
 	if username == "" || password == "" {
 		return nil, errBadCredentials
 	}
@@ -50,7 +50,7 @@ func comparePassword(hash, password string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 }
 
-func (a *Admin) loginPage(c *Context) error {
+func (a *Panel) loginPage(c *Context) error {
 	if c.User != nil {
 		return c.Redirect(a.url("/"))
 	}
@@ -60,7 +60,7 @@ func (a *Admin) loginPage(c *Context) error {
 	})
 }
 
-func (a *Admin) loginSubmit(c *Context) error {
+func (a *Panel) loginSubmit(c *Context) error {
 	if err := c.R.ParseForm(); err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (a *Admin) loginSubmit(c *Context) error {
 	return c.Redirect(a.url("/"))
 }
 
-func (a *Admin) logoutHandler(c *Context) error {
+func (a *Panel) logoutHandler(c *Context) error {
 	c.logout()
 	return c.Redirect(a.url("auth/login"))
 }
@@ -132,12 +132,12 @@ func displayName(u *AdminUser) string {
 
 const resetPurpose = "steward-password-reset"
 
-func (a *Admin) makeResetToken(uid uint) (string, error) {
+func (a *Panel) makeResetToken(uid uint) (string, error) {
 	return a.codec.Encode(&session.Data{UID: uid, CSRF: resetPurpose})
 }
 
 // parseResetToken accepts tokens younger than an hour.
-func (a *Admin) parseResetToken(token string) (uint, bool) {
+func (a *Panel) parseResetToken(token string) (uint, bool) {
 	d, err := a.codec.Decode(token)
 	if err != nil || d.CSRF != resetPurpose || d.UID == 0 {
 		return 0, false
@@ -148,11 +148,11 @@ func (a *Admin) parseResetToken(token string) (uint, bool) {
 	return d.UID, true
 }
 
-func (a *Admin) forgotPage(c *Context) error {
+func (a *Panel) forgotPage(c *Context) error {
 	return a.renderStandalone(c, "auth/forgot.html", map[string]any{"Sent": false})
 }
 
-func (a *Admin) forgotSubmit(c *Context) error {
+func (a *Panel) forgotSubmit(c *Context) error {
 	if err := c.R.ParseForm(); err != nil {
 		return err
 	}
@@ -195,7 +195,7 @@ func requestOrigin(r *http.Request) string {
 	return scheme + "://" + r.Host
 }
 
-func (a *Admin) resetPage(c *Context) error {
+func (a *Panel) resetPage(c *Context) error {
 	token := c.R.URL.Query().Get("token")
 	if _, ok := a.parseResetToken(token); !ok {
 		c.W.WriteHeader(http.StatusForbidden)
@@ -204,7 +204,7 @@ func (a *Admin) resetPage(c *Context) error {
 	return a.renderStandalone(c, "auth/reset.html", map[string]any{"Token": token})
 }
 
-func (a *Admin) resetSubmit(c *Context) error {
+func (a *Panel) resetSubmit(c *Context) error {
 	if err := c.R.ParseForm(); err != nil {
 		return err
 	}
@@ -238,7 +238,7 @@ func (a *Admin) resetSubmit(c *Context) error {
 
 // renderProfile renders the profile page. tf carries the two-factor section's
 // state (nil for the plain view); errs and name preserve a rejected edit.
-func (a *Admin) renderProfile(c *Context, tf *twoFactorVM, errs map[string]string, name ...string) error {
+func (a *Panel) renderProfile(c *Context, tf *twoFactorVM, errs map[string]string, name ...string) error {
 	if tf == nil {
 		tf = a.twoFactorProfileVM(c)
 	}
@@ -252,11 +252,11 @@ func (a *Admin) renderProfile(c *Context, tf *twoFactorVM, errs map[string]strin
 	return a.render(c, "auth/profile.html", "Profile", data)
 }
 
-func (a *Admin) profilePage(c *Context) error {
+func (a *Panel) profilePage(c *Context) error {
 	return a.renderProfile(c, nil, nil)
 }
 
-func (a *Admin) profileSubmit(c *Context) error {
+func (a *Panel) profileSubmit(c *Context) error {
 	if err := c.R.ParseForm(); err != nil {
 		return err
 	}

@@ -22,7 +22,7 @@ const themeTokens = `:root{--radius:0rem;--primary:oklch(55% 0.2 265)}`
 // Every shell the panel serves, including the ones that render without the
 // layout: a theme that reaches the grid but not the login page leaves the
 // first screen a reader sees on the framework's own colours.
-func newThemeServer(t *testing.T, css string) (*steward.Admin, *httptest.Server) {
+func newThemeServer(t *testing.T, css string) (*steward.Panel, *httptest.Server) {
 	t.Helper()
 	db := testDB(t)
 	if err := db.AutoMigrate(&themeRow{}); err != nil {

@@ -35,7 +35,7 @@ const (
 // A panel whose quick search and palette both read a uuid column, which is the
 // arrangement that has to survive: quick search searches every declared path at
 // once, so one column the engine will not pattern-match takes the rest with it.
-func newUUIDSearchServer(t *testing.T) (*steward.Admin, *tfaClient) {
+func newUUIDSearchServer(t *testing.T) (*steward.Panel, *tfaClient) {
 	t.Helper()
 	db := testDB(t)
 	if err := db.AutoMigrate(&mediaSubmission{}, &mediaFile{}); err != nil {

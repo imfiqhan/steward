@@ -71,7 +71,7 @@ func run(addr, dbPath string) error {
 	return r.Run(addr)
 }
 
-func registerResources(app *steward.Admin) {
+func registerResources(app *steward.Panel) {
 	posts := steward.Register[models.Post](app).
 		Title("Posts").
 		Icon("news").
@@ -98,7 +98,7 @@ func registerResources(app *steward.Admin) {
 				if len(ids) == 0 {
 					return steward.Error("Nothing selected."), nil
 				}
-				err := c.Admin.DB().WithContext(c.Ctx()).
+				err := c.Panel.DB().WithContext(c.Ctx()).
 					Model(&models.Post{}).Where("id IN ?", ids).
 					Updates(map[string]any{"status": "published", "published_at": time.Now()}).Error
 				if err != nil {
@@ -170,7 +170,7 @@ func registerResources(app *steward.Admin) {
 	// A page composed in Go rather than in a template: rows, columns, and the
 	// widgets that sit in them.
 	posts.Page("GET", "report", func(c *steward.Context) error {
-		gdb := c.Admin.DB().WithContext(c.Ctx())
+		gdb := c.Panel.DB().WithContext(c.Ctx())
 		var published, drafts int64
 		gdb.Model(&models.Post{}).Where("status = ?", "published").Count(&published)
 		gdb.Model(&models.Post{}).Where("status = ?", "draft").Count(&drafts)

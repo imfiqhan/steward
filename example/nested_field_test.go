@@ -25,7 +25,7 @@ type track struct {
 	Note    string
 }
 
-func newAlbumServer(t *testing.T, child func(*steward.Form[track])) (*steward.Admin, *httptest.Server) {
+func newAlbumServer(t *testing.T, child func(*steward.Form[track])) (*steward.Panel, *httptest.Server) {
 	t.Helper()
 	db := testDB(t)
 	if err := db.AutoMigrate(&album{}, &track{}); err != nil {

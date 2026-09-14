@@ -143,7 +143,7 @@ func fillLocalDisk(cfg *Config, name string, ls *LocalStorage) {
 
 // Disk returns a named disk. The second result is false for a name that was
 // never configured.
-func (a *Admin) Disk(name string) (Disk, bool) {
+func (a *Panel) Disk(name string) (Disk, bool) {
 	if name == "" {
 		name = a.cfg.DefaultDisk
 	}
@@ -152,7 +152,7 @@ func (a *Admin) Disk(name string) (Disk, bool) {
 }
 
 // DiskNames lists the configured disks, sorted.
-func (a *Admin) DiskNames() []string {
+func (a *Panel) DiskNames() []string {
 	names := make([]string, 0, len(a.disks))
 	for name := range a.disks {
 		names = append(names, name)
@@ -164,7 +164,7 @@ func (a *Admin) DiskNames() []string {
 // DiskURL turns a stored path into a URL on a named disk. A private disk gets a
 // signed, expiring link; a public one gets the plain URL, which is the point of
 // calling it public.
-func (a *Admin) DiskURL(disk, name string) string {
+func (a *Panel) DiskURL(disk, name string) string {
 	if name == "" || absoluteRef(name) {
 		return name
 	}
@@ -183,7 +183,7 @@ func (a *Admin) DiskURL(disk, name string) string {
 }
 
 // diskOf resolves a name to a disk, falling back to the default.
-func (a *Admin) diskOf(name string) Disk {
+func (a *Panel) diskOf(name string) Disk {
 	if d, ok := a.Disk(name); ok {
 		return d
 	}
@@ -191,6 +191,6 @@ func (a *Admin) diskOf(name string) Disk {
 }
 
 // uploadRoutePrefix is where a local disk's files are served from.
-func (a *Admin) uploadRoutePrefix(name string) string {
+func (a *Panel) uploadRoutePrefix(name string) string {
 	return a.url("_uploads", name) + "/"
 }

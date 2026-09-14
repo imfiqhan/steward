@@ -20,7 +20,7 @@ func groupCodeKey(group string) string { return "_group_" + group }
 //     (overridden=true)
 //   - code entries whose resource vanished are hidden, never deleted
 //   - hand-created (source="db") rows are never touched
-func (a *Admin) syncMenu(ctx context.Context) error {
+func (a *Panel) syncMenu(ctx context.Context) error {
 	var existing []MenuItem
 	if err := a.db.WithContext(ctx).Find(&existing).Error; err != nil {
 		return err
@@ -99,12 +99,12 @@ func (a *Admin) syncMenu(ctx context.Context) error {
 
 const menuCacheKey = "steward:menu"
 
-func (a *Admin) flushMenuCache(ctx context.Context) error {
+func (a *Panel) flushMenuCache(ctx context.Context) error {
 	return a.cfg.Cache.Delete(ctx, menuCacheKey)
 }
 
 // registerMenuResource is the menu administration page.
-func (a *Admin) registerMenuResource() {
+func (a *Panel) registerMenuResource() {
 	res := Register[MenuItem](a).Slug("auth/menu").Title("Menu").
 		Icon("menu-2").Group("Admin")
 
@@ -151,7 +151,7 @@ func (a *Admin) registerMenuResource() {
 	parentOptions := func(c *Context) Options {
 		var items []MenuItem
 		o := Options{}
-		if err := c.Admin.db.WithContext(c.Ctx()).
+		if err := c.Panel.db.WithContext(c.Ctx()).
 			Where("parent_id = 0").
 			Order(clause.OrderByColumn{Column: clause.Column{Name: "order"}}).
 			Find(&items).Error; err != nil {
@@ -175,14 +175,14 @@ func (a *Admin) registerMenuResource() {
 		f.Saved(func(c *Context, m *MenuItem, created bool) error {
 			// UI edits pin code-sourced rows against future syncs.
 			if !created && m.Source == MenuSourceCode && !m.Overridden {
-				if err := c.Admin.db.WithContext(c.Ctx()).Model(m).Update("overridden", true).Error; err != nil {
+				if err := c.Panel.db.WithContext(c.Ctx()).Model(m).Update("overridden", true).Error; err != nil {
 					return err
 				}
 			}
-			return c.Admin.flushMenuCache(c.Ctx())
+			return c.Panel.flushMenuCache(c.Ctx())
 		})
 		f.Deleted(func(c *Context, _ []string) error {
-			return c.Admin.flushMenuCache(c.Ctx())
+			return c.Panel.flushMenuCache(c.Ctx())
 		})
 	})
 
@@ -199,7 +199,7 @@ func (a *Admin) registerMenuResource() {
 }
 
 // menuItems loads the full menu table, cached.
-func (a *Admin) menuItems(ctx context.Context) ([]MenuItem, error) {
+func (a *Panel) menuItems(ctx context.Context) ([]MenuItem, error) {
 	if raw, ok, _ := a.cfg.Cache.Get(ctx, menuCacheKey); ok {
 		var items []MenuItem
 		if err := json.Unmarshal(raw, &items); err == nil {

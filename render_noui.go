@@ -14,24 +14,24 @@ type renderer struct {
 	assetVersion string
 }
 
-func newRenderer(a *Admin) (*renderer, error) {
+func newRenderer(a *Panel) (*renderer, error) {
 	return &renderer{assetVersion: "noui"}, nil
 }
 
-func (a *Admin) render(c *Context, name, title string, data any) error {
+func (a *Panel) render(c *Context, name, title string, data any) error {
 	return a.noUI(c)
 }
 
-func (a *Admin) renderStandalone(c *Context, name string, data any) error {
+func (a *Panel) renderStandalone(c *Context, name string, data any) error {
 	return a.noUI(c)
 }
 
-func (a *Admin) noUI(c *Context) error {
+func (a *Panel) noUI(c *Context) error {
 	http.Error(c.W, "steward: built with the no_ui tag — HTML UI unavailable; use the JSON API", http.StatusServiceUnavailable)
 	return nil
 }
 
-func (a *Admin) serveAsset(w http.ResponseWriter, r *http.Request) {
+func (a *Panel) serveAsset(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 

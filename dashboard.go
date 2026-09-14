@@ -169,7 +169,7 @@ func (d *Dashboard) Template(title, tmpl string, load func(*Context) (any, error
 //	})
 //
 // Call it before Build. Without it the built-in overview page is served.
-func (a *Admin) Dashboard(fn func(*Dashboard)) *Admin {
+func (a *Panel) Dashboard(fn func(*Dashboard)) *Panel {
 	d := &Dashboard{}
 	fn(d)
 	a.dash = d
@@ -205,7 +205,7 @@ type widgetVM struct {
 }
 
 // resolve runs a widget's callback and renders its body.
-func (a *Admin) resolve(c *Context, w *Widget, i int) widgetVM {
+func (a *Panel) resolve(c *Context, w *Widget, i int) widgetVM {
 	vm := widgetVM{Index: i, Title: w.title, Hint: w.hint, Span: w.span,
 		Icon: w.icon, Tone: string(w.tone)}
 	switch w.kind {
@@ -282,9 +282,9 @@ type dashboardVM struct {
 	ResourceCount int
 }
 
-// dashboard serves the home page: declared widgets when Admin.Dashboard was
+// dashboard serves the home page: declared widgets when Panel.Dashboard was
 // called, otherwise the built-in overview.
-func (a *Admin) dashboard(c *Context) error {
+func (a *Panel) dashboard(c *Context) error {
 	if a.dash == nil {
 		return a.render(c, "pages/dashboard.html", "Dashboard", dashboardVM{
 			ResourceCount: len(a.registry),
@@ -332,7 +332,7 @@ func (a *Admin) dashboard(c *Context) error {
 
 // widgetFragment serves one lazy widget's tile. Reached only through the
 // standard middleware chain, so auth and permissions already applied.
-func (a *Admin) widgetFragment(c *Context) error {
+func (a *Panel) widgetFragment(c *Context) error {
 	if a.dash == nil {
 		return c.JSON(http.StatusNotFound, Error("No dashboard widgets are declared."))
 	}

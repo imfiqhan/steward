@@ -16,7 +16,13 @@ import (
 type Context struct {
 	W     http.ResponseWriter
 	R     *http.Request
-	Admin *Admin
+	Panel *Panel
+
+	// Admin is the previous name for Panel. A struct field cannot be aliased
+	// the way a type can, so both are set and both hold the same pointer.
+	//
+	// Deprecated: use Panel.
+	Admin *Panel
 
 	// User is the authenticated account, nil on public routes (login).
 	User *AdminUser
@@ -101,7 +107,7 @@ func (c *Context) Flash(typ, msg string) {
 		return
 	}
 	c.sess.Flashes = append(c.sess.Flashes, session.Flash{Type: typ, Message: msg})
-	c.Admin.saveSession(c)
+	c.Panel.saveSession(c)
 }
 
 // takeFlashes drains queued flashes (persisting the drain) for rendering.
@@ -111,7 +117,7 @@ func (c *Context) takeFlashes() []session.Flash {
 	}
 	f := c.sess.Flashes
 	c.sess.Flashes = nil
-	c.Admin.saveSession(c)
+	c.Panel.saveSession(c)
 	return f
 }
 
@@ -124,14 +130,14 @@ func (c *Context) login(uid uint) error {
 	c.sess.UID = uid
 	c.sess.CSRF = tok
 	c.sess.IssuedAt = 0 // re-stamp at encode
-	c.Admin.saveSession(c)
+	c.Panel.saveSession(c)
 	return nil
 }
 
 // logout clears the session.
 func (c *Context) logout() {
 	c.sess = &session.Data{}
-	c.Admin.clearSession(c)
+	c.Panel.clearSession(c)
 }
 
 // JSON writes v with the given status.
@@ -145,7 +151,7 @@ func (c *Context) JSON(status int, v any) error {
 // Resource.Page handlers. name is a full relative template path resolved
 // through the overlay FS ("pages/stats.html"); data lands in .Data.
 func (c *Context) Render(name, title string, data any) error {
-	return c.Admin.render(c, name, title, data)
+	return c.Panel.render(c, name, title, data)
 }
 
 // Envelope writes the unified mutation response.
@@ -172,5 +178,5 @@ func (c *Context) Redirect(url string) error {
 // URL joins path segments onto the admin prefix ("/admin", "auth/login" →
 // "/admin/auth/login").
 func (c *Context) URL(parts ...string) string {
-	return c.Admin.url(parts...)
+	return c.Panel.url(parts...)
 }

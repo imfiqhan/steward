@@ -22,7 +22,7 @@ type storeRow struct {
 
 // newStorageServer writes one file into the upload directory and serves a panel
 // over it. public mirrors Config.PublicUploads.
-func newStorageServer(t *testing.T, public bool) (*httptest.Server, *steward.Admin) {
+func newStorageServer(t *testing.T, public bool) (*httptest.Server, *steward.Panel) {
 	t.Helper()
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "uploads", "docs"), 0o755); err != nil {

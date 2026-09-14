@@ -22,7 +22,7 @@ type iconWidget struct {
 	Icon string
 }
 
-func newIconServer(t *testing.T, resourceIcon string) (*httptest.Server, *steward.Admin) {
+func newIconServer(t *testing.T, resourceIcon string) (*httptest.Server, *steward.Panel) {
 	t.Helper()
 	db := testDB(t)
 	if err := db.AutoMigrate(&iconWidget{}); err != nil {

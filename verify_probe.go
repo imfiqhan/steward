@@ -25,7 +25,7 @@ import (
 // others are — the interface says what every resource does, and this is not
 // that.
 type queryProber interface {
-	probeQueries(ctx context.Context, a *Admin) []error
+	probeQueries(ctx context.Context, a *Panel) []error
 }
 
 // probeLimitZero bounds every probe. A predicate on a large table would
@@ -35,7 +35,7 @@ func probeLimitZero(db *gorm.DB) *gorm.DB { return db.Limit(0) }
 // probeQueries runs one bounded query per declaration that becomes SQL, and
 // reports what the database refused. Each error names the declaration and,
 // where it is known, the line it was written on.
-func (t *typedResource[T]) probeQueries(ctx context.Context, a *Admin) []error {
+func (t *typedResource[T]) probeQueries(ctx context.Context, a *Panel) []error {
 	gr, ok := t.repo.(*GormRepository[T])
 	if !ok {
 		return nil // a repository of someone else's making answers for itself

@@ -22,7 +22,7 @@ import (
 	"github.com/imfiqhan/steward/migrate"
 )
 
-// Config configures one Admin. DB and SecretKey are required; everything else
+// Config configures one Panel. DB and SecretKey are required; everything else
 // has a working default.
 type Config struct {
 	DB *gorm.DB
@@ -202,10 +202,10 @@ type Config struct {
 	Logger *slog.Logger
 }
 
-// Admin is the panel: a plain http.Handler serving everything under
+// Panel is the panel: a plain http.Handler serving everything under
 // Config.Prefix. Register resources against it, then mount it (ginsteward.
 // Mount or http.Handle) — the first request triggers Build automatically.
-type Admin struct {
+type Panel struct {
 	cfg Config
 	db  *gorm.DB
 	log *slog.Logger
@@ -248,15 +248,25 @@ type Admin struct {
 
 type resourceEntry interface {
 	meta() *resourceMeta
-	compile(a *Admin) error
-	registerRoutes(a *Admin, mux *http.ServeMux)
+	compile(a *Panel) error
+	registerRoutes(a *Panel, mux *http.ServeMux)
 	renderRelation(c *Context, title string, q *ListQuery) (*detailRelVM, error)
 	menuVisible(c *Context) bool
 }
 
-// New validates the config and returns an unbuilt Admin. Resource
+// Admin is the previous name for Panel.
+//
+// An alias rather than a removal: a panel is one object threaded through every
+// handler and helper an application has, so renaming the type outright would
+// be a rename of every file that touches it. Both names are the same type, so
+// a package on the old one and a package on the new interoperate.
+//
+// Deprecated: use Panel.
+type Admin = Panel
+
+// New validates the config and returns an unbuilt Panel. Resource
 // registration happens between New and Build.
-func New(cfg Config) (*Admin, error) {
+func New(cfg Config) (*Panel, error) {
 	if cfg.DB == nil {
 		return nil, errors.New("steward: Config.DB is required")
 	}
@@ -301,7 +311,7 @@ func New(cfg Config) (*Admin, error) {
 		return nil, fmt.Errorf("steward: %w", err)
 	}
 
-	a := &Admin{
+	a := &Panel{
 		cfg:    cfg,
 		db:     cfg.DB,
 		log:    cfg.Logger,
@@ -316,13 +326,13 @@ func New(cfg Config) (*Admin, error) {
 }
 
 // Prefix returns the mount path, "" when the panel is mounted at the root.
-func (a *Admin) Prefix() string { return a.cfg.Prefix }
+func (a *Panel) Prefix() string { return a.cfg.Prefix }
 
 // DB returns the underlying GORM handle.
-func (a *Admin) DB() *gorm.DB { return a.db }
+func (a *Panel) DB() *gorm.DB { return a.db }
 
 // url joins segments onto the prefix.
-func (a *Admin) url(parts ...string) string {
+func (a *Panel) url(parts ...string) string {
 	// The leading "/" is passed to Join rather than concatenated because the
 	// prefix is empty for a panel mounted at the root.
 	return path.Join(append([]string{"/", a.cfg.Prefix}, parts...)...)
@@ -332,7 +342,7 @@ func (a *Admin) url(parts ...string) string {
 // (unless disabled), compiles resources, parses templates, and constructs the
 // route table. Calling it more than once is a no-op returning the first
 // result; ServeHTTP calls it lazily.
-func (a *Admin) Build() error {
+func (a *Panel) Build() error {
 	a.buildOnce.Do(func() {
 		a.buildErr = a.build()
 		if a.buildErr == nil {
@@ -345,7 +355,7 @@ func (a *Admin) Build() error {
 
 // resourceTypeNames lists the model names that are registered resources, for
 // an error naming one that is not.
-func (a *Admin) resourceTypeNames() []string {
+func (a *Panel) resourceTypeNames() []string {
 	out := make([]string, 0, len(a.byType))
 	for t := range a.byType {
 		out = append(out, t.Name())
@@ -361,7 +371,7 @@ func (a *Admin) resourceTypeNames() []string {
 // filter and sort — bounded with LIMIT 0, so a column no migration added and a
 // predicate the dialect refuses are reported here rather than the first time
 // someone uses the panel. Set Config.DisableQueryProbe to skip that.
-func (a *Admin) Verify() error {
+func (a *Panel) Verify() error {
 	if err := a.Build(); err != nil {
 		return err
 	}
@@ -377,7 +387,7 @@ func (a *Admin) Verify() error {
 	return errors.Join(errs...)
 }
 
-func (a *Admin) build() error {
+func (a *Panel) build() error {
 	a.registerBuiltins()
 
 	for _, jt := range []struct {
@@ -477,7 +487,7 @@ func (a *Admin) build() error {
 // MigrationRunner returns a runner with the framework's core migrations
 // registered plus any app migrations supplied. Used by Build (AutoMigrate)
 // and by the app-side CLI.
-func (a *Admin) MigrationRunner(app []migrate.Migration) *migrate.Runner {
+func (a *Panel) MigrationRunner(app []migrate.Migration) *migrate.Runner {
 	r := migrate.New(a.db, migrate.WithTable(a.cfg.TablePrefix+"migrations"))
 	r.Register("core", migrations.Core(a.coreTables())...)
 	if len(app) > 0 {
@@ -486,7 +496,7 @@ func (a *Admin) MigrationRunner(app []migrate.Migration) *migrate.Runner {
 	return r
 }
 
-func (a *Admin) coreTables() migrations.Tables {
+func (a *Panel) coreTables() migrations.Tables {
 	return migrations.Tables{
 		Models: []any{
 			&AdminUser{}, &Role{}, &Permission{}, &MenuItem{},
@@ -528,7 +538,7 @@ func seedDefaults(tx *gorm.DB, passwordHash string) error {
 
 // ServeHTTP implements http.Handler; the panel behaves identically however
 // it is mounted (net/http, Gin via WrapH, chi, etc.).
-func (a *Admin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (a *Panel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := a.Build(); err != nil {
 		a.log.Error("steward: build failed", "err", err)
 		http.Error(w, "admin panel failed to initialize; see server logs", http.StatusInternalServerError)
@@ -540,7 +550,7 @@ func (a *Admin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // sessionCookie is the session cookie name.
 const sessionCookie = "steward_session"
 
-func (a *Admin) sessionFromRequest(r *http.Request) *session.Data {
+func (a *Panel) sessionFromRequest(r *http.Request) *session.Data {
 	ck, err := r.Cookie(sessionCookie)
 	if err != nil {
 		return &session.Data{}
@@ -554,7 +564,7 @@ func (a *Admin) sessionFromRequest(r *http.Request) *session.Data {
 
 // saveSession seals the context's session into the cookie. Must run before
 // the body is written.
-func (a *Admin) saveSession(c *Context) {
+func (a *Panel) saveSession(c *Context) {
 	val, err := a.codec.Encode(c.sess)
 	if err != nil {
 		a.log.Error("steward: session encode", "err", err)
@@ -571,7 +581,7 @@ func (a *Admin) saveSession(c *Context) {
 	})
 }
 
-func (a *Admin) clearSession(c *Context) {
+func (a *Panel) clearSession(c *Context) {
 	http.SetCookie(c.W, &http.Cookie{
 		Name:     sessionCookie,
 		Value:    "",
@@ -591,7 +601,7 @@ func (a *Admin) clearSession(c *Context) {
 // than abandoned, so this can take as long as one job.
 //
 // Safe to call more than once, and on a panel that was never built.
-func (a *Admin) Close() error {
+func (a *Panel) Close() error {
 	a.closeOnce.Do(func() {
 		if a.exportStop != nil {
 			close(a.exportStop)

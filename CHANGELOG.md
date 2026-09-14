@@ -6,6 +6,23 @@ running panel to a new version.
 
 ## Unreleased
 
+### Changed
+
+- **`steward.Admin` is now `steward.Panel`.** The type is one panel inside an
+  application, and `steward.App` — the struct every `main.go` hands to
+  `steward.CLI` — already had the better claim to the name "app". "Panel" is
+  what this project's own prose has called the object all along.
+
+  **Nothing breaks.** `Admin` remains as an alias, so code on either name
+  compiles and the two interoperate. `Context.Panel` is the field to reach for;
+  `Context.Admin` is still there and still the same pointer, since a struct
+  field cannot be aliased the way a type can. Both are deprecated, not removed.
+
+  Unchanged on purpose: `AdminUser` is an administrator, not a panel; the
+  `admin_` table prefix is data and is already configurable with
+  `Config.TablePrefix`; and the mount path was never `/admin` to begin with —
+  `Config.Prefix` defaults to the root and is yours to set.
+
 ### Added
 
 - **The sidebar collapses to a rail rather than disappearing.** The header's

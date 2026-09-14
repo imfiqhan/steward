@@ -64,7 +64,7 @@ func (g *Grid[T]) allActions() []*Action {
 }
 
 // verifyActions runs at compile: names must be unique slugs with handlers.
-func (t *typedResource[T]) verifyActions(a *Admin) {
+func (t *typedResource[T]) verifyActions(a *Panel) {
 	seen := map[string]bool{}
 	for _, act := range t.grid.allActions() {
 		switch {

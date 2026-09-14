@@ -258,7 +258,7 @@ type layoutVM struct {
 //	    ),
 //	)
 func (c *Context) Layout(title string, nodes ...Node) error {
-	return c.Admin.render(c, "pages/layout.html", title, &layoutVM{
+	return c.Panel.render(c, "pages/layout.html", title, &layoutVM{
 		Nodes:    viewNodes(nodes, nil),
 		HasChart: hasChart(nodes),
 	})
@@ -267,7 +267,7 @@ func (c *Context) Layout(title string, nodes ...Node) error {
 // verifyNodes reports icons and colours a layout names that do not exist. A
 // layout is built per request, so this covers the ones declared on a dashboard,
 // where the tree is known at boot.
-func verifyNodes(a *Admin, where string, nodes []Node) {
+func verifyNodes(a *Panel, where string, nodes []Node) {
 	for _, n := range nodes {
 		s := n.spec()
 		if s.icon != "" && a.renderer != nil && !a.renderer.hasIcon(s.icon) {

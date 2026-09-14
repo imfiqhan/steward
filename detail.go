@@ -347,7 +347,7 @@ func (t *typedResource[T]) show(c *Context) error {
 	row, err := t.repo.Find(c.Ctx(), id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.Admin.renderError(c, http.StatusNotFound, "Record not found", nil)
+			c.Panel.renderError(c, http.StatusNotFound, "Record not found", nil)
 			return nil
 		}
 		return err
@@ -382,7 +382,7 @@ func (t *typedResource[T]) show(c *Context) error {
 		}
 		if df.storageRef && val != nil {
 			s := fmt.Sprint(val)
-			val = resolvedRef{raw: s, url: c.Admin.DiskURL(df.disk, s)}
+			val = resolvedRef{raw: s, url: c.Panel.DiskURL(df.disk, s)}
 		}
 		html := defaultCell(val)
 		if df.present != nil {
@@ -399,7 +399,7 @@ func (t *typedResource[T]) show(c *Context) error {
 		vm.Rows = append(vm.Rows, rowVM)
 	}
 	for _, rel := range t.detail.relations {
-		entry, ok := c.Admin.byType[rel.typ]
+		entry, ok := c.Panel.byType[rel.typ]
 		if !ok {
 			continue
 		}
@@ -416,7 +416,7 @@ func (t *typedResource[T]) show(c *Context) error {
 		}
 		vm.Relations = append(vm.Relations, *relVM)
 	}
-	return c.Admin.render(c, "detail/page.html", m.title+" #"+id, vm)
+	return c.Panel.render(c, "detail/page.html", m.title+" #"+id, vm)
 }
 
 // renderRelation renders this resource's grid columns for an embedded
@@ -463,7 +463,7 @@ func (t *typedResource[T]) defaultDetailFields(d *Detail[T]) {
 	}
 }
 
-func (t *typedResource[T]) compileDetail(a *Admin) {
+func (t *typedResource[T]) compileDetail(a *Panel) {
 	d := newDetail(t.res)
 	if t.res.detailFn != nil {
 		t.res.detailFn(d)

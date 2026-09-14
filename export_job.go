@@ -73,7 +73,7 @@ type csvExporter interface {
 }
 
 // backgroundExportRows is the configured threshold, or the default.
-func (a *Admin) backgroundExportRows() int64 {
+func (a *Panel) backgroundExportRows() int64 {
 	switch {
 	case a.cfg.BackgroundExportRows < 0:
 		return 0 // never in the background
@@ -86,7 +86,7 @@ func (a *Admin) backgroundExportRows() int64 {
 
 // maybeQueueExport decides whether this export is a download or a job, and
 // creates the job if it is. A nil result means "stream it".
-func (a *Admin) maybeQueueExport(c *Context, slug string, st *gridState) (*queuedExport, error) {
+func (a *Panel) maybeQueueExport(c *Context, slug string, st *gridState) (*queuedExport, error) {
 	limit := a.backgroundExportRows()
 	if limit == 0 || c.User == nil {
 		return nil, nil
@@ -130,7 +130,7 @@ func (a *Admin) maybeQueueExport(c *Context, slug string, st *gridState) (*queue
 }
 
 // Exports returns an account's export jobs, newest first.
-func (a *Admin) Exports(ctx context.Context, userID uint, limit int) ([]ExportJob, error) {
+func (a *Panel) Exports(ctx context.Context, userID uint, limit int) ([]ExportJob, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -150,7 +150,7 @@ func (a *Admin) Exports(ctx context.Context, userID uint, limit int) ([]ExportJo
 // worker's scheduler instead when the panel should not do the work. Claiming is
 // a conditional update, so several processes may run it at once without two of
 // them building the same file.
-func (a *Admin) RunPendingExports(ctx context.Context) (int, error) {
+func (a *Panel) RunPendingExports(ctx context.Context) (int, error) {
 	var done int
 	for {
 		job, ok, err := a.claimExport(ctx)
@@ -171,7 +171,7 @@ func (a *Admin) RunPendingExports(ctx context.Context) (int, error) {
 
 // claimExport takes the oldest pending job for this process. The UPDATE's
 // affected-row count is the claim: whoever changes the row owns it.
-func (a *Admin) claimExport(ctx context.Context) (*ExportJob, bool, error) {
+func (a *Panel) claimExport(ctx context.Context) (*ExportJob, bool, error) {
 	db := a.db.WithContext(ctx)
 	for {
 		// Find rather than First: an empty queue is the normal state, and First
@@ -202,7 +202,7 @@ func (a *Admin) claimExport(ctx context.Context) (*ExportJob, bool, error) {
 }
 
 // runExport builds one job's file and notifies its owner.
-func (a *Admin) runExport(ctx context.Context, job *ExportJob) error {
+func (a *Panel) runExport(ctx context.Context, job *ExportJob) error {
 	res, ok := a.bySlug[job.Slug]
 	if !ok {
 		return fmt.Errorf("no resource named %q", job.Slug)
@@ -224,7 +224,7 @@ func (a *Admin) runExport(ctx context.Context, job *ExportJob) error {
 	if err != nil {
 		return err
 	}
-	c := &Context{R: req, Admin: a, User: &user}
+	c := &Context{R: req, Panel: a, Admin: a, User: &user}
 
 	var buf bytes.Buffer
 	rows, err := ex.exportRows(c, &buf, req.URL.Query())
@@ -270,7 +270,7 @@ func (a *Admin) runExport(ctx context.Context, job *ExportJob) error {
 	return nil
 }
 
-func (a *Admin) failExport(ctx context.Context, job *ExportJob, cause error) {
+func (a *Panel) failExport(ctx context.Context, job *ExportJob, cause error) {
 	now := time.Now()
 	msg := cause.Error()
 	if len(msg) > 2000 {
@@ -293,7 +293,7 @@ func (a *Admin) failExport(ctx context.Context, job *ExportJob, cause error) {
 
 // PruneExports deletes finished jobs older than age, and the files they point
 // at. Nothing calls it for you.
-func (a *Admin) PruneExports(ctx context.Context, age time.Duration) (int64, error) {
+func (a *Panel) PruneExports(ctx context.Context, age time.Duration) (int64, error) {
 	if age <= 0 {
 		return 0, errors.New("steward: PruneExports needs a positive age")
 	}
@@ -357,7 +357,7 @@ func formatBytes(n int64) string {
 }
 
 // storeExport writes the built file to a disk and returns the stored name.
-func (a *Admin) storeExport(ctx context.Context, disk, name string, body []byte) (string, error) {
+func (a *Panel) storeExport(ctx context.Context, disk, name string, body []byte) (string, error) {
 	d, ok := a.Disk(disk)
 	if !ok || d.Storage == nil {
 		return "", fmt.Errorf("no storage for disk %q", disk)
@@ -368,14 +368,14 @@ func (a *Admin) storeExport(ctx context.Context, disk, name string, body []byte)
 	return name, nil
 }
 
-// startExportWorker runs queued exports inside the panel process. Admin.Close
+// startExportWorker runs queued exports inside the panel process. Panel.Close
 // stops it.
 //
 // A panel is usually its own binary, and requiring a second process before an
 // export completes would make the feature look broken. One job at a time, woken
 // by a new request and otherwise polled slowly, so an export queued by another
 // replica is still picked up.
-func (a *Admin) startExportWorker() {
+func (a *Panel) startExportWorker() {
 	if a.cfg.DisableExportWorker {
 		return
 	}
@@ -409,7 +409,7 @@ func (a *Admin) startExportWorker() {
 
 // wakeExports nudges the worker so a queued export starts at once rather than
 // on the next tick. Never blocks: a full channel already means "there is work".
-func (a *Admin) wakeExports() {
+func (a *Panel) wakeExports() {
 	if a.exportWake == nil {
 		return
 	}
@@ -420,7 +420,7 @@ func (a *Admin) wakeExports() {
 }
 
 // downloadExport serves a finished export to the account that asked for it.
-func (a *Admin) downloadExport(c *Context) error {
+func (a *Panel) downloadExport(c *Context) error {
 	if c.User == nil {
 		return c.JSON(http.StatusUnauthorized, Error("Sign in first."))
 	}
@@ -460,7 +460,7 @@ func (a *Admin) downloadExport(c *Context) error {
 
 // exportDisk is where finished exports are written: the configured one, or the
 // default when none is named.
-func (a *Admin) exportDisk() string {
+func (a *Panel) exportDisk() string {
 	if a.cfg.ExportDisk != "" {
 		return a.cfg.ExportDisk
 	}

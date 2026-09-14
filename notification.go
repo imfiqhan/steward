@@ -70,7 +70,7 @@ const notificationListLimit = 15
 // It writes a row and returns; nothing is delivered out of process, so a
 // caller in a request handler pays one INSERT. ID, UserID and CreatedAt are
 // set by this call and need not be filled in.
-func (a *Admin) Notify(ctx context.Context, userID uint, n Notification) error {
+func (a *Panel) Notify(ctx context.Context, userID uint, n Notification) error {
 	if userID == 0 {
 		return errors.New("steward: Notify needs a user ID")
 	}
@@ -84,7 +84,7 @@ func (a *Admin) Notify(ctx context.Context, userID uint, n Notification) error {
 
 // NotifyUsers stores the same notification for several accounts in one
 // statement. Duplicate and zero IDs are dropped.
-func (a *Admin) NotifyUsers(ctx context.Context, userIDs []uint, n Notification) error {
+func (a *Panel) NotifyUsers(ctx context.Context, userIDs []uint, n Notification) error {
 	if n.Title == "" {
 		return errors.New("steward: a notification needs a Title")
 	}
@@ -112,7 +112,7 @@ func (a *Admin) NotifyUsers(ctx context.Context, userIDs []uint, n Notification)
 // The administrator role is not implicit here: it short-circuits permission
 // checks, not delivery, so notifying "editor" does not reach an administrator
 // who is not one.
-func (a *Admin) NotifyRole(ctx context.Context, n Notification, roleSlugs ...string) error {
+func (a *Panel) NotifyRole(ctx context.Context, n Notification, roleSlugs ...string) error {
 	if len(roleSlugs) == 0 {
 		return errors.New("steward: NotifyRole needs at least one role")
 	}
@@ -132,7 +132,7 @@ func (a *Admin) NotifyRole(ctx context.Context, n Notification, roleSlugs ...str
 }
 
 // Notifications returns an account's most recent notifications, unread first.
-func (a *Admin) Notifications(ctx context.Context, userID uint, limit int) ([]Notification, error) {
+func (a *Panel) Notifications(ctx context.Context, userID uint, limit int) ([]Notification, error) {
 	if limit <= 0 {
 		limit = notificationListLimit
 	}
@@ -146,7 +146,7 @@ func (a *Admin) Notifications(ctx context.Context, userID uint, limit int) ([]No
 }
 
 // UnreadNotifications counts an account's unread notifications.
-func (a *Admin) UnreadNotifications(ctx context.Context, userID uint) (int64, error) {
+func (a *Panel) UnreadNotifications(ctx context.Context, userID uint) (int64, error) {
 	var n int64
 	err := a.db.WithContext(ctx).
 		Model(&Notification{}).
@@ -157,7 +157,7 @@ func (a *Admin) UnreadNotifications(ctx context.Context, userID uint) (int64, er
 
 // MarkNotificationRead marks one notification read. The user ID is part of the
 // statement, so one account cannot mark another's.
-func (a *Admin) MarkNotificationRead(ctx context.Context, userID, id uint) error {
+func (a *Panel) MarkNotificationRead(ctx context.Context, userID, id uint) error {
 	return a.db.WithContext(ctx).
 		Model(&Notification{}).
 		Where("id = ? AND user_id = ? AND read_at IS NULL", id, userID).
@@ -165,7 +165,7 @@ func (a *Admin) MarkNotificationRead(ctx context.Context, userID, id uint) error
 }
 
 // MarkNotificationsRead marks every unread notification of an account read.
-func (a *Admin) MarkNotificationsRead(ctx context.Context, userID uint) error {
+func (a *Panel) MarkNotificationsRead(ctx context.Context, userID uint) error {
 	return a.db.WithContext(ctx).
 		Model(&Notification{}).
 		Where("user_id = ? AND read_at IS NULL", userID).
@@ -173,7 +173,7 @@ func (a *Admin) MarkNotificationsRead(ctx context.Context, userID uint) error {
 }
 
 // DeleteNotification removes one of an account's notifications.
-func (a *Admin) DeleteNotification(ctx context.Context, userID, id uint) error {
+func (a *Panel) DeleteNotification(ctx context.Context, userID, id uint) error {
 	return a.db.WithContext(ctx).
 		Where("id = ? AND user_id = ?", id, userID).
 		Delete(&Notification{}).Error
@@ -184,7 +184,7 @@ func (a *Admin) DeleteNotification(ctx context.Context, userID, id uint) error {
 //
 // Nothing calls this for you: the table grows until something does. Run it
 // from a cron entry or the app's own scheduler.
-func (a *Admin) PruneNotifications(ctx context.Context, age time.Duration) (int64, error) {
+func (a *Panel) PruneNotifications(ctx context.Context, age time.Duration) (int64, error) {
 	if age <= 0 {
 		return 0, errors.New("steward: PruneNotifications needs a positive age")
 	}
@@ -196,4 +196,4 @@ func (a *Admin) PruneNotifications(ctx context.Context, age time.Duration) (int6
 
 // notificationsEnabled reports whether the bell is rendered and its endpoints
 // are mounted.
-func (a *Admin) notificationsEnabled() bool { return !a.cfg.DisableNotifications }
+func (a *Panel) notificationsEnabled() bool { return !a.cfg.DisableNotifications }

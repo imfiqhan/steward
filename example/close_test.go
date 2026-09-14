@@ -7,7 +7,7 @@ import (
 	steward "github.com/imfiqhan/steward"
 )
 
-func newClosableApp(t *testing.T) *steward.Admin {
+func newClosableApp(t *testing.T) *steward.Panel {
 	t.Helper()
 	app, err := steward.New(steward.Config{
 		Prefix: "/admin", DB: testDB(t), SecretKey: []byte("close-test-secret-key-0000"),

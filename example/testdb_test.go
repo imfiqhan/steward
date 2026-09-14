@@ -139,7 +139,7 @@ func localZone() string {
 // polling for queued exports, which otherwise outlives the database the test
 // opened. This cleanup is registered after testDB's, so it runs before it —
 // the worker stops, then the database closes.
-func serve(t *testing.T, app *steward.Admin) *httptest.Server {
+func serve(t *testing.T, app *steward.Panel) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(app)
 	t.Cleanup(func() {
@@ -152,7 +152,7 @@ func serve(t *testing.T, app *steward.Admin) *httptest.Server {
 // build builds a panel and stops it when the test ends. A built panel holds a
 // goroutine polling for queued exports; nothing else in a test stops it, and
 // it outlives the database testDB opened.
-func buildPanel(t *testing.T, app *steward.Admin) error {
+func buildPanel(t *testing.T, app *steward.Panel) error {
 	t.Helper()
 	err := app.Build()
 	t.Cleanup(func() { _ = app.Close() })

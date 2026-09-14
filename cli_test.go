@@ -11,7 +11,7 @@ import (
 // possibly run should be refused before anything touches a database.
 func buildNotReached(t *testing.T) App {
 	t.Helper()
-	return App{Build: func() (*Admin, error) {
+	return App{Build: func() (*Panel, error) {
 		t.Error("the panel was built for a command that was never going to run")
 		return nil, errors.New("unreachable")
 	}}
@@ -86,7 +86,7 @@ func TestHelpFlagIsNotAnError(t *testing.T) {
 // from, or a real command is reported as unknown.
 func TestTheCommandListMatchesTheSwitch(t *testing.T) {
 	for _, cmd := range cliCommands {
-		if err := runCLI(App{Build: func() (*Admin, error) {
+		if err := runCLI(App{Build: func() (*Panel, error) {
 			return nil, errors.New("stop here")
 		}}, []string{cmd}); err != nil && strings.Contains(err.Error(), "unknown command") {
 			t.Errorf("%q is in cliCommands but the switch does not know it", cmd)

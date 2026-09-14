@@ -118,7 +118,7 @@ func aggregatorFor[T any](c *Context) (Aggregator, error) {
 		t = t.Elem()
 	}
 	if t != nil {
-		if entry, ok := c.Admin.byType[t]; ok {
+		if entry, ok := c.Panel.byType[t]; ok {
 			if p, ok := entry.(aggregatorProvider); ok {
 				if agg := p.aggregator(); agg != nil {
 					return agg, nil
@@ -127,7 +127,7 @@ func aggregatorFor[T any](c *Context) (Aggregator, error) {
 			return nil, fmt.Errorf("steward: the repository for %s does not support aggregates", t.Name())
 		}
 	}
-	repo, err := NewGormRepository[T](c.Admin.DB())
+	repo, err := NewGormRepository[T](c.Panel.DB())
 	if err != nil {
 		return nil, err
 	}

@@ -28,7 +28,7 @@ type resourceMeta struct {
 // configuration happens through it before Build; the internal registry only
 // ever sees the type-erased resourceEntry.
 type Resource[T any] struct {
-	a *Admin
+	a *Panel
 	m *resourceMeta
 
 	commandPaths   []string
@@ -52,7 +52,7 @@ type customPage struct {
 // Register adds the model T to the panel. With no further configuration the
 // resource gets a slug and title derived from the type name; Grid, Form, and
 // Detail builders arrive with later milestones and hang off this handle.
-func Register[T any](a *Admin) *Resource[T] {
+func Register[T any](a *Panel) *Resource[T] {
 	if a.built {
 		panic("steward: Register called after Build — register all resources first")
 	}
@@ -187,7 +187,7 @@ func (t *typedResource[T]) meta() *resourceMeta { return t.res.m }
 // compile parses the model into the field table, applies the user's builder
 // functions, resolves every string field reference (collecting bad ones into
 // Verify errors), and finalizes the repository.
-func (t *typedResource[T]) compile(a *Admin) error {
+func (t *typedResource[T]) compile(a *Panel) error {
 	var zero T
 	typ := reflect.TypeOf(zero)
 	ft, err := newFieldTable(typ, a.db.NamingStrategy)
@@ -499,7 +499,7 @@ func (t *typedResource[T]) compile(a *Admin) error {
 
 // resolveBelongsTo fills the relation's table/pk/title columns for option
 // loading, verifying the relation and title field exist.
-func (t *typedResource[T]) resolveBelongsTo(a *Admin, fd *Field[T]) {
+func (t *typedResource[T]) resolveBelongsTo(a *Panel, fd *Field[T]) {
 	rel, ok := t.ft.model.Relationships.Relations[fd.relName]
 	if !ok || rel.FieldSchema == nil {
 		a.verifyErrs = append(a.verifyErrs,
@@ -578,7 +578,7 @@ func (t *typedResource[T]) defaultColumns(g *Grid[T]) {
 	}
 }
 
-func (t *typedResource[T]) registerRoutes(a *Admin, mux *http.ServeMux) {
+func (t *typedResource[T]) registerRoutes(a *Panel, mux *http.ServeMux) {
 	m := t.res.m
 	base := a.url(m.slug)
 	mux.HandleFunc("GET "+base, a.h(t.index))

@@ -25,7 +25,7 @@ const (
 //
 // Token resolution sits ahead of CSRF so that CSRF can recognise a bearer
 // caller, and ahead of auth, which defers to an already-resolved principal.
-func (a *Admin) wrap(next http.Handler) http.Handler {
+func (a *Panel) wrap(next http.Handler) http.Handler {
 	h := a.withOperationLog(next)
 	h = a.withPermission(h)
 	h = a.twoFactorGate(h)
@@ -38,7 +38,7 @@ func (a *Admin) wrap(next http.Handler) http.Handler {
 	return h
 }
 
-func (a *Admin) withRecover(next http.Handler) http.Handler {
+func (a *Panel) withRecover(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
@@ -69,7 +69,7 @@ func (sw *statusWriter) Write(b []byte) (int, error) {
 	return sw.ResponseWriter.Write(b)
 }
 
-func (a *Admin) withLogging(next http.Handler) http.Handler {
+func (a *Panel) withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if a.isAssetPath(r.URL.Path) {
 			next.ServeHTTP(w, r)
@@ -84,7 +84,7 @@ func (a *Admin) withLogging(next http.Handler) http.Handler {
 
 // withSession decodes the session cookie and guarantees a CSRF token exists,
 // setting the cookie immediately when one is issued.
-func (a *Admin) withSession(next http.Handler) http.Handler {
+func (a *Panel) withSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sess := a.sessionFromRequest(r)
 		if sess.CSRF == "" {
@@ -103,7 +103,7 @@ func (a *Admin) withSession(next http.Handler) http.Handler {
 // ambient cookie to a cross-site request, and a token sent in an explicit
 // header is never attached automatically. The token endpoint is exempt for the
 // same reason — it authenticates from its body and the caller has no session.
-func (a *Admin) withCSRF(next http.Handler) http.Handler {
+func (a *Panel) withCSRF(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet, http.MethodHead, http.MethodOptions:
@@ -129,7 +129,7 @@ func (a *Admin) withCSRF(next http.Handler) http.Handler {
 
 // publicPath reports paths that skip authentication: login, static assets,
 // and configured AuthExcept globs (relative to the prefix).
-func (a *Admin) publicPath(p string) bool {
+func (a *Panel) publicPath(p string) bool {
 	rel := strings.TrimPrefix(p, a.cfg.Prefix)
 	rel = "/" + strings.TrimLeft(rel, "/")
 	// /auth/2fa is public in the same sense as /auth/login: the caller holds a
@@ -157,14 +157,14 @@ func (a *Admin) publicPath(p string) bool {
 	return false
 }
 
-func (a *Admin) isAssetPath(p string) bool {
+func (a *Panel) isAssetPath(p string) bool {
 	rel := strings.TrimPrefix(p, a.cfg.Prefix)
 	return strings.HasPrefix(rel, "/_assets/")
 }
 
 // withAuth resolves the session's user (roles preloaded) and gates
 // non-public paths.
-func (a *Admin) withAuth(next http.Handler) http.Handler {
+func (a *Panel) withAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// A bearer token already resolved the principal.
 		if userOf(r) != nil {
@@ -224,9 +224,9 @@ func wantsJSONLike(r *http.Request) bool {
 }
 
 // deny writes a small error response in the client's preferred shape.
-func (a *Admin) deny(w http.ResponseWriter, r *http.Request, code int, msg string) {
+func (a *Panel) deny(w http.ResponseWriter, r *http.Request, code int, msg string) {
 	if wantsJSONLike(r) || r.Header.Get("HX-Request") == "true" {
-		c := &Context{W: w, R: r, Admin: a}
+		c := &Context{W: w, R: r, Panel: a, Admin: a}
 		_ = c.JSON(code, Error(msg))
 		return
 	}
@@ -234,7 +234,7 @@ func (a *Admin) deny(w http.ResponseWriter, r *http.Request, code int, msg strin
 }
 
 // saveSessionW is the writer-level session save used before a Context exists.
-func (a *Admin) saveSessionW(w http.ResponseWriter, r *http.Request, sess *session.Data) {
-	c := &Context{W: w, R: r, Admin: a, sess: sess}
+func (a *Panel) saveSessionW(w http.ResponseWriter, r *http.Request, sess *session.Data) {
+	c := &Context{W: w, R: r, Panel: a, Admin: a, sess: sess}
 	a.saveSession(c)
 }

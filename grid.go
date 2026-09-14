@@ -428,7 +428,7 @@ func (c *Column[T]) Link(href func(row *T) string) *Column[T] {
 
 // Image renders the value (a URL or storage path) as a thumbnail. A
 // storage-relative path resolves through the configured Storage; see
-// Admin.StorageURL.
+// Panel.StorageURL.
 func (c *Column[T]) Image(width, height int) *Column[T] {
 	c.storageRef = true
 	c.present = func(v any, _ *T) template.HTML {

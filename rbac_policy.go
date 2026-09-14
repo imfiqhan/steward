@@ -90,7 +90,7 @@ func (t *typedResource[T]) denyPolicy(c *Context) error {
 	if c.WantsJSON() {
 		return c.JSON(http.StatusForbidden, Error("You do not have permission to do this."))
 	}
-	c.Admin.renderError(c, http.StatusForbidden, "Permission denied", nil)
+	c.Panel.renderError(c, http.StatusForbidden, "Permission denied", nil)
 	return nil
 }
 
@@ -100,11 +100,11 @@ func (c *Context) permissionRules() []httpmatch.Rule {
 	if c.permRules != nil {
 		return c.permRules
 	}
-	c.permRules = c.Admin.loadPermissionRules(c.Ctx(), c.User)
+	c.permRules = c.Panel.loadPermissionRules(c.Ctx(), c.User)
 	return c.permRules
 }
 
-func (a *Admin) loadPermissionRules(ctx context.Context, user *AdminUser) []httpmatch.Rule {
+func (a *Panel) loadPermissionRules(ctx context.Context, user *AdminUser) []httpmatch.Rule {
 	rules := []httpmatch.Rule{}
 	if user == nil {
 		return rules
@@ -139,7 +139,7 @@ func (a *Admin) loadPermissionRules(ctx context.Context, user *AdminUser) []http
 // non-administrator looking at a grid of permission errors, and the tiles show
 // nothing the page itself does not — a widget's callback is the place to gate
 // anything a given role should not see.
-func (a *Admin) permissionSkip(rel string) bool {
+func (a *Panel) permissionSkip(rel string) bool {
 	switch rel {
 	case "/", "/auth/login", "/auth/logout", "/auth/profile":
 		return true
@@ -163,7 +163,7 @@ func (a *Admin) permissionSkip(rel string) bool {
 }
 
 // withPermission enforces route-level permissions after authentication.
-func (a *Admin) withPermission(next http.Handler) http.Handler {
+func (a *Panel) withPermission(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := userOf(r)
 		if user == nil { // public path; auth middleware already decided
@@ -180,7 +180,7 @@ func (a *Admin) withPermission(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		c := &Context{W: w, R: r, Admin: a, User: user, sess: sessionOf(r)}
+		c := &Context{W: w, R: r, Panel: a, Admin: a, User: user, sess: sessionOf(r)}
 		if c.WantsJSON() {
 			_ = c.JSON(http.StatusForbidden, Error("You do not have permission to do this."))
 			return

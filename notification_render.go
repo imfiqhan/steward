@@ -27,7 +27,7 @@ type notificationsVM struct {
 
 // notificationBell renders the bell's badge. Polled, so it stays cheap: one
 // indexed count, no list.
-func (a *Admin) notificationBell(c *Context) error {
+func (a *Panel) notificationBell(c *Context) error {
 	if c.User == nil {
 		return c.JSON(http.StatusUnauthorized, Error("Sign in first."))
 	}
@@ -39,7 +39,7 @@ func (a *Admin) notificationBell(c *Context) error {
 }
 
 // notificationList renders the panel behind the bell, fetched when it opens.
-func (a *Admin) notificationList(c *Context) error {
+func (a *Panel) notificationList(c *Context) error {
 	if c.User == nil {
 		return c.JSON(http.StatusUnauthorized, Error("Sign in first."))
 	}
@@ -69,7 +69,7 @@ func (a *Admin) notificationList(c *Context) error {
 
 // notificationRead marks one read and answers with the refreshed list, so the
 // row and the badge update from one request.
-func (a *Admin) notificationRead(c *Context) error {
+func (a *Panel) notificationRead(c *Context) error {
 	if c.User == nil {
 		return c.JSON(http.StatusUnauthorized, Error("Sign in first."))
 	}
@@ -86,7 +86,7 @@ func (a *Admin) notificationRead(c *Context) error {
 // notificationGo marks one read and sends the browser to what it is about, so
 // a row with a URL can be a plain link: no script, and middle-click and
 // keyboard activation behave the way a link should.
-func (a *Admin) notificationGo(c *Context) error {
+func (a *Panel) notificationGo(c *Context) error {
 	if c.User == nil {
 		return c.JSON(http.StatusUnauthorized, Error("Sign in first."))
 	}
@@ -116,7 +116,7 @@ func localPath(raw, fallback string) string {
 }
 
 // notificationReadAll marks the account's unread notifications read.
-func (a *Admin) notificationReadAll(c *Context) error {
+func (a *Panel) notificationReadAll(c *Context) error {
 	if c.User == nil {
 		return c.JSON(http.StatusUnauthorized, Error("Sign in first."))
 	}
@@ -131,7 +131,7 @@ func (a *Admin) notificationReadAll(c *Context) error {
 // Rendered into a buffer first: a template that fails halfway has already
 // written a 200 and part of a body, and the error page then appended to it
 // arrives as a fragment, so the client swaps a whole page into a menu.
-func (a *Admin) renderFragment(c *Context, name string, data any) error {
+func (a *Panel) renderFragment(c *Context, name string, data any) error {
 	var buf bytes.Buffer
 	if err := a.renderer.execute(&buf, name, a.pageMetaFor(c, ""), data); err != nil {
 		return err
@@ -182,7 +182,7 @@ type notificationPageVM struct {
 
 // notificationsPage lists an account's whole history, because the bell shows
 // only the most recent and a busy panel buries anything older within a day.
-func (a *Admin) notificationsPage(c *Context) error {
+func (a *Panel) notificationsPage(c *Context) error {
 	if c.User == nil {
 		return c.Redirect(a.url("auth/login"))
 	}
@@ -259,7 +259,7 @@ func (a *Admin) notificationsPage(c *Context) error {
 
 // notificationsPageAction handles the page's own mark-read and delete
 // controls, then returns to the list the request came from.
-func (a *Admin) notificationsPageAction(c *Context) error {
+func (a *Panel) notificationsPageAction(c *Context) error {
 	if c.User == nil {
 		return c.JSON(http.StatusUnauthorized, Error("Sign in first."))
 	}
