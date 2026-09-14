@@ -315,7 +315,7 @@ func New(cfg Config) (*Admin, error) {
 	return a, nil
 }
 
-// Prefix returns the mount path ("/admin").
+// Prefix returns the mount path, "" when the panel is mounted at the root.
 func (a *Admin) Prefix() string { return a.cfg.Prefix }
 
 // DB returns the underlying GORM handle.
