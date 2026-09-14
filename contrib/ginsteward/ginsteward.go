@@ -1,4 +1,4 @@
-// Package ginsteward mounts a steward panel on a Gin router. It is the only
+// Package ginsteward mounts a steward.Panel on a Gin router. It is the only
 // package in the module that imports Gin; the core stays a plain
 // http.Handler, so any router works via the same pattern.
 package ginsteward
@@ -11,18 +11,15 @@ import (
 	steward "github.com/imfiqhan/steward"
 )
 
-// Mount builds the admin and registers it under its prefix. Build errors
+// Mount builds the panel and registers it under its prefix. Build errors
 // (bad config, failed migrations, invalid resource definitions) surface here
 // rather than on the first request.
-// The parameter is the deprecated name on purpose: this module requires the
-// framework at v0.1.0, which has Admin and not Panel. It moves when the
-// require does.
-func Mount(r gin.IRouter, a *steward.Admin) error { //nolint:staticcheck // pinned to a version without Panel
-	if err := a.Build(); err != nil {
+func Mount(r gin.IRouter, p *steward.Panel) error {
+	if err := p.Build(); err != nil {
 		return err
 	}
-	h := gin.WrapH(a)
-	prefix := a.Prefix()
+	h := gin.WrapH(p)
+	prefix := p.Prefix()
 	if prefix == "" {
 		// A panel mounted at the root is the whole router. Gin rejects an empty
 		// pattern outright, and its catch-all already answers "/", so the bare
@@ -35,4 +32,4 @@ func Mount(r gin.IRouter, a *steward.Admin) error { //nolint:staticcheck // pinn
 	return nil
 }
 
-var _ http.Handler = (*steward.Admin)(nil) //nolint:staticcheck // as above
+var _ http.Handler = (*steward.Panel)(nil)

@@ -4,7 +4,7 @@ go 1.26.3
 
 require (
 	github.com/gin-gonic/gin v1.12.0
-	github.com/imfiqhan/steward v0.1.0
+	github.com/imfiqhan/steward v0.3.0
 )
 
 require (

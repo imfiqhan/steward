@@ -90,8 +90,8 @@ CONTRIB = contrib/ginsteward contrib/redcache contrib/meilistore contrib/s3store
 
 build:
 	@for dir in $(MODULES) $(CONTRIB); do echo "== $$dir"; (cd $$dir && $(GO) build ./...) || exit 1; done
-	@echo "== each module on its own, the way a consumer resolves it"
-	@for dir in $(MODULES) $(CONTRIB); do (cd $$dir && GOWORK=off $(GO) build ./...) || exit 1; done
+		@echo "== each module on its own, the way a consumer resolves it"
+	@for dir in $(MODULES) $(CONTRIB); do echo "== $$dir (GOWORK=off)"; (cd $$dir && GOWORK=off $(GO) build ./...) || exit 1; done
 
 test:
 	@for dir in $(MODULES); do echo "== $$dir"; (cd $$dir && $(GO) test -race ./...) || exit 1; done

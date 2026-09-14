@@ -2,7 +2,7 @@ module github.com/imfiqhan/steward/example
 
 go 1.26.3
 
-require github.com/imfiqhan/steward v0.1.0
+require github.com/imfiqhan/steward v0.3.0
 
 require (
 	github.com/bytedance/gopkg v0.1.3 // indirect
