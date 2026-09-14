@@ -237,6 +237,15 @@ func runCLI(app App, args []string) error {
 		if *name == "" {
 			*name = *username
 		}
+		// The panel's own tables are created by its build, and this is the one
+		// command that writes to them without serving. Without this, creating
+		// the first account on a fresh database failed with the driver's own
+		// "no such table: admin_users" — a true sentence about the wrong
+		// thing. It runs before the password is asked for, so a database that
+		// cannot be prepared is reported before anyone types.
+		if err := a.Build(); err != nil {
+			return err
+		}
 		pw := *password
 		if pw == "" {
 			// Reading from a pipe or a CI log here blocks forever, or worse

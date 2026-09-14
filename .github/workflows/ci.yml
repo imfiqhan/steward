@@ -1,9 +1,9 @@
 # What has to hold before anything is tagged.
 #
-# The framework and its example are separate modules, and the example holds most
-# of the tests: `go test ./...` in the root runs one of them. That is how five
-# tests sat red on main without anyone noticing, so every job below drives the
-# Makefile, whose targets cover both.
+# The framework, its example and the scaffolder are separate modules, and the
+# example holds most of the tests: `go test ./...` in the root runs one of them.
+# That is how five tests sat red on main without anyone noticing, so every job
+# below drives the Makefile, whose targets cover all three.
 name: CI
 
 on:
@@ -45,9 +45,10 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache-dependency-path: |
+                    cache-dependency-path: |
             go.sum
             example/go.sum
+            cmd/steward/go.sum
 
       - name: vet
         run: make vet

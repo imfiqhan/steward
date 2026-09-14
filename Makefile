@@ -77,21 +77,22 @@ vendor-lucide:
 	@echo "sprite: $$(wc -c < assets/dist/lucide-sprite.svg) bytes, \
 $$(grep -o '<symbol' assets/dist/lucide-sprite.svg | wc -l | tr -d ' ') icons"
 
+# Every target walks all three modules. The framework, its example and the
+# scaffolder are separate modules, so `./...` in any one of them covers one of
+# them — which is how the scaffolder went unvetted and untested entirely.
+MODULES = . example cmd/steward
+
 build:
-	$(GO) build ./...
-	cd example && $(GO) build ./...
+	@for dir in $(MODULES); do echo "== $$dir"; (cd $$dir && $(GO) build ./...) || exit 1; done
 
 test:
-	$(GO) test -race ./...
-	cd example && $(GO) test -race ./...
+	@for dir in $(MODULES); do echo "== $$dir"; (cd $$dir && $(GO) test -race ./...) || exit 1; done
 
 vet:
-	$(GO) vet ./...
-	cd example && $(GO) vet ./...
+	@for dir in $(MODULES); do echo "== $$dir"; (cd $$dir && $(GO) vet ./...) || exit 1; done
 
 lint:
-	golangci-lint run ./...
-	cd example && golangci-lint run ./...
+	@for dir in $(MODULES); do echo "== $$dir"; (cd $$dir && golangci-lint run ./...) || exit 1; done
 
 run:
 	cd example && $(GO) run . -addr $(EXAMPLE_ADDR)
@@ -105,5 +106,4 @@ visual:
 	node scripts/visual.mjs http://localhost$(EXAMPLE_ADDR)
 
 tidy:
-	$(GO) mod tidy
-	cd example && $(GO) mod tidy
+	@for dir in $(MODULES); do echo "== $$dir"; (cd $$dir && $(GO) mod tidy) || exit 1; done
