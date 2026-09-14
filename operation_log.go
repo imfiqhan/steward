@@ -1,6 +1,7 @@
 package steward
 
 import (
+	"context"
 	"encoding/json"
 	"net"
 	"net/http"
@@ -66,11 +67,20 @@ func (a *Admin) withOperationLog(next http.Handler) http.Handler {
 			IP:     host,
 			Input:  string(raw),
 		}
-		// Fire-and-forget on a fresh context: the request context is done.
-		go func() {
-			if err := a.db.Create(&entry).Error; err != nil {
-				a.log.Error("steward: operation log", "err", err)
-			}
-		}()
+		// Written before this handler returns, not in a goroutine of its own.
+		//
+		// The response has already gone out — this runs after next.ServeHTTP —
+		// so what it costs is one insert on a request that has just written,
+		// and what it buys is a write that cannot outlive the panel. Detached,
+		// it could still be running after the server stopped: in a test that
+		// meant writing into a temporary directory already being removed, and
+		// in a process it meant one unbounded goroutine per mutating request
+		// and an error nobody was left to act on.
+		//
+		// WithoutCancel keeps the request's values and drops its cancellation,
+		// which is what the goroutine was reaching for with a bare context.
+		if err := a.db.WithContext(context.WithoutCancel(r.Context())).Create(&entry).Error; err != nil {
+			a.log.Error("steward: operation log", "err", err)
+		}
 	})
 }
