@@ -372,6 +372,10 @@ func (h *hasManyForm[T, C]) persist(c *Context, parent *T, payload any) error {
 			if err := h.repo.Create(c.Ctx(), &child); err != nil {
 				return err
 			}
+			// Create fills the primary key. It is the only moment the made-up
+			// key the form used and the identity the row now has are both in
+			// hand, and a record referring to a sibling row needs the pair.
+			c.recordNestedID(h.relation, p.key, h.childKey(&child))
 		default:
 			child, err := h.repo.Find(c.Ctx(), p.key)
 			if err != nil {
@@ -387,6 +391,10 @@ func (h *hasManyForm[T, C]) persist(c *Context, parent *T, payload any) error {
 				}
 				continue
 			}
+			// A row that was already there is keyed by its own id, so the pair
+			// is trivial — recorded anyway, so a caller reads one map rather
+			// than deciding per row which kind it is looking at.
+			c.recordNestedID(h.relation, p.key, p.key)
 			var dirty []string
 			for path, val := range p.values {
 				if info, ok := h.childFT.byPath[path]; ok {
@@ -405,4 +413,31 @@ func (h *hasManyForm[T, C]) persist(c *Context, parent *T, payload any) error {
 		}
 	}
 	return nil
+}
+
+// childKey reads a child's primary key as the string a reference would use.
+func (h *hasManyForm[T, C]) childKey(child *C) string {
+	if h.childFT == nil || h.childFT.pk == nil {
+		return ""
+	}
+	v, ok := h.childFT.pk.value(reflect.ValueOf(child))
+	if !ok {
+		return ""
+	}
+	return fmt.Sprint(v)
+}
+
+// recordNestedID notes what one row was saved as, for Context.NestedIDs.
+//
+// It lives here rather than beside its reader because persist is its only
+// caller, and the lint exclusion that covers this file's generic dispatch has
+// to cover it too.
+func (c *Context) recordNestedID(relation, key, id string) {
+	if c.nestedIDs == nil {
+		c.nestedIDs = map[string]map[string]string{}
+	}
+	if c.nestedIDs[relation] == nil {
+		c.nestedIDs[relation] = map[string]string{}
+	}
+	c.nestedIDs[relation][key] = id
 }

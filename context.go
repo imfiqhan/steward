@@ -23,6 +23,38 @@ type Context struct {
 
 	sess      *session.Data
 	permRules []httpmatch.Rule // memoized parsed permissions
+
+	// nestedIDs records what each HasMany row was saved as, by relation and
+	// then by the key the form used. Filled during the save, read by a Saved
+	// hook; nil everywhere else.
+	nestedIDs map[string]map[string]string
+}
+
+// NestedIDs maps the rows of a HasMany relation from the key the form gave
+// them to the primary key they were saved as.
+//
+// A row the browser added carries a made-up key — "new_3_a1b2" — because it has
+// no identity until it is written. A row that was already there carries its
+// own id. Both are in the map, so a caller does not have to know which is
+// which: the key is what the submitted form called the row, and the value is
+// what the database calls it now.
+//
+// It is what a record referring to a sibling row needs. Every relation on the
+// form is complete before a Saved hook runs, so one repeater's rows can be
+// resolved against another's whichever order they were declared in:
+//
+//	f.Saved(func(c *steward.Context, form *Form, _ bool) error {
+//	    pages := c.NestedIDs("Pages")
+//	    for _, q := range form.Questions {
+//	        q.PageID = pages[q.PageKey]
+//	    }
+//	    return save(c, form.Questions)
+//	})
+//
+// Call it from a Saved hook: Saving runs before the rows exist. It returns nil
+// for a relation that was not part of this request.
+func (c *Context) NestedIDs(relation string) map[string]string {
+	return c.nestedIDs[relation]
 }
 
 // Ctx returns the request's context.Context for repository calls.

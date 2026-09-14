@@ -760,6 +760,8 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	// the index has to reflect the record however it was written.
 	t.indexRow(c.Ctx(), m)
 	t.dropReplacedUploads(c, m, held)
+	// Every relation is written before the Saved hook below, which is what lets
+	// that hook resolve a reference from one repeater's rows to another's.
 	for i, n := range f.nested {
 		if err := n.persist(c, m, nestedPayloads[i]); err != nil {
 			return fmt.Errorf("saving %s rows: %w", n.fieldName(), err)
