@@ -33,6 +33,62 @@ running panel to a new version.
 
 - **`migrate down -force`.** A rollback whose plan is every applied migration is
   refused without it, since that is the command that empties the database.
+  `-yes` is accepted as the same thing.
+
+- **`Admin.Close`** stops a panel's background work — the queued-export worker
+  — and waits for an export already in flight to finish. It leaves `Config.DB`
+  alone, so close the panel first and the database after. A long-lived process
+  rarely needs it; **a test does**, since without it every panel a suite builds
+  goes on polling a database the test has closed.
+
+- **`Config.DisableQueryProbe`** turns off the `Verify` probe described below.
+
+### Changed
+
+- **Errors name the nearest valid value, the set to choose from, and the line
+  the mistake is on.** Every message that reports a name a reader chose — a
+  field path, a badge colour, a disk, a validation rule, an icon, a filter
+  layout, a relation, a CLI command, a flag, a field type — now reads:
+
+  ```
+  posts: grid column: unknown field "Titel" (admin/posts.go:24)
+    did you mean: Title
+    available: AuthorID, Body, Cover, CreatedAt, ID, Keywords, Status, Title
+  ```
+
+  Suggestions are offered within two edits and ignore case. Candidate lists are
+  sorted and capped at fifteen with a count of the rest — an unknown icon used
+  to answer with all 1,637 names on one line. The same mistake now produces the
+  same message every run, which it did not when the list came out of a map.
+
+  Declaration sites come from the stack at the moment a builder runs, so
+  nothing had to be threaded to get them. `QuickSearch`, `Command`,
+  `DefaultSort` and `Tree` take paths as varargs and have no per-path object to
+  hang a site on; their messages name the model instead.
+
+- **`Verify` runs the statements a panel's declarations build** — reading the
+  table by column name, each quick and command search, each filter, each
+  sortable column — bounded with `LIMIT 0`. The database parses, analyses and
+  plans, which is where these failures are raised, and returns without reading
+  a row.
+
+  This reaches what no amount of checking the Go type can: a column the model
+  declares and no migration ever added (invisible to `SELECT *` — the field
+  just stays at its zero value), and a predicate the dialect refuses for a
+  column's type, which is how quick search on a `uuid` column broke every
+  search on PostgreSQL in v0.1.0. A table that does not exist yet is a
+  migration that has not run and is passed over.
+
+- **The scaffolder prints the paths it wrote, one per line, and nothing else.**
+  What to do next moved behind `--verbose`. `--yes` is accepted wherever
+  `--force` was.
+
+- **Every CLI failure exits 1**, including a bad flag, which used to leave
+  through `flag`'s own exit code and print the failure twice.
+
+- **An unknown command or flag is refused before the panel is built**, so a
+  typo is reported as a typo rather than as whatever the database had to say
+  about being unreachable. `help` no longer needs a working database.
 
 ### Fixed
 
@@ -60,6 +116,40 @@ running panel to a new version.
 - **The command palette says when a section could not answer.** A resource whose
   query timed out or was refused contributed nothing, which read as "no
   matches" — the same answer a typo gets.
+
+- **`admin:create-user` prepares the tables it writes to.** On a database that
+  had not been served yet it failed with the driver's own "no such table:
+  admin_users".
+
+- **`admin:create-user` does not block on a prompt nobody can answer.** It asked
+  for a password whenever `-password` was absent, including when stdin was a
+  pipe, where the prompt either waits forever or takes the next line of a
+  script as the password. It now refuses and names the flag.
+
+- **The scaffolder refuses a field type it does not have.** `--fields
+  "title:strnig"` fell through to a string column and exited 0, so the spec was
+  wrong and the generated model compiled, ran, and was wrong with it.
+
+- **The operation log is written on the request that caused it.** It went out
+  from a goroutine of its own, which outlived the request, the panel and the
+  process shutting down: one unbounded goroutine per mutating request, and
+  writes that could land after the panel had stopped.
+
+### Upgrading
+
+Four things to look at, none of them large:
+
+- **`Verify` now opens the database.** It always ran `Build`, so it always
+  needed one; what is new is a query per declaration. Wherever that is not
+  wanted — a check run before migrations, a place where a round trip is not
+  free — set `Config.DisableQueryProbe`. A table that does not exist yet is
+  already passed over.
+- **Call `Admin.Close` in tests.** Every panel a suite builds otherwise keeps a
+  goroutine polling a database the test has closed.
+- **A test asserting on an error message will need rewording.** The text is
+  what changed; which errors are reported, and when, is the same.
+- **Anything reading the scaffolder's stdout** now gets bare paths rather than
+  `created: <path>`. `--verbose` restores the commentary, not the old shape.
 
 ## v0.1.2
 
