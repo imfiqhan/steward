@@ -504,6 +504,15 @@ func (fd *Field[T]) Help(s string) *Field[T] { fd.help = s; return fd }
 // Disable renders the input disabled (and ignores submissions).
 func (fd *Field[T]) Disable() *Field[T] { fd.disabled = true; fd.ignored = true; return fd }
 
+// Virtual detaches a field from the model: it renders and submits like any
+// other, and nothing is written to a column. Read what it posted from
+// c.R.Form[path] in a Saved hook, which is how a pivot table is filled.
+//
+// MultiSelect is virtual already. Tags needs this when its values live in a
+// second table rather than in a column of the row; pair it with ValuesFunc so
+// the form opens on the values that table already holds.
+func (fd *Field[T]) Virtual() *Field[T] { fd.virtual = true; fd.ignored = true; return fd }
+
 // ReadOnly renders the input read-only.
 func (fd *Field[T]) ReadOnly() *Field[T] { fd.readOnly = true; return fd }
 
@@ -575,8 +584,9 @@ func (fd *Field[T]) SavingValue(fn func(c *Context, raw string) (any, error)) *F
 	return fd
 }
 
-// ValuesFunc supplies the selected values for a MultiSelect on the edit
-// form; m is the typed row (assert to *T).
+// ValuesFunc supplies the values a field opens with on the edit form, where the
+// row's own columns do not hold them: a MultiSelect's selection, or a virtual
+// Tags field's chips. m is the typed row (assert to *T).
 func (fd *Field[T]) ValuesFunc(fn func(c *Context, m any) []string) *Field[T] {
 	fd.valuesFn = fn
 	return fd

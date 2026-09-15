@@ -11,14 +11,10 @@ import (
 // typing.
 const maxTagValues = 200
 
-// encodeTags normalises what a Tags field posts into the shape the column
-// stores: a compact JSON array, trimmed, with blanks and repeats dropped, and
-// "" when nothing is left.
-//
-// The empty string rather than "[]" is what an empty Files column holds too, so
-// one read path answers both.
-func encodeTags(raw string) string {
-	values := decodeStringList(raw)
+// normalizeTags reduces a posted list to what a Tags field keeps: trimmed, runs
+// of whitespace collapsed to one space, blanks and repeats dropped, capped at
+// maxTagValues.
+func normalizeTags(values []string) []string {
 	seen := make(map[string]bool, len(values))
 	kept := make([]string, 0, len(values))
 	for _, v := range values {
@@ -32,6 +28,16 @@ func encodeTags(raw string) string {
 			break
 		}
 	}
+	return kept
+}
+
+// encodeTagList renders a list as the compact JSON array a Tags column stores,
+// and "" when nothing is left.
+//
+// The empty string rather than "[]" is what an empty Files column holds too, so
+// one read path answers both.
+func encodeTagList(values []string) string {
+	kept := normalizeTags(values)
 	if len(kept) == 0 {
 		return ""
 	}
@@ -42,11 +48,12 @@ func encodeTags(raw string) string {
 	return string(b)
 }
 
-// tagsHTML renders a stored Tags value as the chips a reader sees, for a grid
-// column and a detail row alike.
-func tagsHTML(v any) template.HTML {
-	raw, _ := refParts(v)
-	values := decodeStringList(raw)
+// encodeTags normalises what a Tags field posts into the shape the column
+// stores.
+func encodeTags(raw string) string { return encodeTagList(decodeStringList(raw)) }
+
+// tagChips renders values as the chips a reader sees. Every value is escaped.
+func tagChips(values []string) template.HTML {
 	if len(values) == 0 {
 		return ""
 	}
@@ -59,6 +66,26 @@ func tagsHTML(v any) template.HTML {
 	}
 	b.WriteString(`</span>`)
 	return template.HTML(b.String()) //nolint:gosec // every value is escaped above
+}
+
+// tagsHTML renders a stored Tags value as chips, for a grid column and a detail
+// row alike.
+func tagsHTML(v any) template.HTML {
+	raw, _ := refParts(v)
+	return tagChips(decodeStringList(raw))
+}
+
+// TagList draws values as the same chips a Tags field does, for a computed
+// column or detail row whose values are not a Tags column — the rows of a
+// related table, say. Blanks are skipped and every value is escaped.
+func TagList(values []string) template.HTML {
+	kept := make([]string, 0, len(values))
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			kept = append(kept, v)
+		}
+	}
+	return tagChips(kept)
 }
 
 // Tags renders a Tags column's stored JSON array as chips rather than as the

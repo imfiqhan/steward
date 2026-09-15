@@ -124,6 +124,14 @@ func TestDocumentedFieldKindsAllWork(t *testing.T) {
 
 		// Free values
 		f.Tags("Keywords").Help("Type a keyword and press Enter.")
+		// The same field where the values are rows in another table.
+		f.Tags("Labels").Virtual().
+			ValuesFunc(func(_ *steward.Context, m any) []string {
+				if r, ok := m.(*docsRow); ok {
+					return []string{r.Title}
+				}
+				return nil
+			})
 
 		// Relations
 		f.BelongsTo("CategoryID", "Category", "Name")
@@ -163,7 +171,7 @@ func TestDocumentedFieldKindsAllWork(t *testing.T) {
 		d.Field("Icon").Image(96, 96).Disk("local")
 
 		d.FieldFunc("tags", "Tags", func(r *docsRow) template.HTML {
-			return template.HTML(strings.Join([]string{"one", "two"}, ", "))
+			return steward.TagList([]string{"one", "two"})
 		})
 		d.Field("PostDate").As(func(v any, r *docsRow) template.HTML {
 			return template.HTML(r.PostDate.Format("2 January 2006"))

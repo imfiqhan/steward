@@ -6,6 +6,43 @@ running panel to a new version.
 
 ## Unreleased
 
+### Added
+
+- **A `Tags` field can stand for rows in another table.** It wrote to one text
+  column and read back from it, which is the right shape for keywords on the
+  record itself and no use at all where a normalised schema keeps tags in a
+  table of their own and joins them through a pivot — the arrangement a public
+  site is usually already reading.
+
+  `Virtual()` detaches a field from the model: it renders and submits like any
+  other, nothing is written to a column, and what it posted reaches a `Saved`
+  hook as `c.R.Form[name]`. `ValuesFunc` supplies the chips the form opens on.
+
+  ```go
+  f.Tags("Tags").Virtual().
+      ValuesFunc(func(_ *steward.Context, m any) []string {
+          return tagNames(m.(*Post).Tags)
+      })
+
+  f.Saved(func(c *steward.Context, p *Post, _ bool) error {
+      return syncTags(c, p.ID, c.R.Form["Tags"])
+  })
+  ```
+
+  This is what `MultiSelect` has always done, and the hook is the same hook.
+  What differs is what the values are: a multi-select posts the ids of rows that
+  exist, a `Tags` field posts names the reader typed — including names that are
+  all digits. `"2024"` is a tag, not an id.
+
+  The hook is handed a plain `[]string`, normalised the way a stored column is:
+  trimmed, whitespace collapsed, blanks and repeats dropped, capped at 200
+  values. No column decodes a virtual field, so without this a client posting
+  the list by hand reaches a hook that writes a row per value.
+
+- **`TagList`** draws values as the chips a `Tags` field does. `Column.Tags()`
+  and `DetailField.Tags()` read a stored array; this takes a list you already
+  have, so a computed column over a relation shows a tag the way the form does.
+
 ### Removed
 
 - **`Admin` and `Context.Admin` are gone.** They were kept as an alias and a

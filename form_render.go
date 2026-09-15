@@ -279,6 +279,13 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 				fv.Options = firstPage(fv.Options)
 				fv.OptionsURL = optionsURL(c, m.slug, fd.path)
 			}
+		case FieldTags:
+			// A virtual Tags field has no column to read, so what it opens with
+			// comes from ValuesFunc. The widget reads its hidden input as the
+			// JSON array a Tags column would have held.
+			if fd.valuesFn != nil && row != nil {
+				fv.Value = encodeTagList(fd.valuesFn(c, row))
+			}
 		case FieldIcon:
 			rend := c.Panel.renderer
 			for _, name := range rend.iconNames() {
@@ -549,49 +556,68 @@ func decodeSelection(raw string) ([]string, bool) {
 	return nil, false
 }
 
-// expandMultiSelects turns each MultiSelect's submitted JSON array back into
-// repeated form values.
+// expandListFields turns a field that submits one JSON array back into the
+// repeated form values a hook reads.
 //
-// The combobox submits one hidden input holding `["1","2"]`. Every handler and
-// hook reads c.R.Form[name] as a plain list, and that is the contract worth
-// keeping — so the shape the widget happens to use is undone here, once, rather
-// than in every application that reads one.
+// The combobox submits one hidden input holding `["1","2"]`, and so does a
+// virtual Tags field. Every handler and hook reads c.R.Form[name] as a plain
+// list, and that is the contract worth keeping — so the shape a widget happens
+// to use is undone here, once, rather than in every application that reads one.
 //
-// A value that is not a JSON array is left alone, so a plain <select multiple>,
-// or a client posting the field the ordinary way, still works.
-// expandMultiSelects rewrites each multi-select's JSON payload into the repeated
-// form values a hook expects. It returns the labels of any field whose payload
-// could not be read, which is a refusal rather than something to work around.
-func (t *typedResource[T]) expandMultiSelects(c *Context) []string {
+// A multi-select value that is not a JSON array is left alone, so a plain
+// <select multiple>, or a client posting the field the ordinary way, still
+// works. It returns the labels of any multi-select whose payload could not be
+// read, which is a refusal rather than something to work around.
+func (t *typedResource[T]) expandListFields(c *Context) []string {
 	var bad []string
 	if c.R.Form == nil {
 		return nil
 	}
 	for _, fd := range t.form.fields {
-		if fd.kind != FieldMultiSelect {
-			continue
-		}
-		raw := c.R.Form[fd.path]
-		if len(raw) != 1 || !strings.HasPrefix(strings.TrimSpace(raw[0]), "[") {
-			continue
-		}
-		vals, ok := decodeSelection(raw[0])
-		if !ok {
-			// It is shaped like the widget's payload but is not one. Leaving it
-			// in place hands a hook a blob of JSON where it expects a value, and
-			// a hook that creates missing options by name will store it: two
-			// tags in a live table are named with a mangled selection because
-			// this went through. The field is virtual, so nothing downstream
-			// validates it — refusing here is the only place left.
-			bad = append(bad, fd.label)
-			continue
-		}
-		c.R.Form[fd.path] = vals
-		if c.R.PostForm != nil {
-			c.R.PostForm[fd.path] = vals
+		switch {
+		case fd.kind == FieldMultiSelect:
+			raw := c.R.Form[fd.path]
+			if len(raw) != 1 || !strings.HasPrefix(strings.TrimSpace(raw[0]), "[") {
+				continue
+			}
+			vals, ok := decodeSelection(raw[0])
+			if !ok {
+				// It is shaped like the widget's payload but is not one. Leaving
+				// it in place hands a hook a blob of JSON where it expects a
+				// value, and a hook that creates missing options by name will
+				// store it: two tags in a live table are named with a mangled
+				// selection because this went through. The field is virtual, so
+				// nothing downstream validates it — refusing here is the only
+				// place left.
+				bad = append(bad, fd.label)
+				continue
+			}
+			setFormValues(c, fd.path, vals)
+		case fd.kind == FieldTags && fd.virtual:
+			// No column decodes this one, so the normalising a stored Tags
+			// column gets on the way in has to happen here instead: a hook that
+			// creates a row per value is otherwise handed whatever was posted.
+			raw, ok := c.R.Form[fd.path]
+			if !ok {
+				continue
+			}
+			vals := raw
+			if len(raw) == 1 {
+				vals = decodeStringList(raw[0])
+			}
+			setFormValues(c, fd.path, normalizeTags(vals))
 		}
 	}
 	return bad
+}
+
+// setFormValues writes a field's expanded values back over both maps a handler
+// may read it from.
+func setFormValues(c *Context, path string, vals []string) {
+	c.R.Form[path] = vals
+	if c.R.PostForm != nil {
+		c.R.PostForm[path] = vals
+	}
 }
 
 func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
@@ -605,7 +631,7 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 		return err
 	}
 	// Before anything reads the form, so a hook sees the ordinary shape.
-	if bad := t.expandMultiSelects(c); len(bad) > 0 {
+	if bad := t.expandListFields(c); len(bad) > 0 {
 		errs := map[string][]string{}
 		for _, label := range bad {
 			errs[label] = []string{label + " was submitted in a form this field cannot read."}
