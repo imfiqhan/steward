@@ -4,7 +4,7 @@ Steward is `0.x`: the API can change between releases, and this file is where
 those changes are written down. Read the **Upgrading** notes before moving a
 running panel to a new version.
 
-## Unreleased
+## v0.4.0
 
 ### Added
 
@@ -56,6 +56,28 @@ running panel to a new version.
   **What to do:** replace `steward.Admin` with `steward.Panel` and `c.Admin`
   with `c.Panel`. They were the same type and the same pointer, so nothing but
   the spelling changes. `gopls rename` does it across a workspace in one pass.
+
+### Upgrading
+
+**The rename is no longer optional.** A codebase still on `Admin` or
+`Context.Admin` does not compile against this release. The fix is mechanical and
+the names were the same type and the same pointer, so nothing but the spelling
+changes — 41 occurrences in the application this was migrated against, 30 of the
+type and 11 of the field, and no behaviour to check afterwards.
+
+`AdminUser` keeps its name: it is an administrator, not a panel. So do the
+`admin_` table prefix, which is data and configurable with `Config.TablePrefix`,
+and `Config.Prefix`, which was never `/admin` to begin with.
+
+Two things that look like they need attention and do not:
+
+- **An existing `Tags` field is untouched.** It still reads and writes its own
+  column. `Virtual()` is something to reach for when the values live in another
+  table, not something that happens to a field that was working.
+- **The `contrib/*` modules need no bump.** None of them names `Admin`, so the
+  removal does not reach them, and they require the framework at a minimum
+  rather than a maximum: `v0.4.0` alongside `contrib/meilistore v0.1.0` resolves
+  and builds.
 
 ## v0.3.0
 
