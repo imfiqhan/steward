@@ -39,6 +39,12 @@ type Config struct {
 	// the brand's first letter is used.
 	BrandIcon string
 
+	// Style selects the Basecoat style pack the panel is drawn with — the
+	// layer that owns radius, shadows, focus rings and state treatment.
+	// Unset means DefaultStyle. Colour is not part of it: ThemeCSS redefines
+	// the tokens over whichever pack is chosen. See Styles for the full list.
+	Style Style
+
 	// ThemeCSS is inlined in every page's head, after the stylesheet, so it can
 	// redefine the design tokens the components read — --primary, --radius,
 	// --background and the rest — without replacing the stylesheet itself. It
@@ -275,6 +281,11 @@ func New(cfg Config) (*Panel, error) {
 	if cfg.Brand == "" {
 		cfg.Brand = "Steward"
 	}
+	style, err := resolveStyle(cfg.Style)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Style = style
 	if cfg.CurrencySymbol == "" {
 		cfg.CurrencySymbol = "$"
 	}

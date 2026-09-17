@@ -118,9 +118,17 @@ func (a *Panel) warnUnknownClasses() {
 	if err != nil {
 		return
 	}
+	// The component layer lives in the selected style pack, not the shared
+	// bundle, so reading only the latter would report every component class as
+	// having no rule.
+	pack, err := readLayered(a.renderer.assetLayers, a.cfg.Style.stylesheet())
+	if err != nil {
+		return
+	}
 	// A panel's own rules are part of the answer: a class defined in ThemeCSS
 	// is as real as one the bundle carries.
-	for _, line := range unknownTemplateClasses(a.cfg.TemplatesFS, string(css)+a.cfg.ThemeCSS) {
+	known := string(css) + string(pack) + a.cfg.ThemeCSS
+	for _, line := range unknownTemplateClasses(a.cfg.TemplatesFS, known) {
 		a.log.Warn("steward: template uses a class the stylesheet has no rule for", "where", line)
 	}
 }
