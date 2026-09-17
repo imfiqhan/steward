@@ -286,7 +286,7 @@ func TestDocumentedWidgetsAllWork(t *testing.T) {
 func TestEveryConfigFieldIsDocumented(t *testing.T) {
 	documented := map[string]bool{
 		"DB": true, "SecretKey": true,
-		"Prefix": true, "Brand": true, "BrandIcon": true, "ThemeCSS": true, "CurrencySymbol": true, "GridActions": true,
+		"Prefix": true, "Brand": true, "BrandIcon": true, "Style": true, "ThemeCSS": true, "CurrencySymbol": true, "GridActions": true,
 		"FilterLayout": true,
 		"UploadDir":    true, "Storage": true, "Disks": true, "DefaultDisk": true,
 		"ExportDisk":    true,

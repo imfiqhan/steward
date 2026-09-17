@@ -1,5 +1,10 @@
 @import "tailwindcss";
-@import "../vendor/basecoat/basecoat.css";
+/* Base only — tokens, semantic utilities and component structure, with no
+   visual style pack. The pack is a bundle of its own, built once per style by
+   tools/assets and chosen at runtime by Config.Style. Importing a complete
+   bundle here instead would pin every panel to one style and leave the others
+   fighting it rule for rule. */
+@import "../vendor/basecoat/basecoat-base.css";
 /* Chart component CSS is not part of the style pack; it styles the chart
    container, external tooltip, and generated legend. */
 @import "../vendor/basecoat/components/chart.css";

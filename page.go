@@ -41,6 +41,11 @@ type pageMeta struct {
 	Title     string
 	Prefix    string
 
+	// StyleCSS is the selected style pack's bundle, loaded after the shared
+	// one. Its rules are the components layer; the shared bundle carries the
+	// tokens, the utilities and Steward's own chrome.
+	StyleCSS string
+
 	// ThemeCSS is Config.ThemeCSS, typed so the head emits it as CSS rather
 	// than escaping it as text.
 	ThemeCSS template.CSS
@@ -79,6 +84,7 @@ func (a *Panel) pageMetaFor(c *Context, title string) pageMeta {
 		BrandIcon:     a.cfg.BrandIcon,
 		Title:         title,
 		Prefix:        a.cfg.Prefix,
+		StyleCSS:      a.cfg.Style.stylesheet(),
 		ThemeCSS:      template.CSS(a.cfg.ThemeCSS),
 		Notifications: a.notificationsEnabled(),
 		CSRF:          c.CSRF(),

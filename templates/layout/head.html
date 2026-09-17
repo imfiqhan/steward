@@ -7,6 +7,11 @@
   {{with .Page.CSRF}}<meta name="csrf-token" content="{{.}}"/>{{end}}
   <link rel="icon" href="{{asset "favicon.svg"}}" type="image/svg+xml"/>
   <link rel="stylesheet" href="{{asset "dist/app.css"}}"/>
+  {{/* The style pack, after the shared bundle. Its rules are in the components
+       layer; Steward's own chrome is unlayered and keeps precedence either
+       way, so the order here is about the pack sitting over Basecoat's
+       component structure, not over Steward. */}}
+  <link rel="stylesheet" href="{{asset .Page.StyleCSS}}"/>
   {{/* After the stylesheet, so a redefined token wins on equal specificity. */}}
   {{with .Page.ThemeCSS}}<style>{{.}}</style>{{end}}
 {{end}}

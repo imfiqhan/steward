@@ -4,6 +4,43 @@ Steward is `0.x`: the API can change between releases, and this file is where
 those changes are written down. Read the **Upgrading** notes before moving a
 running panel to a new version.
 
+## Unreleased
+
+### Added
+
+- **`Config.Style` picks the style pack the panel is drawn with.** Basecoat
+  ships eight — Vega, Nova, Maia, Lyra, Mira, Luma, Sera and Rhea — and the
+  bundle carried exactly one of them, compiled in. A panel that wanted Maia's
+  pill buttons or Sera's square ones had no way to ask, and the nearest thing
+  available, redefining tokens, cannot reach shape at all.
+
+  ```go
+  steward.New(steward.Config{Style: steward.StyleMaia})
+  ```
+
+  `Styles()` lists them all. Unset means `DefaultStyle`, which is Vega — what
+  every panel built before this option existed was already drawn with, so
+  nothing moves on upgrade. A name that is not a pack is refused by `New`
+  rather than defaulted: a panel quietly drawn in a style it did not ask for
+  only ever shows up as "it looks wrong".
+
+  This is a separate layer from `ThemeCSS`. A style pack owns radius, shadows,
+  focus rings, spacing and state treatment; colour is tokens, and a palette
+  written once holds across every pack.
+
+### Changed
+
+- **The stylesheet is two files.** `dist/app.css` carries the tokens, the
+  utilities and Steward's own chrome; `dist/style-<pack>.css` carries the
+  component layer. Both are linked by `layout/head.html`, so a panel using the
+  shipped templates needs no change.
+
+  An overridden `layout/base.html` or `auth/login.html` that includes
+  `layout/head.html` also needs no change. One that restates the head and links
+  `dist/app.css` by hand now loads a page with no component styling at all —
+  add `<link rel="stylesheet" href="{{asset .Page.StyleCSS}}"/>` after it, or
+  switch to including the partial.
+
 ## v0.4.0
 
 ### Added

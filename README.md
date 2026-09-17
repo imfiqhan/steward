@@ -51,6 +51,14 @@ ginsteward.Mount(router, app) // or mount app as a plain http.Handler
   override any template by dropping a file in your project.
 - **Scaffolding CLI** — `steward new`, `steward make:resource` (from a field
   spec, a live database, or a Go struct) with DB-type → field-type inference.
+- **Eight style packs, one option** — `Config.Style` picks Vega, Nova, Maia,
+  Lyra, Mira, Luma, Sera or Rhea. The pack owns radius, shadows and focus
+  rings; `Config.ThemeCSS` owns colour, so a palette written once holds across
+  all of them.
+
+  ```go
+  steward.New(steward.Config{Style: steward.StyleMaia})
+  ```
 
 ## Features
 

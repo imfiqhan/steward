@@ -10,6 +10,9 @@
 uploads/
 
 # tooling
+# Tailwind entries that tools/assets writes per style pack; removed after a
+# one-shot build, left behind only if watch mode is killed.
+frontend/src/.style-*.css
 .DS_Store
 coverage.out
 frontend/.bin/
