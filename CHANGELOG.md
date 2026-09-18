@@ -4,7 +4,7 @@ Steward is `0.x`: the API can change between releases, and this file is where
 those changes are written down. Read the **Upgrading** notes before moving a
 running panel to a new version.
 
-## Unreleased
+## v0.5.1
 
 ### Fixed
 
