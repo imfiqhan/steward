@@ -1175,6 +1175,65 @@ if (await up.count()) {
   await page.setViewportSize({ width: 1400, height: 900 });
 }
 
+// --- sidebar: exactly one entry says you are on it -------------------------
+// The panel's own root is an ancestor of every other entry, so matching by
+// prefix marks it on every page. And htmx swaps the body without touching the
+// sidebar, so whatever was marked stays marked until this clears it.
+await page.goto(BASE + "/posts");
+await page.waitForLoadState("networkidle");
+
+const readNav = () => page.evaluate(() => ({
+  current: [...document.querySelectorAll('#sidebar-menu section a[aria-current="page"]')]
+    .map((a) => a.getAttribute("href")),
+  brand: document.querySelectorAll("#sidebar-menu header a[aria-current]").length,
+}));
+
+let nav = await readNav();
+check(nav.current.length === 1,
+  `one sidebar entry is current on a full load (got ${nav.current.length}: ${nav.current})`);
+check(nav.current[0] === "/posts",
+  `and it is the page you are on (got ${nav.current[0]})`);
+check(nav.brand === 0, "the brand is not announced as the current page");
+
+await page.goto(BASE + "/");
+await page.waitForLoadState("networkidle");
+nav = await readNav();
+check(nav.current.length === 1 && nav.current[0] === "/",
+  `the root entry is current at the root (got ${nav.current})`);
+
+await page.click('#sidebar-menu a[href="/posts"]');
+await page.waitForTimeout(600);
+nav = await readNav();
+check(nav.current.length === 1 && nav.current[0] === "/posts",
+  `after htmx navigation only the entry moved to is current (got ${nav.current})`);
+
+// A panel mounted under a prefix, which is where this goes wrong and which
+// this example is not. At the root the panel's own entry is "/", and an
+// implementation that special-cases the empty string passes here while marking
+// the dashboard on every page of a prefixed panel.
+//
+// The real menu is re-addressed rather than a second one planted, so the brand
+// moves with it and the shipped function sees the shape a prefixed panel has.
+const prefixed = await page.evaluate(() => {
+  const links = [...document.querySelectorAll("#sidebar-menu a[href]")];
+  const before = links.map((a) => a.getAttribute("href"));
+  const path = window.location.pathname;
+
+  links.forEach((a, i) => a.setAttribute("href", "/panel" + (before[i] === "/" ? "/" : before[i])));
+  history.replaceState({}, "", "/panel/posts/9/edit");
+  document.dispatchEvent(new Event("htmx:afterSettle"));
+
+  const current = [...document.querySelectorAll('#sidebar-menu a[aria-current="page"]')]
+    .map((a) => a.getAttribute("href"));
+
+  links.forEach((a, i) => a.setAttribute("href", before[i]));
+  history.replaceState({}, "", path);
+  document.dispatchEvent(new Event("htmx:afterSettle"));
+  return current;
+});
+check(prefixed.length === 1 && prefixed[0] === "/panel/posts",
+  `under a prefix only the section you are in is current (got ${prefixed})`);
+
 await page.screenshot({
   path: "/tmp/steward-visual.png",
   fullPage: false,

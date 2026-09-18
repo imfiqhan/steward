@@ -4,6 +4,30 @@ Steward is `0.x`: the API can change between releases, and this file is where
 those changes are written down. Read the **Upgrading** notes before moving a
 running panel to a new version.
 
+## Unreleased
+
+### Fixed
+
+- **The dashboard no longer claims to be the current page everywhere.** After
+  htmx swaps the body the sidebar is untouched, so a script re-marks the entry
+  you are on. It matched by prefix with one guard against the empty string,
+  which is what the panel's own entry normalises to at the root — so the check
+  passed for a panel mounted at `/` and marked the dashboard on every page of
+  one mounted under a prefix. Both the dashboard and the page you were actually
+  on came up highlighted.
+
+  The panel root is now current only on an exact path, which is the rule
+  `menu.go` already applied on the server. Its address comes from the brand
+  link rather than from guessing at the shape of the menu, so an entry pointing
+  outside the panel cannot throw the answer off.
+
+- **The brand is no longer announced as the current page.** The same script
+  matched every link under `#sidebar-menu`, and the brand in the nav's header
+  is one. It now marks menu entries only.
+
+  An overridden `layout/sidebar.html` needs its entries inside the `<section>`
+  and its brand in the `<header>`, as the shipped template has them.
+
 ## v0.5.0
 
 ### Added

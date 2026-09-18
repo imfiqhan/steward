@@ -311,11 +311,25 @@ window.htmx = htmx;
 
   /* ---- Sidebar active state under fragment navigation ---------------------- */
 
+  // htmx swaps the page body and leaves the sidebar alone, so the entry the
+  // server marked stays marked. This re-marks it, and has to reach the same
+  // answer the server does — see toNode in menu.go.
   function updateSidebarActive() {
-    var path = window.location.pathname.replace(/\/$/, "");
-    document.querySelectorAll("#sidebar-menu a[href]").forEach(function (a) {
-      var href = a.getAttribute("href").replace(/\/$/, "");
-      var active = href !== "" && (path === href || path.indexOf(href + "/") === 0);
+    var strip = function (v) { return v.replace(/\/+$/, ""); };
+    var path = strip(window.location.pathname);
+
+    // The panel's own root is an ancestor of every entry below it, so matching
+    // it by prefix would mark it on every page. It is current only on an exact
+    // path. The brand links to it, which is how its address is known here
+    // without assuming anything about the shape of the menu.
+    var brand = document.querySelector("#sidebar-menu header a[href]");
+    var root = brand ? strip(brand.getAttribute("href")) : null;
+
+    // Entries only: the brand is not a place you can be.
+    document.querySelectorAll("#sidebar-menu section a[href]").forEach(function (a) {
+      var href = strip(a.getAttribute("href"));
+      var active = href === path ||
+        (href !== root && path.indexOf(href + "/") === 0);
       if (active) {
         a.setAttribute("aria-current", "page");
       } else {
