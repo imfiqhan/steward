@@ -288,7 +288,7 @@ func TestOneAccountCannotDownloadAnothersExport(t *testing.T) {
 	client := exportClient(t, srv)
 	ctx := context.Background()
 
-	other := steward.AdminUser{Username: "someone-else", Name: "Else"}
+	other := steward.User{Username: "someone-else", Name: "Else"}
 	if err := db.Where("username = ?", other.Username).FirstOrCreate(&other).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -368,7 +368,7 @@ func TestPruneExportsRemovesTheFileToo(t *testing.T) {
 		t.Fatalf("setup: no file at %s", path)
 	}
 
-	if err := db.Exec("UPDATE admin_exports SET created_at = ?", time.Now().Add(-90*24*time.Hour)).Error; err != nil {
+	if err := db.Exec("UPDATE steward_exports SET created_at = ?", time.Now().Add(-90*24*time.Hour)).Error; err != nil {
 		t.Fatal(err)
 	}
 	gone, err := app.PruneExports(ctx, 30*24*time.Hour)

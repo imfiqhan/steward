@@ -104,7 +104,7 @@ func (c *Context) permissionRules() []httpmatch.Rule {
 	return c.permRules
 }
 
-func (a *Panel) loadPermissionRules(ctx context.Context, user *AdminUser) []httpmatch.Rule {
+func (a *Panel) loadPermissionRules(ctx context.Context, user *User) []httpmatch.Rule {
 	rules := []httpmatch.Rule{}
 	if user == nil {
 		return rules

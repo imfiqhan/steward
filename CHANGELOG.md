@@ -4,6 +4,37 @@ Steward is `0.x`: the API can change between releases, and this file is where
 those changes are written down. Read the **Upgrading** notes before moving a
 running panel to a new version.
 
+## Unreleased
+
+### Upgrading
+
+- **Framework tables are now prefixed `steward_` by default, not `admin_`.**
+  An existing install must do one of these before it boots on this version:
+
+  - set `Config.TablePrefix: "admin_"` (nothing else changes), or
+  - rename every `admin_*` table to `steward_*`, including `admin_migrations`,
+    *before* the migration runner starts. The runner reads
+    `<prefix>migrations`; if it finds none, it treats the database as empty
+    and runs every framework migration again.
+
+  The migration names (`0001_create_admin_tables` …) are unchanged. They are
+  the keys already recorded in the migrations table.
+
+- **A process that uses the framework models without a Panel must call
+  `steward.SetupModels(db, prefix)`.** The prefix-aware join tables used to be
+  registered in `Build`. They are now registered in `New`, or by
+  `SetupModels`. Without either call, `User.Roles` resolves to the unprefixed
+  `role_users` table.
+
+### Changed
+
+- `AdminUser` is now `User` and `AdminToken` is now `Token`. The old names
+  remain as deprecated aliases for one release.
+- The `admin:create-user` command is now `user:create`. The old name still
+  works.
+- `migrate.New` records into `steward_migrations` unless `WithTable` says
+  otherwise.
+
 ## v0.5.1
 
 ### Fixed

@@ -47,7 +47,7 @@ type Status struct {
 // Option configures a Runner.
 type Option func(*Runner)
 
-// WithTable overrides the records table name (default "admin_migrations").
+// WithTable overrides the records table name (default "steward_migrations").
 func WithTable(name string) Option { return func(r *Runner) { r.table = name } }
 
 // Runner executes registered migrations against one database.
@@ -65,7 +65,7 @@ type registration struct {
 
 // New creates a Runner. The records table is created lazily on first use.
 func New(db *gorm.DB, opts ...Option) *Runner {
-	r := &Runner{db: db, table: "admin_migrations", byName: map[string]registration{}}
+	r := &Runner{db: db, table: "steward_migrations", byName: map[string]registration{}}
 	for _, o := range opts {
 		o(r)
 	}

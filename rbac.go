@@ -65,31 +65,31 @@ func (a *Panel) rolesOptions() func(c *Context) Options {
 }
 
 func (a *Panel) registerUsersResource() {
-	repo, err := NewGormRepository[AdminUser](a.db)
+	repo, err := NewGormRepository[User](a.db)
 	if err != nil {
 		a.verifyErrs = append(a.verifyErrs, err)
 		return
 	}
 	repo.With("Roles")
 
-	res := Register[AdminUser](a).Slug("auth/users").Title("Administrators").
+	res := Register[User](a).Slug("auth/users").Title("Administrators").
 		Icon("users").Group("Admin").Repository(repo).
 		// Reachable from the palette by whoever may already list them: the
 		// search runs behind the same ViewAny gate the grid does.
 		Command("Name", "Username", "Email")
 
-	res.Grid(func(g *Grid[AdminUser]) {
+	res.Grid(func(g *Grid[User]) {
 		g.Column("ID").Sortable().Width(60)
 		g.Column("Username").Sortable()
 		g.Column("Name")
-		g.ColumnFunc("Roles", "Roles", func(u *AdminUser) template.HTML {
+		g.ColumnFunc("Roles", "Roles", func(u *User) template.HTML {
 			return grantBadges(u.Roles)
 		})
 		g.Column("CreatedAt", "Created").Sortable()
 		g.QuickSearch("Username", "Name")
 	})
 
-	res.Form(func(f *Form[AdminUser]) {
+	res.Form(func(f *Form[User]) {
 		f.Text("Username").
 			Rules("required|alpha_dash|unique:" + prefixed("users") + ",username,{id}")
 		f.Text("Name").Rules("required")
@@ -111,7 +111,7 @@ func (a *Panel) registerUsersResource() {
 			})
 		f.MultiSelect("Roles").OptionsFunc(a.rolesOptions()).
 			ValuesFunc(func(_ *Context, m any) []string {
-				u, ok := m.(*AdminUser)
+				u, ok := m.(*User)
 				if !ok {
 					return nil
 				}
@@ -121,7 +121,7 @@ func (a *Panel) registerUsersResource() {
 				}
 				return ids
 			})
-		f.Saved(func(c *Context, u *AdminUser, _ bool) error {
+		f.Saved(func(c *Context, u *User, _ bool) error {
 			return a.syncPivot(c, prefixed("role_users"), "user_id", u.ID, "role_id", c.R.Form["Roles"])
 		})
 		f.Deleting(func(c *Context, ids []string) error {
@@ -133,15 +133,15 @@ func (a *Panel) registerUsersResource() {
 		})
 	})
 
-	res.Detail(func(d *Detail[AdminUser]) {
+	res.Detail(func(d *Detail[User]) {
 		d.Field("ID")
 		d.Field("Username")
 		d.Field("Name")
 		d.Field("Email")
-		d.FieldFunc("Roles", "Roles", func(u *AdminUser) template.HTML {
+		d.FieldFunc("Roles", "Roles", func(u *User) template.HTML {
 			return grantBadges(u.Roles)
 		})
-		d.FieldFunc("TwoFactor", "Two-factor", func(u *AdminUser) template.HTML {
+		d.FieldFunc("TwoFactor", "Two-factor", func(u *User) template.HTML {
 			return statusHTML(u.TwoFactorConfirmedAt != nil, "Enrolled", "Not enrolled")
 		})
 		d.Field("CreatedAt", "Created")

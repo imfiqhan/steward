@@ -348,7 +348,7 @@ func TestRBACDetailPagesShowTheirGrants(t *testing.T) {
 	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
-	user := steward.AdminUser{Username: "ed", Name: "Ed", Roles: []steward.Role{role}}
+	user := steward.User{Username: "ed", Name: "Ed", Roles: []steward.Role{role}}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatal(err)
 	}

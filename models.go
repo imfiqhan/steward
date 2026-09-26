@@ -1,24 +1,56 @@
 package steward
 
 import (
+	"fmt"
 	"slices"
 	"sync/atomic"
 	"time"
+
+	"gorm.io/gorm"
 )
 
-// tablePrefix names the framework's own tables ("admin_" by default, set from
+// tablePrefix names the framework's own tables ("steward_" by default, set from
 // Config.TablePrefix at New). It is process-global because GORM resolves
 // TableName statically per type; running two Admins with different prefixes
 // in one process is not supported.
 var tablePrefix atomic.Value // string
 
-func init() { tablePrefix.Store("admin_") }
+func init() { tablePrefix.Store(DefaultTablePrefix) }
+
+// DefaultTablePrefix is the prefix used when Config.TablePrefix is empty.
+// Installs created before v0.6.0 used "admin_" and must set it explicitly.
+const DefaultTablePrefix = "steward_"
 
 func prefixed(name string) string { return tablePrefix.Load().(string) + name }
 
-// AdminUser is a panel account. Email is optional and only required for the
+// SetupModels sets the framework table prefix and registers the prefix-aware
+// join tables on db. New calls it; a process that uses the framework models
+// without a Panel (for example a separate API binary sharing the database)
+// must call it before its first query, or many-to-many associations such as
+// User.Roles resolve to unprefixed tables.
+func SetupModels(db *gorm.DB, prefix string) error {
+	if prefix == "" {
+		prefix = DefaultTablePrefix
+	}
+	tablePrefix.Store(prefix)
+	for _, jt := range []struct {
+		model any
+		field string
+		join  any
+	}{
+		{&User{}, "Roles", &RoleUser{}},
+		{&Role{}, "Permissions", &RolePermission{}},
+	} {
+		if err := db.SetupJoinTable(jt.model, jt.field, jt.join); err != nil {
+			return fmt.Errorf("steward: join table for %T.%s: %w", jt.model, jt.field, err)
+		}
+	}
+	return nil
+}
+
+// User is a panel account. Email is optional and only required for the
 // password-reset flow.
-type AdminUser struct {
+type User struct {
 	ID            uint    `gorm:"primaryKey"`
 	Username      string  `gorm:"size:120;uniqueIndex"`
 	Password      string  `gorm:"size:100"` // bcrypt hash
@@ -38,14 +70,14 @@ type AdminUser struct {
 	TwoFactorRecovery    string `gorm:"type:text"` // newline-separated SHA-256 digests
 	TwoFactorLastStep    int64  `gorm:"default:0"`
 
-	Roles []Role `gorm:"many2many:admin_role_users;joinForeignKey:user_id;joinReferences:role_id"`
+	Roles []Role `gorm:"many2many:role_users;joinForeignKey:user_id;joinReferences:role_id"`
 }
 
-func (AdminUser) TableName() string { return prefixed("users") }
+func (User) TableName() string { return prefixed("users") }
 
 // IsAdministrator reports whether the user holds the built-in administrator
 // role (seeded with ID 1), which short-circuits every permission check.
-func (u *AdminUser) IsAdministrator() bool {
+func (u *User) IsAdministrator() bool {
 	return u.HasRole(RoleAdministrator)
 }
 
@@ -55,7 +87,7 @@ func (u *AdminUser) IsAdministrator() bool {
 // It answers "who is this?", which belongs in a resource's Policy or a form
 // field's Show predicate. It is not a substitute for permissions: those live in
 // the database precisely so an operator can change them without a deploy.
-func (u *AdminUser) HasRole(slugs ...string) bool {
+func (u *User) HasRole(slugs ...string) bool {
 	for _, r := range u.Roles {
 		if slices.Contains(slugs, r.Slug) {
 			return true
@@ -75,7 +107,7 @@ type Role struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	Permissions []Permission `gorm:"many2many:admin_role_permissions;joinForeignKey:role_id;joinReferences:permission_id"`
+	Permissions []Permission `gorm:"many2many:role_permissions;joinForeignKey:role_id;joinReferences:permission_id"`
 }
 
 func (Role) TableName() string { return prefixed("roles") }
@@ -126,8 +158,9 @@ type MenuItem struct {
 
 func (MenuItem) TableName() string { return prefixed("menu") }
 
-// Join models make the pivot tables prefix-aware; New wires them into GORM
-// via SetupJoinTable so the many2many tags' static names never materialize.
+// Join models make the pivot tables prefix-aware; SetupModels wires them into
+// GORM via SetupJoinTable so the many2many tags' static names never
+// materialize.
 
 // RoleUser links users to roles.
 type RoleUser struct {
@@ -196,13 +229,13 @@ type Setting struct {
 
 func (Setting) TableName() string { return prefixed("settings") }
 
-// AdminToken is a bearer credential for API and mobile clients, belonging to
-// an AdminUser and inheriting that user's roles, permissions, and policies.
+// Token is a bearer credential for API and mobile clients, belonging to
+// a User and inheriting that user's roles, permissions, and policies.
 //
 // Hash holds a SHA-256 of the token, not a bcrypt digest: tokens carry 256
 // bits of entropy, so a fast hash is sound and — unlike bcrypt — lets lookup
 // be a single indexed query instead of a scan over every row.
-type AdminToken struct {
+type Token struct {
 	ID         uint   `gorm:"primaryKey"`
 	UserID     uint   `gorm:"index;not null"`
 	Name       string `gorm:"size:120"` // client label: "iPhone", "CI deploy"
@@ -212,4 +245,14 @@ type AdminToken struct {
 	CreatedAt  time.Time
 }
 
-func (AdminToken) TableName() string { return prefixed("tokens") }
+func (Token) TableName() string { return prefixed("tokens") }
+
+// AdminUser is the pre-v0.6.0 name of User.
+//
+// Deprecated: use User.
+type AdminUser = User
+
+// AdminToken is the pre-v0.6.0 name of Token.
+//
+// Deprecated: use Token.
+type AdminToken = Token

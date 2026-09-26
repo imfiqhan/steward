@@ -212,7 +212,7 @@ func (a *Panel) runExport(ctx context.Context, job *ExportJob) error {
 		return fmt.Errorf("resource %q cannot be exported", job.Slug)
 	}
 
-	var user AdminUser
+	var user User
 	if err := a.db.WithContext(ctx).Preload("Roles").First(&user, job.UserID).Error; err != nil {
 		return fmt.Errorf("loading the account that asked: %w", err)
 	}

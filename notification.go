@@ -119,7 +119,7 @@ func (a *Panel) NotifyRole(ctx context.Context, n Notification, roleSlugs ...str
 	users := prefixed("users")
 	var ids []uint
 	err := a.db.WithContext(ctx).
-		Model(&AdminUser{}).
+		Model(&User{}).
 		Distinct(users+".id").
 		Joins("JOIN "+prefixed("role_users")+" ru ON ru.user_id = "+users+".id").
 		Joins("JOIN "+prefixed("roles")+" r ON r.id = ru.role_id").

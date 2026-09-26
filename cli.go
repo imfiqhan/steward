@@ -55,7 +55,7 @@ type App struct {
 //	migrate status            list migrations
 //	menu:sync                 re-sync menu entries from registered resources
 //	search:reindex [-batch]   rebuild the search index from the database
-//	admin:create-user         create a panel account interactively
+//	user:create               create a panel account interactively
 func CLI(app App) {
 	if err := runCLI(app, os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
@@ -71,6 +71,10 @@ func runCLI(app App, args []string) error {
 	if len(args) > 0 {
 		cmd = args[0]
 		args = args[1:]
+	}
+	// admin:create-user is the pre-v0.6.0 name of user:create.
+	if cmd == "admin:create-user" {
+		cmd = "user:create"
 	}
 	// Accept both "migrate up" and "migrate:up".
 	if strings.HasPrefix(cmd, "migrate:") {
@@ -224,8 +228,8 @@ func runCLI(app App, args []string) error {
 		}
 		return nil
 
-	case "admin:create-user":
-		fs := flag.NewFlagSet("admin:create-user", flag.ContinueOnError)
+	case "user:create":
+		fs := flag.NewFlagSet("user:create", flag.ContinueOnError)
 		username := fs.String("username", "", "login username")
 		name := fs.String("name", "", "display name")
 		password := fs.String("password", "", "password (prompted when omitted)")
@@ -233,7 +237,7 @@ func runCLI(app App, args []string) error {
 			return err
 		}
 		if *username == "" {
-			return fmt.Errorf("admin:create-user needs a login name: pass -username")
+			return fmt.Errorf("user:create needs a login name: pass -username")
 		}
 		if *name == "" {
 			*name = *username
@@ -241,7 +245,7 @@ func runCLI(app App, args []string) error {
 		// The panel's own tables are created by its build, and this is the one
 		// command that writes to them without serving. Without this, creating
 		// the first account on a fresh database failed with the driver's own
-		// "no such table: admin_users" — a true sentence about the wrong
+		// "no such table: steward_users" — a true sentence about the wrong
 		// thing. It runs before the password is asked for, so a database that
 		// cannot be prepared is reported before anyone types.
 		if err := a.Build(); err != nil {
@@ -269,7 +273,7 @@ func runCLI(app App, args []string) error {
 		if err != nil {
 			return err
 		}
-		u := AdminUser{Username: *username, Name: *name, Password: string(hash)}
+		u := User{Username: *username, Name: *name, Password: string(hash)}
 		if err := a.db.Create(&u).Error; err != nil {
 			return err
 		}
@@ -339,7 +343,7 @@ func downPlan(sts []migrate.Status, steps int) (n int, everything bool) {
 var (
 	cliCommands = []string{
 		"serve", "worker", "migrate", "menu:sync", "search:reindex",
-		"admin:create-user", "help",
+		"user:create", "help",
 	}
 	migrateSubcommands = []string{"up", "down", "status"}
 )

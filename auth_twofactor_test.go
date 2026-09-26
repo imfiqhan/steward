@@ -202,13 +202,13 @@ func TestTwoFactorEnabledNeedsConfirmation(t *testing.T) {
 	now := time.Now()
 	cases := []struct {
 		name string
-		user AdminUser
+		user User
 		want bool
 	}{
-		{"fresh account", AdminUser{}, false},
-		{"secret scanned but never confirmed", AdminUser{TwoFactorSecret: "ABC"}, false},
-		{"confirmed without a secret", AdminUser{TwoFactorConfirmedAt: &now}, false},
-		{"enrolled", AdminUser{TwoFactorSecret: "ABC", TwoFactorConfirmedAt: &now}, true},
+		{"fresh account", User{}, false},
+		{"secret scanned but never confirmed", User{TwoFactorSecret: "ABC"}, false},
+		{"confirmed without a secret", User{TwoFactorConfirmedAt: &now}, false},
+		{"enrolled", User{TwoFactorSecret: "ABC", TwoFactorConfirmedAt: &now}, true},
 	}
 	for _, tc := range cases {
 		if got := tc.user.TwoFactorEnabled(); got != tc.want {
@@ -236,8 +236,8 @@ func TestOtpauthURI(t *testing.T) {
 
 func TestTwoFactorRequired(t *testing.T) {
 	now := time.Now()
-	enrolled := &AdminUser{TwoFactorSecret: "ABC", TwoFactorConfirmedAt: &now}
-	bare := &AdminUser{}
+	enrolled := &User{TwoFactorSecret: "ABC", TwoFactorConfirmedAt: &now}
+	bare := &User{}
 
 	optional := &Panel{cfg: Config{}}
 	if !optional.twoFactorRequired(enrolled) {
@@ -254,7 +254,7 @@ func TestTwoFactorRequired(t *testing.T) {
 }
 
 func TestHasRole(t *testing.T) {
-	u := &AdminUser{Roles: []Role{{Slug: "reporter"}, {Slug: "photographer"}}}
+	u := &User{Roles: []Role{{Slug: "reporter"}, {Slug: "photographer"}}}
 	if !u.HasRole("reporter") {
 		t.Error("expected reporter")
 	}
@@ -270,7 +270,7 @@ func TestHasRole(t *testing.T) {
 	if u.IsAdministrator() {
 		t.Error("did not expect administrator")
 	}
-	admin := &AdminUser{Roles: []Role{{Slug: RoleAdministrator}}}
+	admin := &User{Roles: []Role{{Slug: RoleAdministrator}}}
 	if !admin.IsAdministrator() {
 		t.Error("expected administrator")
 	}

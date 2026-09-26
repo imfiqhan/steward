@@ -166,7 +166,7 @@ cover it, and an HTML DSL in Go would be more surface for less flexibility.
       menu visibility derives from policies
 - [x] Menu administration — drag-and-drop tree, sync-from-code
 - [x] Operation log (passwords masked) and settings key-value store
-- [x] Profile page and `admin:create-user`
+- [x] Profile page and `user:create`
 - [ ] Permission definitions synced from registered resources (the
       menu-sync pattern: code owns the canonical entries, roles are
       granted in the DB; hand-written path rules stay as the escape hatch)
@@ -179,7 +179,7 @@ cover it, and an HTML DSL in Go would be more surface for less flexibility.
       database, or a Go struct, with type inference), `make:migration`,
       `publish`
 - [x] App runtime commands — `serve`, `worker`, `migrate`, `menu:sync`,
-      `admin:create-user`
+      `user:create`
 - [x] Cron scheduler (`@every 10m`, `@daily`, five-field cron) running in a
       separate worker process, deployable independently of the panel
 - [ ] Background job queue (enqueue from the panel, process in the worker)
@@ -202,7 +202,7 @@ make run     # run the example app (SQLite, http://localhost:8321)
 
 The example app seeds a default panel account, **admin / admin** — change it
 immediately on any instance that isn't a local sandbox (or create your own
-with `go run . admin:create-user` and delete the seeded one).
+with `go run . user:create` and delete the seeded one).
 
 ## License
 

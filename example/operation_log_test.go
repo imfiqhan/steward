@@ -132,7 +132,7 @@ func slowOperationLogInsert(t *testing.T, db *gorm.DB, d time.Duration) {
 	t.Helper()
 	err := db.Callback().Create().Before("gorm:create").
 		Register("test:slow_operation_log", func(tx *gorm.DB) {
-			if tx.Statement != nil && tx.Statement.Table == "admin_operation_log" {
+			if tx.Statement != nil && tx.Statement.Table == "steward_operation_log" {
 				time.Sleep(d)
 			}
 		})

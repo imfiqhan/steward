@@ -41,7 +41,7 @@ Field spec:
   modifiers: nullable unique index
 
 Runtime commands run through your app binary instead:
-  go run . serve | migrate up | migrate status | admin:create-user
+  go run . serve | migrate up | migrate status | user:create
 `
 
 func run(args []string) error {

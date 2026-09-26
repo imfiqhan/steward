@@ -80,7 +80,7 @@ const (
 var base32Secret = base32.StdEncoding.WithPadding(base32.NoPadding)
 
 // TwoFactorEnabled reports whether the account has completed enrolment.
-func (u *AdminUser) TwoFactorEnabled() bool {
+func (u *User) TwoFactorEnabled() bool {
 	return u.TwoFactorSecret != "" && u.TwoFactorConfirmedAt != nil
 }
 
@@ -222,7 +222,7 @@ func countRecoveryCodes(stored string) int {
 // twoFactorRequired reports whether the user must clear a second factor before
 // the session becomes authenticated: either they enrolled, or the panel
 // mandates enrolment for everyone.
-func (a *Panel) twoFactorRequired(u *AdminUser) bool {
+func (a *Panel) twoFactorRequired(u *User) bool {
 	return u.TwoFactorEnabled() || a.cfg.Require2FA
 }
 
@@ -237,14 +237,14 @@ func (a *Panel) beginTwoFactor(c *Context, uid uint) error {
 
 // pendingTwoFactorUser resolves the parked account, or nil when there is none
 // or the wait has expired.
-func (a *Panel) pendingTwoFactorUser(c *Context) *AdminUser {
+func (a *Panel) pendingTwoFactorUser(c *Context) *User {
 	if c.sess == nil || c.sess.Pending2FA == 0 {
 		return nil
 	}
 	if time.Since(time.Unix(c.sess.PendingAt, 0)) > pending2FAMaxAge {
 		return nil
 	}
-	var u AdminUser
+	var u User
 	if err := a.db.WithContext(c.Ctx()).Preload("Roles").First(&u, c.sess.Pending2FA).Error; err != nil {
 		return nil
 	}
@@ -365,7 +365,7 @@ type twoFactorSetup struct {
 // code. The secret is persisted before confirmation so the QR the user scanned
 // still matches when they submit the code; TwoFactorConfirmedAt staying nil is
 // what keeps 2FA switched off until then.
-func (a *Panel) prepareEnrolment(ctx context.Context, user *AdminUser) (*twoFactorSetup, error) {
+func (a *Panel) prepareEnrolment(ctx context.Context, user *User) (*twoFactorSetup, error) {
 	if user.TwoFactorSecret == "" || user.TwoFactorConfirmedAt != nil {
 		secret, err := newTOTPSecret()
 		if err != nil {
@@ -394,7 +394,7 @@ func (a *Panel) prepareEnrolment(ctx context.Context, user *AdminUser) (*twoFact
 
 // twoFactorEnrolPage renders forced enrolment during login (Require2FA with an
 // account that has not enrolled yet).
-func (a *Panel) twoFactorEnrolPage(c *Context, user *AdminUser, errMsg string) error {
+func (a *Panel) twoFactorEnrolPage(c *Context, user *User, errMsg string) error {
 	setup, err := a.prepareEnrolment(c.Ctx(), user)
 	if err != nil {
 		return err
@@ -407,7 +407,7 @@ func (a *Panel) twoFactorEnrolPage(c *Context, user *AdminUser, errMsg string) e
 }
 
 // twoFactorEnrolSubmit confirms a forced enrolment and completes the login.
-func (a *Panel) twoFactorEnrolSubmit(c *Context, user *AdminUser) error {
+func (a *Panel) twoFactorEnrolSubmit(c *Context, user *User) error {
 	if !a.allowTwoFactorAttempt("2fa-enrol:" + fmt.Sprint(user.ID)) {
 		return a.twoFactorEnrolPage(c, user, "Too many attempts — wait a minute and try again.")
 	}
@@ -580,7 +580,7 @@ func (a *Panel) twoFactorRegenerateCodes(c *Context) error {
 }
 
 // checkPassword compares a plaintext password against the stored hash.
-func (a *Panel) checkPassword(u *AdminUser, password string) bool {
+func (a *Panel) checkPassword(u *User, password string) bool {
 	if password == "" {
 		return false
 	}

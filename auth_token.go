@@ -5,7 +5,7 @@ package steward
 //
 // A token is an opaque random string presented as "Authorization: Bearer
 // <token>". Only its SHA-256 is stored, so a database leak does not yield
-// usable credentials. Tokens belong to an AdminUser and carry exactly that
+// usable credentials. Tokens belong to a User and carry exactly that
 // user's roles, permissions, and policies — there is no separate authorization
 // path to keep in sync with the panel's.
 
@@ -109,16 +109,16 @@ func bearerToken(r *http.Request) string {
 
 // tokenOf returns the token that authenticated the request, or nil when the
 // caller arrived by session cookie.
-func tokenOf(r *http.Request) *AdminToken {
-	t, _ := r.Context().Value(ctxKeyToken).(*AdminToken)
+func tokenOf(r *http.Request) *Token {
+	t, _ := r.Context().Value(ctxKeyToken).(*Token)
 	return t
 }
 
 // resolveToken looks up a presented token and its owner. A missing, expired,
 // or orphaned token is reported as errBadCredentials; anything else is a real
 // failure worth surfacing.
-func (a *Panel) resolveToken(ctx context.Context, raw string) (*AdminToken, *AdminUser, error) {
-	var tok AdminToken
+func (a *Panel) resolveToken(ctx context.Context, raw string) (*Token, *User, error) {
+	var tok Token
 	err := a.db.WithContext(ctx).Where("hash = ?", tokenHash(raw)).First(&tok).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil, errBadCredentials
@@ -129,7 +129,7 @@ func (a *Panel) resolveToken(ctx context.Context, raw string) (*AdminToken, *Adm
 	if tok.ExpiresAt != nil && time.Now().After(*tok.ExpiresAt) {
 		return nil, nil, errBadCredentials
 	}
-	var user AdminUser
+	var user User
 	err = a.db.WithContext(ctx).Preload("Roles").First(&user, tok.UserID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// The owning account was deleted; its tokens die with it.
@@ -142,12 +142,12 @@ func (a *Panel) resolveToken(ctx context.Context, raw string) (*AdminToken, *Adm
 }
 
 // touchToken records last use, at most once per touchInterval.
-func (a *Panel) touchToken(ctx context.Context, tok *AdminToken) {
+func (a *Panel) touchToken(ctx context.Context, tok *Token) {
 	now := time.Now()
 	if tok.LastUsedAt != nil && now.Sub(*tok.LastUsedAt) < touchInterval {
 		return
 	}
-	if err := a.db.WithContext(ctx).Model(&AdminToken{}).
+	if err := a.db.WithContext(ctx).Model(&Token{}).
 		Where("id = ?", tok.ID).Update("last_used_at", now).Error; err != nil {
 		a.log.Error("steward: token last-used update", "err", err)
 	}
@@ -242,7 +242,7 @@ func (a *Panel) issueToken(c *Context) error {
 	if err != nil {
 		return err
 	}
-	tok := AdminToken{
+	tok := Token{
 		UserID: user.ID,
 		Name:   strings.TrimSpace(req.Name),
 		Hash:   tokenHash(raw),
@@ -276,7 +276,7 @@ func (a *Panel) revokeToken(c *Context) error {
 	if tok == nil {
 		return c.JSON(http.StatusUnauthorized, Error("Present the token you want to revoke as a bearer credential."))
 	}
-	if err := a.db.WithContext(c.Ctx()).Delete(&AdminToken{}, tok.ID).Error; err != nil {
+	if err := a.db.WithContext(c.Ctx()).Delete(&Token{}, tok.ID).Error; err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, Info("Token revoked."))

@@ -172,9 +172,9 @@ func (a *Panel) withAuth(next http.Handler) http.Handler {
 			return
 		}
 		sess := sessionOf(r)
-		var user *AdminUser
+		var user *User
 		if sess != nil && sess.UID != 0 {
-			var u AdminUser
+			var u User
 			if err := a.db.WithContext(r.Context()).Preload("Roles").First(&u, sess.UID).Error; err == nil {
 				user = &u
 			}
@@ -212,8 +212,8 @@ func sessionOf(r *http.Request) *session.Data {
 	return s
 }
 
-func userOf(r *http.Request) *AdminUser {
-	u, _ := r.Context().Value(ctxKeyUser).(*AdminUser)
+func userOf(r *http.Request) *User {
+	u, _ := r.Context().Value(ctxKeyUser).(*User)
 	return u
 }
 

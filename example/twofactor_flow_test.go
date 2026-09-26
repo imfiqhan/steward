@@ -162,7 +162,7 @@ func seedUser(t *testing.T, a *steward.Panel, username, password string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	u := steward.AdminUser{Username: username, Name: username, Password: string(hash)}
+	u := steward.User{Username: username, Name: username, Password: string(hash)}
 	if err := a.DB().Create(&u).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -428,7 +428,7 @@ func TestTwoFactorDisableNeedsPassword(t *testing.T) {
 	if code != http.StatusUnprocessableEntity {
 		t.Errorf("disable with a wrong password = %d, want 422", code)
 	}
-	var user steward.AdminUser
+	var user steward.User
 	if err := a.DB().Where("username = ?", "editor").First(&user).Error; err != nil {
 		t.Fatal(err)
 	}

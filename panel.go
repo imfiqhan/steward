@@ -85,9 +85,10 @@ type Config struct {
 	// (default "local").
 	DefaultDisk string
 
-	// TablePrefix names the framework tables (default "admin_"). It is
-	// process-global; two Admins with different prefixes in one process are
-	// not supported.
+	// TablePrefix names the framework tables (default DefaultTablePrefix,
+	// "steward_"). Installs created before v0.6.0 used "admin_" and must set
+	// it explicitly. It is process-global; two Panels with different prefixes
+	// in one process are not supported.
 	TablePrefix string
 
 	// SecretKey signs and encrypts sessions, CSRF, and remember tokens.
@@ -175,7 +176,7 @@ type Config struct {
 	// "outside permitted hours".
 	//
 	// It cannot be used to *grant* a login, only to withhold one.
-	LoginCheck func(ctx context.Context, u *AdminUser) error
+	LoginCheck func(ctx context.Context, u *User) error
 
 	// EnableTokenAuth accepts "Authorization: Bearer <token>" alongside the
 	// session cookie, and mounts POST/DELETE {Prefix}/auth/token so API and
@@ -185,7 +186,7 @@ type Config struct {
 	// takes a username and password, so it should be a deliberate choice
 	// rather than something an upgrade turns on. Tokens inherit their user's
 	// roles, permissions, and policies — scope an API client by giving it its
-	// own AdminUser with a restricted role, not the administrator account.
+	// own User with a restricted role, not the administrator account.
 	EnableTokenAuth bool
 
 	// TokenTTL bounds how long an issued token stays valid. Zero means the
@@ -289,9 +290,6 @@ func New(cfg Config) (*Panel, error) {
 	if cfg.CurrencySymbol == "" {
 		cfg.CurrencySymbol = "$"
 	}
-	if cfg.TablePrefix == "" {
-		cfg.TablePrefix = "admin_"
-	}
 	if cfg.UploadDir == "" {
 		cfg.UploadDir = "./uploads"
 	}
@@ -301,7 +299,12 @@ func New(cfg Config) (*Panel, error) {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
-	tablePrefix.Store(cfg.TablePrefix)
+	if cfg.TablePrefix == "" {
+		cfg.TablePrefix = DefaultTablePrefix
+	}
+	if err := SetupModels(cfg.DB, cfg.TablePrefix); err != nil {
+		return nil, err
+	}
 	disks, err := buildDisks(&cfg)
 	if err != nil {
 		return nil, err
@@ -390,19 +393,6 @@ func (a *Panel) Verify() error {
 
 func (a *Panel) build() error {
 	a.registerBuiltins()
-
-	for _, jt := range []struct {
-		model any
-		field string
-		join  any
-	}{
-		{&AdminUser{}, "Roles", &RoleUser{}},
-		{&Role{}, "Permissions", &RolePermission{}},
-	} {
-		if err := a.db.SetupJoinTable(jt.model, jt.field, jt.join); err != nil {
-			return fmt.Errorf("steward: join table for %T.%s: %w", jt.model, jt.field, err)
-		}
-	}
 
 	if !a.cfg.DisableAutoMigrate {
 		if _, err := a.MigrationRunner(nil).Up(context.Background()); err != nil {
@@ -500,14 +490,14 @@ func (a *Panel) MigrationRunner(app []migrate.Migration) *migrate.Runner {
 func (a *Panel) coreTables() migrations.Tables {
 	return migrations.Tables{
 		Models: []any{
-			&AdminUser{}, &Role{}, &Permission{}, &MenuItem{},
+			&User{}, &Role{}, &Permission{}, &MenuItem{},
 			&RoleUser{}, &RolePermission{}, &RoleMenu{}, &PermissionMenu{},
 			&OperationLog{}, &Setting{},
 		},
-		TokenModel:          &AdminToken{},
+		TokenModel:          &Token{},
 		NotificationModel:   &Notification{},
 		ExportModel:         &ExportJob{},
-		UserModel:           &AdminUser{},
+		UserModel:           &User{},
 		AddTwoFactorColumns: twoFactorColumns,
 		SeedFn:              seedDefaults,
 	}
@@ -518,7 +508,7 @@ func seedDefaults(tx *gorm.DB, passwordHash string) error {
 	if err := tx.Create(&role).Error; err != nil {
 		return err
 	}
-	user := AdminUser{Username: "admin", Password: passwordHash, Name: "Administrator"}
+	user := User{Username: "admin", Password: passwordHash, Name: "Administrator"}
 	if err := tx.Create(&user).Error; err != nil {
 		return err
 	}

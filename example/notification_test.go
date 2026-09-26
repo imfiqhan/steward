@@ -86,7 +86,7 @@ func newNotifyApp(t *testing.T) (*steward.Panel, *gorm.DB) {
 // checks someone to be confused with.
 func secondUser(t *testing.T, db *gorm.DB) uint {
 	t.Helper()
-	u := steward.AdminUser{Username: "editor", Name: "Editor"}
+	u := steward.User{Username: "editor", Name: "Editor"}
 	if err := db.Where("username = ?", "editor").FirstOrCreate(&u).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +187,7 @@ func TestNotifyRoleReachesEachHolderOnce(t *testing.T) {
 	if err := db.Where("slug = ?", "editor").FirstOrCreate(&extra).Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Exec("INSERT INTO admin_role_users (role_id, user_id) VALUES (?, ?)", extra.ID, 1).Error; err != nil {
+	if err := db.Exec("INSERT INTO steward_role_users (role_id, user_id) VALUES (?, ?)", extra.ID, 1).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -265,7 +265,7 @@ func TestPruneKeepsUnread(t *testing.T) {
 	}
 	// Age both past the cutoff.
 	long := time.Now().Add(-90 * 24 * time.Hour)
-	if err := db.Exec("UPDATE admin_notifications SET created_at = ?", long).Error; err != nil {
+	if err := db.Exec("UPDATE steward_notifications SET created_at = ?", long).Error; err != nil {
 		t.Fatal(err)
 	}
 

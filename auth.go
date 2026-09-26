@@ -25,11 +25,11 @@ const dummyHash = "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5B0Wxb1c9dyO0uMYPZ1a1C6q1n1Ga"
 // authenticate verifies a username/password pair with Roles preloaded for
 // downstream permission checks. Used by both the login form and, when
 // Config.EnableTokenAuth is set, the token endpoint.
-func (a *Panel) authenticate(ctx context.Context, username, password string) (*AdminUser, error) {
+func (a *Panel) authenticate(ctx context.Context, username, password string) (*User, error) {
 	if username == "" || password == "" {
 		return nil, errBadCredentials
 	}
-	var user AdminUser
+	var user User
 	err := a.db.WithContext(ctx).Preload("Roles").Where("username = ?", username).First(&user).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// Equalize timing between unknown-user and wrong-password paths.
@@ -118,7 +118,7 @@ func (a *Panel) logoutHandler(c *Context) error {
 	return c.Redirect(a.url("auth/login"))
 }
 
-func displayName(u *AdminUser) string {
+func displayName(u *User) string {
 	if u.Name != "" {
 		return u.Name
 	}
@@ -164,7 +164,7 @@ func (a *Panel) forgotSubmit(c *Context) error {
 	if email == "" {
 		return respond()
 	}
-	var user AdminUser
+	var user User
 	err := a.db.WithContext(c.Ctx()).Where("email = ?", email).First(&user).Error
 	if err != nil {
 		return respond()
@@ -228,7 +228,7 @@ func (a *Panel) resetSubmit(c *Context) error {
 	if err != nil {
 		return err
 	}
-	if err := a.db.WithContext(c.Ctx()).Model(&AdminUser{}).Where("id = ?", uid).
+	if err := a.db.WithContext(c.Ctx()).Model(&User{}).Where("id = ?", uid).
 		Update("password", string(hash)).Error; err != nil {
 		return err
 	}

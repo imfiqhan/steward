@@ -124,7 +124,7 @@ func TestTokenAuth(t *testing.T) {
 	var stored struct {
 		Hash string
 	}
-	if err := db.Table("admin_tokens").Select("hash").Scan(&stored).Error; err != nil {
+	if err := db.Table("steward_tokens").Select("hash").Scan(&stored).Error; err != nil {
 		t.Fatal(err)
 	}
 	if stored.Hash == token {

@@ -19,7 +19,7 @@ type Context struct {
 	Panel *Panel
 
 	// User is the authenticated account, nil on public routes (login).
-	User *AdminUser
+	User *User
 
 	sess      *session.Data
 	permRules []httpmatch.Rule // memoized parsed permissions

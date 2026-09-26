@@ -56,7 +56,7 @@ type pageMeta struct {
 	CSRF          string
 	Theme         string
 	Dev           bool
-	User          *AdminUser
+	User          *User
 	// Menu is the raw tree. MenuSections is the same entries batched for
 	// rendering; the shipped sidebar uses the latter, and Menu stays so an
 	// overridden sidebar template keeps working.
