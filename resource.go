@@ -195,6 +195,7 @@ func (t *typedResource[T]) compile(a *Panel) error {
 		return err
 	}
 	t.ft = ft
+	a.noteTenantSchema(ft.model)
 
 	t.repo = t.res.repo
 	if t.repo == nil {
@@ -517,6 +518,7 @@ func (t *typedResource[T]) resolveBelongsTo(a *Panel, fd *Field[T]) {
 		return
 	}
 	fd.relTable = rel.FieldSchema.Table
+	a.noteTenantSchema(rel.FieldSchema)
 	fd.relTitleCol = titleField.DBName
 	if len(rel.FieldSchema.PrimaryFields) > 0 {
 		fd.relPKCol = rel.FieldSchema.PrimaryFields[0].DBName
@@ -534,6 +536,10 @@ func (t *typedResource[T]) defaultFormFields(fm *Form[T]) {
 			continue
 		}
 		if f.Name == "CreatedAt" || f.Name == "UpdatedAt" || f.Name == "DeletedAt" {
+			continue
+		}
+		// Stamped by the tenant plugin, never chosen on a form.
+		if f.Name == "TenantID" && t.tenantScoped() {
 			continue
 		}
 		lower := strings.ToLower(f.Name)
@@ -569,6 +575,9 @@ func (t *typedResource[T]) defaultColumns(g *Grid[T]) {
 	for _, f := range t.ft.model.Fields {
 		info, ok := t.ft.byPath[f.Name]
 		if !ok || info.Kind == kindBytes || info.Kind == kindOther {
+			continue
+		}
+		if f.Name == "TenantID" && t.tenantScoped() {
 			continue
 		}
 		col := g.Column(f.Name)

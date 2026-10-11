@@ -54,13 +54,14 @@ func (a *Panel) loginPage(c *Context) error {
 	if c.User != nil {
 		return c.Redirect(a.url("/"))
 	}
-	return a.renderStandalone(c, "auth/login.html", map[string]any{
-		"Error":    "",
-		"CanReset": a.cfg.Mailer != nil,
-	})
+	return a.renderLogin(c, "", "")
 }
 
 func (a *Panel) loginSubmit(c *Context) error {
+	if a.cfg.DisablePasswordLogin {
+		http.NotFound(c.W, c.R)
+		return nil
+	}
 	if err := c.R.ParseForm(); err != nil {
 		return err
 	}
@@ -69,11 +70,7 @@ func (a *Panel) loginSubmit(c *Context) error {
 
 	fail := func() error {
 		c.W.WriteHeader(http.StatusUnprocessableEntity)
-		return a.renderStandalone(c, "auth/login.html", map[string]any{
-			"Error":    "These credentials do not match our records.",
-			"Username": username,
-			"CanReset": a.cfg.Mailer != nil,
-		})
+		return a.renderLogin(c, "These credentials do not match our records.", username)
 	}
 	user, err := a.authenticate(c.Ctx(), username, password)
 	if errors.Is(err, errBadCredentials) {
@@ -83,34 +80,21 @@ func (a *Panel) loginSubmit(c *Context) error {
 		return err
 	}
 
-	// Application-level account state gets its say before any session exists,
-	// so a suspended account never reaches the panel or the 2FA challenge.
-	if a.cfg.LoginCheck != nil {
-		if err := a.cfg.LoginCheck(c.Ctx(), user); err != nil {
-			a.log.Info("steward: login refused", "user", user.Username, "reason", err)
-			c.W.WriteHeader(http.StatusUnprocessableEntity)
-			return a.renderStandalone(c, "auth/login.html", map[string]any{
-				"Error":    err.Error(),
-				"Username": username,
-				"CanReset": a.cfg.Mailer != nil,
-			})
-		}
+	dest, err := c.LoginAs(user)
+	var refused *LoginRefusedError
+	if errors.As(err, &refused) {
+		a.log.Info("steward: login refused", "user", user.Username, "reason", refused.Reason)
+		c.W.WriteHeader(http.StatusUnprocessableEntity)
+		return a.renderLogin(c, refused.Error(), username)
 	}
-
-	// A correct password alone is not a session when a second factor is due.
-	if a.twoFactorRequired(user) {
-		if err := a.beginTwoFactor(c, user.ID); err != nil {
-			return err
-		}
-		return c.Redirect(a.url("auth/2fa"))
-	}
-
-	if err := c.login(user.ID); err != nil {
+	if err != nil {
 		return err
 	}
-	a.log.Info("steward: login", "user", user.Username)
-	c.Flash("success", "Welcome back, "+displayName(user)+".")
-	return c.Redirect(a.url("/"))
+	if dest == a.url("/") {
+		a.log.Info("steward: login", "user", user.Username)
+		c.Flash("success", "Welcome back, "+displayName(user)+".")
+	}
+	return c.Redirect(dest)
 }
 
 func (a *Panel) logoutHandler(c *Context) error {

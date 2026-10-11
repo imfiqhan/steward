@@ -12,6 +12,22 @@
     <kbd class="kbd"><span data-steward-cmdkey>Ctrl</span> K</kbd>
   </button>
   <div class="ms-auto flex items-center gap-1">
+    {{if and .Page.Tenancy (or .Page.PlatformAdmin (gt (len .Page.Tenants) 1))}}
+    <form method="post" action="{{url "auth/tenant"}}" class="steward-tenant-switcher">
+      <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+      <label for="steward-tenant" class="sr-only">Workspace</label>
+      <select id="steward-tenant" name="tenant" class="select h-8 text-sm" onchange="this.form.submit()">
+        {{if .Page.PlatformAdmin}}<option value="0" {{if not .Page.Tenant}}selected{{end}}>All workspaces</option>{{end}}
+        {{$cur := .Page.Tenant}}
+        {{range .Page.Tenants}}
+        <option value="{{.ID}}" {{if and $cur (eq $cur.ID .ID)}}selected{{end}}>{{.Name}}</option>
+        {{end}}
+      </select>
+      <noscript><button type="submit" class="btn" data-variant="outline" data-size="sm">Switch</button></noscript>
+    </form>
+    {{else if and .Page.Tenancy .Page.Tenant}}
+    <span class="text-sm text-muted-foreground px-2">{{.Page.Tenant.Name}}</span>
+    {{end}}
     <button type="button" class="btn" data-variant="ghost" data-size="icon-sm"
             data-steward-theme-toggle aria-label="Toggle color scheme">
       <span class="steward-theme-light">{{icon "moon"}}</span>

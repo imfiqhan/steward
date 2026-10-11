@@ -19,9 +19,10 @@ import (
 // how long that may be; past a threshold the panel takes the request, answers
 // at once, and notifies the account when the file is ready.
 type ExportJob struct {
-	ID     uint   `gorm:"primaryKey"`
-	UserID uint   `gorm:"not null;index"`
-	Slug   string `gorm:"size:120;not null"`
+	ID       uint   `gorm:"primaryKey"`
+	UserID   uint   `gorm:"not null;index"`
+	TenantID uint   `gorm:"index;default:0"` // tenant the export was queued in
+	Slug     string `gorm:"size:120;not null"`
 
 	// Query is the grid's own query string, so the export covers exactly what
 	// the reader was looking at: filters, quick search, and sort.
@@ -113,10 +114,11 @@ func (a *Panel) maybeQueueExport(c *Context, slug string, st *gridState) (*queue
 	}
 
 	job := ExportJob{
-		UserID: c.User.ID,
-		Slug:   slug,
-		Query:  c.R.URL.RawQuery,
-		Status: ExportPending,
+		UserID:   c.User.ID,
+		TenantID: c.TenantID(),
+		Slug:     slug,
+		Query:    c.R.URL.RawQuery,
+		Status:   ExportPending,
 	}
 	if err := a.db.WithContext(c.Ctx()).Create(&job).Error; err != nil {
 		return nil, fmt.Errorf("queueing the export: %w", err)
@@ -225,6 +227,17 @@ func (a *Panel) runExport(ctx context.Context, job *ExportJob) error {
 		return err
 	}
 	c := &Context{R: req, Panel: a, User: &user}
+	if a.TenancyEnabled() {
+		state, err := a.exportTenantState(ctx, job, &user)
+		if err != nil {
+			return err
+		}
+		scoped := WithoutTenant(ctx)
+		if state.tenant != nil {
+			scoped = WithTenant(ctx, state.tenant.ID)
+		}
+		c.R = req.WithContext(context.WithValue(scoped, tenantStateKey{}, state))
+	}
 
 	var buf bytes.Buffer
 	rows, err := ex.exportRows(c, &buf, req.URL.Query())

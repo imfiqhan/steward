@@ -64,6 +64,13 @@ type pageMeta struct {
 	MenuSections []MenuSection
 	Flashes      []session.Flash
 	Path         string
+
+	// Tenancy is set when Config.Tenancy is on. Tenant is the current
+	// tenant (nil in platform mode); Tenants are those the switcher offers.
+	Tenancy       bool
+	Tenant        *Tenant
+	Tenants       []Tenant
+	PlatformAdmin bool
 }
 
 // themeCookie stores the viewer's light/dark preference.
@@ -79,7 +86,7 @@ func themeFrom(req *http.Request) string {
 func (a *Panel) pageMetaFor(c *Context, title string) pageMeta {
 	// Built once and shared: the sections are a view of the same tree.
 	menu := a.buildMenu(c)
-	return pageMeta{
+	meta := pageMeta{
 		Brand:         a.cfg.Brand,
 		BrandIcon:     a.cfg.BrandIcon,
 		Title:         title,
@@ -96,4 +103,11 @@ func (a *Panel) pageMetaFor(c *Context, title string) pageMeta {
 		Flashes:       c.takeFlashes(),
 		Path:          c.R.URL.Path,
 	}
+	if a.TenancyEnabled() && c.User != nil {
+		meta.Tenancy = true
+		meta.Tenant = c.Tenant()
+		meta.PlatformAdmin = c.IsPlatformAdmin()
+		meta.Tenants = a.switchableTenants(c)
+	}
+	return meta
 }

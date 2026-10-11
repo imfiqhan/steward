@@ -169,14 +169,54 @@ type Config struct {
 	// is already separately scoped, and have no session to enrol through.
 	Require2FA bool
 
-	// LoginCheck runs after the password (and second factor, if any) has been
-	// accepted and before the session is issued. A returned error refuses the
+	// LoginCheck runs once the account is identified (password or external
+	// sign-in) and before the session is issued; with two-factor it runs
+	// before the challenge and again when the challenge is passed. A returned error refuses the
 	// login and its message is shown on the form, so it is the seam for
 	// application-level account state: "suspended", "not yet activated",
 	// "outside permitted hours".
 	//
 	// It cannot be used to *grant* a login, only to withhold one.
 	LoginCheck func(ctx context.Context, u *User) error
+
+	// AuthProviders are the external sign-in methods offered on the login
+	// page (Google, Apple, SAML...), see contrib/sso. Empty means none: no
+	// SSO routes and no buttons.
+	AuthProviders []AuthProvider
+
+	// AuthProviderSource supplies providers looked up at request time, such
+	// as a tenant's own SAML connection. Setting it adds the organization
+	// field to the login page.
+	AuthProviderSource AuthProviderSource
+
+	// ResolveExternalUser maps an external identity that is not linked yet
+	// to an account; return nil or ErrNoLinkedAccount to refuse. It is the
+	// seam for just-in-time provisioning. Unset, only linked identities and
+	// (with LinkByVerifiedEmail) verified email matches sign in.
+	ResolveExternalUser func(ctx context.Context, id *ExternalIdentity) (*User, error)
+
+	// LinkByVerifiedEmail lets the default resolver link an identity to the
+	// account with the same email when the provider says it is verified.
+	LinkByVerifiedEmail bool
+
+	// DisablePasswordLogin hides the username/password form and refuses its
+	// submissions, leaving only AuthProviders.
+	DisablePasswordLogin bool
+
+	// PublicURL is the scheme and host browsers reach the panel on, e.g.
+	// "https://admin.example.com". It builds SSO callback URLs; empty
+	// derives it from the request.
+	PublicURL string
+
+	// TrustProxy trusts X-Forwarded-Proto and X-Forwarded-Host from a
+	// reverse proxy for secure cookies and SSO callback URLs. Enable it only
+	// behind a proxy that sets them.
+	TrustProxy bool
+
+	// Tenancy turns on multi-tenancy: tenants, memberships, per-tenant
+	// roles, a workspace switcher and automatic scoping of every model that
+	// embeds TenantScoped. Nil keeps the panel single-tenant.
+	Tenancy *TenancyConfig
 
 	// EnableTokenAuth accepts "Authorization: Bearer <token>" alongside the
 	// session cookie, and mounts POST/DELETE {Prefix}/auth/token so API and
@@ -305,6 +345,11 @@ func New(cfg Config) (*Panel, error) {
 	if err := SetupModels(cfg.DB, cfg.TablePrefix); err != nil {
 		return nil, err
 	}
+	if cfg.Tenancy != nil {
+		if err := useTenantPlugin(cfg.DB, cfg.Tenancy.Tables); err != nil {
+			return nil, err
+		}
+	}
 	disks, err := buildDisks(&cfg)
 	if err != nil {
 		return nil, err
@@ -380,8 +425,9 @@ func (a *Panel) Verify() error {
 		return err
 	}
 	errs := append([]error(nil), a.verifyErrs...)
+	errs = append(errs, a.verifyAuthProviders()...)
 	if !a.cfg.DisableQueryProbe {
-		ctx := context.Background()
+		ctx := WithoutTenant(context.Background())
 		for _, r := range a.registry {
 			if p, ok := r.(queryProber); ok {
 				errs = append(errs, p.probeQueries(ctx, a)...)
@@ -395,7 +441,7 @@ func (a *Panel) build() error {
 	a.registerBuiltins()
 
 	if !a.cfg.DisableAutoMigrate {
-		if _, err := a.MigrationRunner(nil).Up(context.Background()); err != nil {
+		if _, err := a.MigrationRunner(nil).Up(WithoutTenant(context.Background())); err != nil {
 			return fmt.Errorf("steward: framework migrations: %w", err)
 		}
 	}
@@ -499,6 +545,9 @@ func (a *Panel) coreTables() migrations.Tables {
 		ExportModel:         &ExportJob{},
 		UserModel:           &User{},
 		AddTwoFactorColumns: twoFactorColumns,
+		TenancyModels:       []any{&Tenant{}, &TenantUser{}, &TenantUserRole{}, &UserIdentity{}},
+		AddTenantColumns:    addTenantColumns,
+		DropTenantColumns:   dropTenantColumns,
 		SeedFn:              seedDefaults,
 	}
 }
@@ -567,7 +616,7 @@ func (a *Panel) saveSession(c *Context) {
 		Path:     a.url("/"),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   c.R.TLS != nil,
+		Secure:   a.secureRequest(c.R),
 		Expires:  time.Now().Add(session.MaxAge),
 	})
 }

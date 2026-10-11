@@ -98,7 +98,7 @@ func runCLI(app App, args []string) error {
 	if err != nil {
 		return err
 	}
-	ctx := context.Background()
+	ctx := WithoutTenant(context.Background())
 
 	switch cmd {
 	case "serve":
@@ -216,7 +216,7 @@ func runCLI(app App, args []string) error {
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
-		counts, err := a.Reindex(context.Background(), *batch)
+		counts, err := a.Reindex(ctx, *batch)
 		for slug, n := range counts {
 			fmt.Printf("%s: %d indexed\n", slug, n)
 		}

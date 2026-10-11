@@ -60,12 +60,14 @@ func (a *Panel) withOperationLog(next http.Handler) http.Handler {
 		if len(p) > 255 {
 			p = p[:255]
 		}
+		tenantID, _ := TenantFromContext(r.Context())
 		entry := OperationLog{
-			UserID: user.ID,
-			Path:   p,
-			Method: r.Method,
-			IP:     host,
-			Input:  string(raw),
+			UserID:   user.ID,
+			TenantID: tenantID,
+			Path:     p,
+			Method:   r.Method,
+			IP:       host,
+			Input:    string(raw),
 		}
 		// Written before this handler returns, not in a goroutine of its own.
 		//

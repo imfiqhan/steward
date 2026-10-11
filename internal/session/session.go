@@ -35,6 +35,9 @@ type Data struct {
 	// handling anywhere else. PendingAt stamps the wait so it can expire.
 	Pending2FA uint  `json:"p2fa,omitempty"`
 	PendingAt  int64 `json:"p2at,omitempty"`
+
+	// TenantID is the tenant selected in the panel; 0 means none selected.
+	TenantID uint `json:"tid,omitempty"`
 }
 
 // MaxAge bounds session validity independent of cookie expiry.

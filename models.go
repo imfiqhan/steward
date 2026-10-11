@@ -207,6 +207,7 @@ func (PermissionMenu) TableName() string { return prefixed("permission_menu") }
 type OperationLog struct {
 	ID        uint      `gorm:"primaryKey"`
 	UserID    uint      `gorm:"index"`
+	TenantID  uint      `gorm:"index;default:0"`
 	Path      string    `gorm:"size:255"`
 	Method    string    `gorm:"size:10"`
 	IP        string    `gorm:"size:45"`
@@ -238,7 +239,8 @@ func (Setting) TableName() string { return prefixed("settings") }
 type Token struct {
 	ID         uint   `gorm:"primaryKey"`
 	UserID     uint   `gorm:"index;not null"`
-	Name       string `gorm:"size:120"` // client label: "iPhone", "CI deploy"
+	TenantID   uint   `gorm:"index;default:0"` // 0: not bound to a tenant
+	Name       string `gorm:"size:120"`        // client label: "iPhone", "CI deploy"
 	Hash       string `gorm:"size:64;uniqueIndex"`
 	LastUsedAt *time.Time
 	ExpiresAt  *time.Time `gorm:"index"`

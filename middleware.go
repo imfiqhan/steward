@@ -20,14 +20,15 @@ const (
 )
 
 // wrap composes the fixed middleware chain around the route table:
-// recover → access log → session → token → CSRF → auth → permission →
-// operation log → routes.
+// recover → access log → session → token → CSRF → auth → two-factor gate →
+// tenant → permission → operation log → routes.
 //
 // Token resolution sits ahead of CSRF so that CSRF can recognise a bearer
 // caller, and ahead of auth, which defers to an already-resolved principal.
 func (a *Panel) wrap(next http.Handler) http.Handler {
 	h := a.withOperationLog(next)
 	h = a.withPermission(h)
+	h = a.withTenant(h)
 	h = a.twoFactorGate(h)
 	h = a.withAuth(h)
 	h = a.withCSRF(h)
@@ -110,7 +111,7 @@ func (a *Panel) withCSRF(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if tokenOf(r) != nil || (a.cfg.EnableTokenAuth && a.tokenEndpoint(r.URL.Path)) {
+		if tokenOf(r) != nil || (a.cfg.EnableTokenAuth && a.tokenEndpoint(r.URL.Path)) || a.ssoCallbackPath(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -143,6 +144,9 @@ func (a *Panel) publicPath(p string) bool {
 	// Minting a token authenticates from the request body; revoking one
 	// authenticates from the bearer credential, which revokeToken requires.
 	if a.cfg.EnableTokenAuth && rel == "/auth/token" {
+		return true
+	}
+	if a.ssoEnabled() && strings.HasPrefix(rel, "/auth/sso/") {
 		return true
 	}
 	for _, pat := range a.cfg.AuthExcept {

@@ -86,7 +86,7 @@ MODULES = . example cmd/steward
 # Linted and built, not tested: they have no tests of their own, and they are
 # separately versioned, so they are not part of the test gate. CI lints them,
 # and a gate narrower than CI's is a gate that reports green on a red push.
-CONTRIB = contrib/ginsteward contrib/redcache contrib/meilistore contrib/s3store
+CONTRIB = contrib/ginsteward contrib/redcache contrib/meilistore contrib/s3store contrib/sso
 
 build:
 	@for dir in $(MODULES) $(CONTRIB); do echo "== $$dir"; (cd $$dir && $(GO) build ./...) || exit 1; done

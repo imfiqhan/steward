@@ -26,6 +26,31 @@ running panel to a new version.
   `SetupModels`. Without either call, `User.Roles` resolves to the unprefixed
   `role_users` table.
 
+### Added
+
+- **Multi-tenancy**, opt-in with `Config.Tenancy`. Migration `0007` adds
+  `tenants`, `tenant_users` and `tenant_user_roles`, plus a `tenant_id`
+  column on `tokens`, `exports` and `operation_log`. Models embedding
+  `steward.TenantScoped` are scoped by a GORM plugin on every query that
+  carries a context. A query with no tenant and no `WithoutTenant` fails
+  with `ErrNoTenant`. The panel adds a workspace switcher
+  (`POST /auth/tenant`), per-tenant roles, and a Tenants page for platform
+  administrators. Tokens issued by `/auth/token` are bound to a tenant.
+- **Single sign-on**, opt-in with `Config.AuthProviders`. Only listed
+  providers get routes (`/auth/sso/{id}`, `/callback`, `/metadata`) and a
+  login button. External identities are linked to accounts in
+  `user_identities`, created by migration `0007`. Added with it:
+  `AuthProviderSource` (per-tenant providers), `ResolveExternalUser`
+  (just-in-time provisioning), `LinkByVerifiedEmail`,
+  `DisablePasswordLogin`, `PublicURL` and `TrustProxy`. Protocol
+  implementations live in the new `contrib/sso` module.
+- `Context.LoginAs(user)` signs a user in from an application's own handler,
+  with `LoginCheck` and two-factor applied.
+- `steward.IssueToken` and `steward.HashToken` mint and hash bearer tokens
+  outside the panel.
+- `steward.SetupModels(db, prefix)` and `steward.TenantPlugin()` for
+  processes that share the database without a Panel.
+
 ### Changed
 
 - `AdminUser` is now `User` and `AdminToken` is now `Token`. The old names
@@ -34,6 +59,10 @@ running panel to a new version.
   works.
 - `migrate.New` records into `steward_migrations` unless `WithTable` says
   otherwise.
+- `LoginCheck` also runs when a two-factor challenge is passed, not only
+  before it.
+- The session cookie is `Secure` when `TrustProxy` is on and the proxy
+  reports HTTPS.
 
 ## v0.5.1
 

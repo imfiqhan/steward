@@ -4,9 +4,10 @@ use (
 	.
 	./cmd/steward
 	./contrib/ginsteward
-	./contrib/redcache
 	./contrib/meilistore
+	./contrib/redcache
 	./contrib/s3store
+	./contrib/sso
 	./example
 	./tools/assets
 )

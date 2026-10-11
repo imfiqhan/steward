@@ -30,6 +30,13 @@ type Tables struct {
 	// AddTwoFactorColumns applies 0004 against UserModel. The root package owns
 	// the column list because this package must not import it.
 	AddTwoFactorColumns func(tx *gorm.DB, model any) error
+	// TenancyModels are the tenant, membership, per-tenant role and external
+	// identity tables, created by 0007.
+	TenancyModels []any
+	// AddTenantColumns applies 0007's tenant_id columns to existing tables;
+	// DropTenantColumns reverts them.
+	AddTenantColumns  func(tx *gorm.DB) error
+	DropTenantColumns func(tx *gorm.DB) error
 	// SeedFn inserts default rows (admin user, administrator role, menu).
 	SeedFn func(tx *gorm.DB, passwordHash string) error
 }
@@ -99,6 +106,26 @@ func Core(t Tables) []migrate.Migration {
 			},
 			Down: func(tx *gorm.DB) error {
 				return tx.Migrator().DropTable(t.ExportModel)
+			},
+		},
+		{
+			Name: "0007_create_tenancy_and_identity_tables",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.Migrator().AutoMigrate(t.TenancyModels...); err != nil {
+					return err
+				}
+				return t.AddTenantColumns(tx)
+			},
+			Down: func(tx *gorm.DB) error {
+				if err := t.DropTenantColumns(tx); err != nil {
+					return err
+				}
+				for i := len(t.TenancyModels) - 1; i >= 0; i-- {
+					if err := tx.Migrator().DropTable(t.TenancyModels[i]); err != nil {
+						return err
+					}
+				}
+				return nil
 			},
 		},
 	}

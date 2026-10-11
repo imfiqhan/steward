@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -22,6 +23,9 @@ func (a *Panel) registerBuiltins() {
 	a.registerMenuResource()
 	a.registerLogResource()
 	a.registerSettingsResource()
+	if a.TenancyEnabled() {
+		a.registerTenantsResource()
+	}
 }
 
 // syncPivot replaces the pivot rows owned by ownerID with the given ids.
@@ -73,10 +77,15 @@ func (a *Panel) registerUsersResource() {
 	repo.With("Roles")
 
 	res := Register[User](a).Slug("auth/users").Title("Administrators").
-		Icon("users").Group("Admin").Repository(repo).
+		Icon("users").Group("Admin").
 		// Reachable from the palette by whoever may already list them: the
 		// search runs behind the same ViewAny gate the grid does.
 		Command("Name", "Username", "Email")
+	if a.TenancyEnabled() {
+		res.Repository(newTenantUserRepo(a, repo)).Policy(tenantUsersPolicy{})
+	} else {
+		res.Repository(repo)
+	}
 
 	res.Grid(func(g *Grid[User]) {
 		g.Column("ID").Sortable().Width(60)
@@ -122,6 +131,9 @@ func (a *Panel) registerUsersResource() {
 				return ids
 			})
 		f.Saved(func(c *Context, u *User, _ bool) error {
+			if t := c.Tenant(); t != nil {
+				return a.syncTenantRoles(c.Ctx(), t.ID, u.ID, c.R.Form["Roles"])
+			}
 			return a.syncPivot(c, prefixed("role_users"), "user_id", u.ID, "role_id", c.R.Form["Roles"])
 		})
 		f.Deleting(func(c *Context, ids []string) error {
@@ -177,6 +189,9 @@ func (a *Panel) registerRolesResource() {
 
 	res := Register[Role](a).Slug("auth/roles").Title("Roles").
 		Icon("shield").Group("Admin").Repository(repo)
+	if a.TenancyEnabled() {
+		res.Policy(platformWrites[Role]{})
+	}
 
 	res.Grid(func(g *Grid[Role]) {
 		g.Column("ID").Sortable().Width(60)
@@ -251,6 +266,9 @@ func (a *Panel) registerRolesResource() {
 func (a *Panel) registerPermissionsResource() {
 	res := Register[Permission](a).Slug("auth/permissions").Title("Permissions").
 		Icon("key").Group("Admin")
+	if a.TenancyEnabled() {
+		res.Policy(platformOnly[Permission]{})
+	}
 
 	res.Grid(func(g *Grid[Permission]) {
 		g.Column("ID").Sortable().Width(60)
@@ -275,6 +293,20 @@ func (a *Panel) registerPermissionsResource() {
 func (a *Panel) registerLogResource() {
 	res := Register[OperationLog](a).Slug("auth/logs").Title("Operation Log").
 		Icon("history").Group("Admin")
+	if a.TenancyEnabled() {
+		repo, err := NewGormRepository[OperationLog](a.db)
+		if err != nil {
+			a.verifyErrs = append(a.verifyErrs, err)
+			return
+		}
+		repo.Query(func(db *gorm.DB) *gorm.DB {
+			if id, ok := TenantFromContext(db.Statement.Context); ok {
+				return db.Where("tenant_id = ?", id)
+			}
+			return db
+		})
+		res.Repository(repo)
+	}
 
 	res.Grid(func(g *Grid[OperationLog]) {
 		g.Column("ID").Sortable().Width(60)
@@ -305,6 +337,9 @@ func (a *Panel) registerLogResource() {
 func (a *Panel) registerSettingsResource() {
 	res := Register[Setting](a).Slug("auth/settings").Title("Settings").
 		Icon("settings-2").Group("Admin")
+	if a.TenancyEnabled() {
+		res.Policy(platformOnly[Setting]{})
+	}
 
 	res.Grid(func(g *Grid[Setting]) {
 		g.Column("Slug")

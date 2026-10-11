@@ -45,6 +45,30 @@ func tokenHash(raw string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// HashToken returns the digest stored in Token.Hash for a raw token value.
+func HashToken(raw string) string { return tokenHash(raw) }
+
+// IssueToken creates a bearer token for an account and returns the raw value,
+// which is never stored. tenantID binds the token to a tenant (0 leaves it
+// unbound); ttl <= 0 means it does not expire. It is for processes that
+// sign clients in outside the panel, such as a mobile API sharing the
+// database, and uses the same scheme the panel verifies.
+func IssueToken(ctx context.Context, db *gorm.DB, userID, tenantID uint, name string, ttl time.Duration) (string, *Token, error) {
+	raw, err := newTokenValue()
+	if err != nil {
+		return "", nil, err
+	}
+	tok := &Token{UserID: userID, TenantID: tenantID, Name: name, Hash: tokenHash(raw)}
+	if ttl > 0 {
+		exp := time.Now().Add(ttl)
+		tok.ExpiresAt = &exp
+	}
+	if err := db.WithContext(ctx).Create(tok).Error; err != nil {
+		return "", nil, err
+	}
+	return raw, tok, nil
+}
+
 func newTokenValue() (string, error) {
 	v, err := session.NewToken()
 	if err != nil {
@@ -194,6 +218,9 @@ type tokenIssueRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Name     string `json:"name"`
+	// Tenant is the slug of the tenant to bind the token to. With tenancy
+	// on it may be omitted only when the account has a single membership.
+	Tenant string `json:"tenant"`
 }
 
 // issueToken mints a token from a username and password: the login step for a
@@ -221,6 +248,7 @@ func (a *Panel) issueToken(c *Context) error {
 		req.Username = c.R.PostFormValue("username")
 		req.Password = c.R.PostFormValue("password")
 		req.Name = c.R.PostFormValue("name")
+		req.Tenant = c.R.PostFormValue("tenant")
 	}
 
 	username := strings.TrimSpace(req.Username)
@@ -238,14 +266,29 @@ func (a *Panel) issueToken(c *Context) error {
 		return err
 	}
 
+	var tenantID uint
+	if a.TenancyEnabled() {
+		t, status, msg, err := a.tokenTenant(c.Ctx(), user, strings.TrimSpace(req.Tenant))
+		if err != nil {
+			return err
+		}
+		if status != 0 {
+			return c.JSON(status, msg)
+		}
+		if t != nil {
+			tenantID = t.ID
+		}
+	}
+
 	raw, err := newTokenValue()
 	if err != nil {
 		return err
 	}
 	tok := Token{
-		UserID: user.ID,
-		Name:   strings.TrimSpace(req.Name),
-		Hash:   tokenHash(raw),
+		UserID:   user.ID,
+		TenantID: tenantID,
+		Name:     strings.TrimSpace(req.Name),
+		Hash:     tokenHash(raw),
 	}
 	if ttl := a.tokenTTL(); ttl > 0 {
 		exp := time.Now().Add(ttl)

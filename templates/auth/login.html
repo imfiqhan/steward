@@ -11,7 +11,7 @@
       <div class="card">
         <header>
           <h2>Sign in to your account</h2>
-          <p>Enter your username and password below.</p>
+          {{if .Data.PasswordLogin}}<p>Enter your username and password below.</p>{{end}}
         </header>
         <section>
           {{if .Data.Error}}
@@ -19,6 +19,31 @@
             <h2>{{.Data.Error}}</h2>
           </div>
           {{end}}
+          {{if .Data.Providers}}
+          <div class="grid gap-2 steward-sso-providers">
+            {{range .Data.Providers}}
+            <a class="btn w-full" data-variant="outline" href="{{.URL}}" data-provider="{{.ID}}">
+              {{if .Icon}}{{icon .Icon "size-4"}}{{end}}
+              <span>{{.Label}}</span>
+            </a>
+            {{end}}
+          </div>
+          {{end}}
+          {{if .Data.Discovery}}
+          <form action="{{url "auth/sso/discover"}}" method="post" class="grid gap-2 mt-4">
+            <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+            <label class="label" for="login-organization">Work email or organization</label>
+            <input class="input" id="login-organization" name="organization" type="text"
+                   autocomplete="email" placeholder="you@company.com"/>
+            <button type="submit" class="btn w-full" data-variant="outline">Continue with single sign-on</button>
+          </form>
+          {{end}}
+          {{if and .Data.PasswordLogin (or .Data.Providers .Data.Discovery)}}
+          <div class="flex items-center gap-3 my-6 text-sm text-muted-foreground" role="separator">
+            <hr class="flex-1"/><span>or</span><hr class="flex-1"/>
+          </div>
+          {{end}}
+          {{if .Data.PasswordLogin}}
           <form action="{{url "auth/login"}}" method="post" autocomplete="off" novalidate class="grid gap-6">
             <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
             <div class="grid gap-2">
@@ -38,6 +63,7 @@
             </div>
             <button type="submit" class="btn w-full">Sign in</button>
           </form>
+          {{end}}
         </section>
       </div>
     </div>

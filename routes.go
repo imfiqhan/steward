@@ -74,7 +74,19 @@ func (a *Panel) buildRoutes() *http.ServeMux {
 	mux.HandleFunc("GET "+p+"/auth/2fa", a.h(a.twoFactorChallengePage))
 	mux.HandleFunc("POST "+p+"/auth/2fa", a.h(a.twoFactorChallengeSubmit))
 
+	if a.ssoEnabled() {
+		mux.HandleFunc("GET "+p+"/auth/sso/{provider}", a.h(a.ssoStart))
+		mux.HandleFunc("GET "+p+"/auth/sso/{provider}/callback", a.h(a.ssoCallback))
+		mux.HandleFunc("POST "+p+"/auth/sso/{provider}/callback", a.h(a.ssoCallback))
+		mux.HandleFunc("GET "+p+"/auth/sso/{provider}/metadata", a.h(a.ssoMetadata))
+		if a.cfg.AuthProviderSource != nil {
+			mux.HandleFunc("POST "+p+"/auth/sso/discover", a.h(a.ssoDiscover))
+		}
+	}
 	mux.HandleFunc("POST "+p+"/auth/logout", a.h(a.logoutHandler))
+	if a.TenancyEnabled() {
+		mux.HandleFunc("POST "+p+"/auth/tenant", a.h(a.switchTenant))
+	}
 	mux.HandleFunc("GET "+p+"/auth/profile", a.h(a.profilePage))
 	mux.HandleFunc("POST "+p+"/auth/profile", a.h(a.profileSubmit))
 	mux.HandleFunc("PUT "+p+"/auth/profile", a.h(a.profileSubmit))

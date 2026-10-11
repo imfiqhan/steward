@@ -107,6 +107,9 @@ func (a *Panel) flushMenuCache(ctx context.Context) error {
 func (a *Panel) registerMenuResource() {
 	res := Register[MenuItem](a).Slug("auth/menu").Title("Menu").
 		Icon("menu-2").Group("Admin")
+	if a.TenancyEnabled() {
+		res.Policy(platformOnly[MenuItem]{})
+	}
 
 	res.Grid(func(g *Grid[MenuItem]) {
 		g.Column("ID").Sortable().Width(60)

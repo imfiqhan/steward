@@ -319,6 +319,9 @@ func (a *Panel) twoFactorChallengeSubmit(c *Context) error {
 		}
 		left := countRecoveryCodes(remaining)
 		a.clearPendingTwoFactor(c)
+		if msg, refused := a.recheckLogin(c, user); refused {
+			return fail(msg)
+		}
 		if err := c.login(user.ID); err != nil {
 			return err
 		}
@@ -340,6 +343,9 @@ func (a *Panel) twoFactorChallengeSubmit(c *Context) error {
 			return err
 		}
 		a.clearPendingTwoFactor(c)
+		if msg, refused := a.recheckLogin(c, user); refused {
+			return fail(msg)
+		}
 		if err := c.login(user.ID); err != nil {
 			return err
 		}
@@ -637,6 +643,19 @@ func (a *Panel) twoFactorGate(next http.Handler) http.Handler {
 
 // twoFactorColumns is the schema this feature adds, applied by core migration
 // 0004 so existing installations pick it up on `migrate up`.
+// recheckLogin runs Config.LoginCheck again as the second factor completes,
+// since the account may have changed while the challenge was open.
+func (a *Panel) recheckLogin(c *Context, u *User) (string, bool) {
+	if a.cfg.LoginCheck == nil {
+		return "", false
+	}
+	if err := a.cfg.LoginCheck(c.Ctx(), u); err != nil {
+		a.log.Info("steward: login refused", "user", u.Username, "reason", err)
+		return err.Error(), true
+	}
+	return "", false
+}
+
 func twoFactorColumns(tx *gorm.DB, model any) error {
 	mig := tx.Migrator()
 	for _, col := range []string{
