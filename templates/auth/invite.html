@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
+<head>
+  {{template "layout/head.html" .}}
+  <title>Invitation — {{.Page.Brand}}</title>
+</head>
+<body>
+  <div class="min-h-screen grid place-items-center p-4">
+    <div class="w-full max-w-sm grid gap-6">
+      <h1 class="text-center text-2xl font-semibold">{{.Page.Brand}}</h1>
+      <div class="card">
+        {{if .Data.Error}}
+        <header>
+          <h2>Invitation unavailable</h2>
+        </header>
+        <section>
+          <div class="alert" data-variant="destructive"><h2>{{.Data.Error}}</h2></div>
+          <p class="mt-4 text-center text-sm"><a class="underline-offset-4 hover:underline" href="{{url "auth/login"}}">Go to sign in</a></p>
+        </section>
+        {{else}}
+        <header>
+          <h2>Join {{.Data.Workspace}}</h2>
+          <p>You were invited as {{if .Data.Role}}<strong>{{.Data.Role}}</strong>{{else}}a member{{end}}.</p>
+        </header>
+        <section class="grid gap-4">
+          {{if .Data.SignedIn}}
+          <p class="text-sm text-muted-foreground">Signed in as {{.Data.Username}}.</p>
+          <form method="post" action="{{url "auth/invite" .Data.Token}}">
+            <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+            <button type="submit" class="btn w-full">Accept invitation</button>
+          </form>
+          {{else}}
+          <p class="text-sm text-muted-foreground">Sign in to accept. Any of these accounts works, even with a different email.</p>
+          {{if .Data.Providers}}
+          <div class="grid gap-2 steward-sso-providers">
+            {{range .Data.Providers}}
+            <a class="btn w-full" data-variant="outline" href="{{.URL}}" data-provider="{{.ID}}">
+              {{if .Icon}}{{icon .Icon "size-4"}}{{end}}
+              <span>{{.Label}}</span>
+            </a>
+            {{end}}
+          </div>
+          {{end}}
+          {{if .Data.PasswordLogin}}
+          <a class="btn w-full" data-variant="ghost" href="{{url "auth/login"}}">Sign in with a password</a>
+          {{end}}
+          {{end}}
+        </section>
+        {{end}}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

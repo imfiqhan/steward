@@ -37,6 +37,10 @@ type Tables struct {
 	// DropTenantColumns reverts them.
 	AddTenantColumns  func(tx *gorm.DB) error
 	DropTenantColumns func(tx *gorm.DB) error
+	// TenantModel gains its owner column in 0008, and InvitationModel is the
+	// table 0008 creates.
+	TenantModel     any
+	InvitationModel any
 	// SeedFn inserts default rows (admin user, administrator role, menu).
 	SeedFn func(tx *gorm.DB, passwordHash string) error
 }
@@ -126,6 +130,28 @@ func Core(t Tables) []migrate.Migration {
 					}
 				}
 				return nil
+			},
+		},
+		{
+			Name: "0008_add_tenant_owner_and_invitations",
+			Up: func(tx *gorm.DB) error {
+				return tx.Migrator().AutoMigrate(t.TenantModel, t.InvitationModel)
+			},
+			Down: func(tx *gorm.DB) error {
+				if err := tx.Migrator().DropTable(t.InvitationModel); err != nil {
+					return err
+				}
+				if !tx.Migrator().HasColumn(t.TenantModel, "OwnerUserID") {
+					return nil
+				}
+				stmt := &gorm.Statement{DB: tx}
+				if err := stmt.Parse(t.TenantModel); err != nil {
+					return err
+				}
+				if err := tx.Exec("DROP INDEX IF EXISTS idx_" + stmt.Schema.Table + "_owner_user_id").Error; err != nil {
+					return err
+				}
+				return tx.Migrator().DropColumn(t.TenantModel, "OwnerUserID")
 			},
 		},
 	}

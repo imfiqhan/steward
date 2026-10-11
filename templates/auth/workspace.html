@@ -1,0 +1,54 @@
+<div class="p-6 grid grid-cols-1 gap-4 max-w-2xl">
+  <div>
+    <p class="text-sm text-muted-foreground">Workspace</p>
+    <h2 class="text-2xl font-semibold">{{.Data.Workspace.Name}}</h2>
+  </div>
+  {{if .Data.Error}}
+  <div class="alert" data-variant="destructive" role="alert"><h2>{{.Data.Error}}</h2></div>
+  {{end}}
+  <form class="card" method="post" action="{{url "auth/workspace"}}">
+    <header>
+      <h2>Name</h2>
+    </header>
+    <section class="grid gap-6">
+      <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+      <input type="hidden" name="action" value="rename"/>
+      <div class="grid gap-2">
+        <label class="label" for="workspace-name">Workspace name</label>
+        <input class="input" id="workspace-name" name="name" type="text" maxlength="100"
+               value="{{.Data.Workspace.Name}}" required/>
+        <p class="text-sm text-muted-foreground">Identifier: <code>{{.Data.Workspace.Slug}}</code>. It does not change.</p>
+      </div>
+    </section>
+    <footer class="flex justify-end">
+      <button type="submit" class="btn">Save</button>
+    </footer>
+  </form>
+  <form class="card" method="post" action="{{url "auth/workspace"}}"
+        onsubmit="return confirm('Transfer ownership? You stay an administrator, but only the new owner can change these settings.')">
+    <header>
+      <h2>Ownership</h2>
+      <p>Owner: <strong>{{if .Data.Owner}}{{.Data.Owner}}{{else}}none{{end}}</strong></p>
+    </header>
+    <section class="grid gap-6">
+      <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+      <input type="hidden" name="action" value="transfer"/>
+      {{if .Data.Candidates}}
+      <div class="grid gap-2">
+        <label class="label" for="workspace-owner">New owner</label>
+        <select class="select" id="workspace-owner" name="owner" required>
+          {{range .Data.Candidates}}<option value="{{.ID}}">{{.Label}}</option>{{end}}
+        </select>
+        <p class="text-sm text-muted-foreground">Only another administrator of this workspace can become its owner.</p>
+      </div>
+      {{else}}
+      <p class="text-sm text-muted-foreground">Make another member an administrator first; ownership can only go to an administrator.</p>
+      {{end}}
+    </section>
+    {{if .Data.Candidates}}
+    <footer class="flex justify-end">
+      <button type="submit" class="btn" data-variant="destructive">Transfer ownership</button>
+    </footer>
+    {{end}}
+  </form>
+</div>

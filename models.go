@@ -53,11 +53,11 @@ func SetupModels(db *gorm.DB, prefix string) error {
 type User struct {
 	ID            uint    `gorm:"primaryKey"`
 	Username      string  `gorm:"size:120;uniqueIndex"`
-	Password      string  `gorm:"size:100"` // bcrypt hash
+	Password      string  `gorm:"size:100" json:"-"` // bcrypt hash
 	Name          string  `gorm:"size:255"`
 	Avatar        string  `gorm:"size:255"`
 	Email         *string `gorm:"size:255;uniqueIndex"`
-	RememberToken string  `gorm:"size:100"`
+	RememberToken string  `gorm:"size:100" json:"-"`
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 
@@ -65,10 +65,10 @@ type User struct {
 	// only once TwoFactorConfirmedAt is set, so a scanned-but-unverified
 	// secret never locks anyone out. TwoFactorLastStep records the most
 	// recently accepted time step, which is what makes a code single-use.
-	TwoFactorSecret      string `gorm:"size:64"`
+	TwoFactorSecret      string `gorm:"size:64" json:"-"`
 	TwoFactorConfirmedAt *time.Time
-	TwoFactorRecovery    string `gorm:"type:text"` // newline-separated SHA-256 digests
-	TwoFactorLastStep    int64  `gorm:"default:0"`
+	TwoFactorRecovery    string `gorm:"type:text" json:"-"` // newline-separated SHA-256 digests
+	TwoFactorLastStep    int64  `gorm:"default:0" json:"-"`
 
 	Roles []Role `gorm:"many2many:role_users;joinForeignKey:user_id;joinReferences:role_id"`
 }
@@ -241,7 +241,7 @@ type Token struct {
 	UserID     uint   `gorm:"index;not null"`
 	TenantID   uint   `gorm:"index;default:0"` // 0: not bound to a tenant
 	Name       string `gorm:"size:120"`        // client label: "iPhone", "CI deploy"
-	Hash       string `gorm:"size:64;uniqueIndex"`
+	Hash       string `gorm:"size:64;uniqueIndex" json:"-"`
 	LastUsedAt *time.Time
 	ExpiresAt  *time.Time `gorm:"index"`
 	CreatedAt  time.Time

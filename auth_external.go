@@ -136,7 +136,11 @@ type ssoState struct {
 	Provider string            `json:"p"`
 	State    string            `json:"s"`
 	Values   map[string]string `json:"v,omitempty"`
-	Expires  int64             `json:"e"`
+	// Invite is the invitation token the visitor opened before signing in.
+	// It rides in the state because a cross-site POST callback does not carry
+	// the Lax invite cookie.
+	Invite  string `json:"i,omitempty"`
+	Expires int64  `json:"e"`
 }
 
 func (a *Panel) ssoEnabled() bool {
@@ -229,7 +233,7 @@ func (a *Panel) ssoStart(c *Context) error {
 		return a.ssoFail(c, "Sign-in with "+p.Label()+" is unavailable right now.")
 	}
 	if err := a.setSSOCookie(c, &ssoState{
-		Provider: p.ID(), State: state, Values: req.Values,
+		Provider: p.ID(), State: state, Values: req.Values, Invite: a.pendingInviteToken(c.R),
 		Expires: time.Now().Add(ssoMaxAge).Unix(),
 	}); err != nil {
 		return err
@@ -280,11 +284,35 @@ func (a *Panel) ssoCallback(c *Context) error {
 
 	user, err := a.ResolveExternalUser(c.Ctx(), ident)
 	if errors.Is(err, ErrNoLinkedAccount) {
-		a.log.Info("steward: sso without account", "provider", id, "email", ident.Email)
-		return a.ssoFail(c, "No account is linked to that "+p.Label()+" sign-in. Ask an administrator to invite you.")
+		switch {
+		case st.Invite != "" && a.invitationsEnabled():
+			// An invitation admits whoever opened it, whatever email the
+			// provider reports, so the account is created here.
+			if _, _, ierr := a.invitationByToken(c.Ctx(), st.Invite); ierr != nil {
+				return a.ssoFail(c, ierr.Error())
+			}
+			err = a.db.WithContext(WithoutTenant(c.Ctx())).Transaction(func(tx *gorm.DB) error {
+				var terr error
+				user, terr = newAccountFromIdentity(tx, ident)
+				return terr
+			})
+			if err == nil {
+				err = a.db.WithContext(WithoutTenant(c.Ctx())).Preload("Roles").First(user, user.ID).Error
+			}
+		case a.signupEnabled():
+			return a.beginSignup(c, ident, p.Label())
+		default:
+			a.log.Info("steward: sso without account", "provider", id, "email", ident.Email)
+			return a.ssoFail(c, "No account is linked to that "+p.Label()+" sign-in. Ask an administrator to invite you.")
+		}
 	}
 	if err != nil {
 		return err
+	}
+	if st.Invite != "" && a.invitationsEnabled() {
+		if err := a.setInviteCookie(c, st.Invite); err != nil {
+			return err
+		}
 	}
 
 	dest, err := c.LoginAs(user)
@@ -518,5 +546,6 @@ func (a *Panel) renderLogin(c *Context, errMsg, username string) error {
 		"PasswordLogin": !a.cfg.DisablePasswordLogin,
 		"Providers":     a.loginProviders(),
 		"Discovery":     a.cfg.AuthProviderSource != nil,
+		"Signup":        a.signupEnabled() && len(a.cfg.AuthProviders) > 0,
 	})
 }

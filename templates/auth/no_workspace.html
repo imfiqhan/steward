@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
+<head>
+  {{template "layout/head.html" .}}
+  <title>No workspace — {{.Page.Brand}}</title>
+</head>
+<body>
+  <div class="min-h-screen grid place-items-center p-4">
+    <div class="w-full max-w-sm grid gap-6">
+      <h1 class="text-center text-2xl font-semibold">{{.Page.Brand}}</h1>
+      <div class="card">
+        <header>
+          <h2>You are not in a workspace yet</h2>
+          {{if .Data.Signup}}
+          <p>Create one to get started, or open an invitation link from your team.</p>
+          {{else}}
+          <p>Ask an administrator of your organisation to invite you, then open the link they send.</p>
+          {{end}}
+        </header>
+        <section class="grid gap-4">
+          {{if .Data.Signup}}
+          <form action="{{url "auth/signup"}}" method="post" novalidate class="grid gap-4">
+            <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+            <div class="grid gap-2">
+              <label class="label" for="nows-workspace">Workspace name</label>
+              <input class="input" id="nows-workspace" name="workspace" type="text" maxlength="100"
+                     value="{{.Data.WorkspaceName}}" required/>
+            </div>
+            <button type="submit" class="btn w-full">Create workspace</button>
+          </form>
+          {{end}}
+          <form action="{{url "auth/logout"}}" method="post">
+            <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+            <button type="submit" class="btn w-full" data-variant="{{if .Data.Signup}}ghost{{else}}outline{{end}}">Sign out</button>
+          </form>
+        </section>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

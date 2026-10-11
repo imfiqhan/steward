@@ -258,7 +258,7 @@ func TestTenantPanelIsolation(t *testing.T) {
 	jar, _ := cookiejar.New(nil)
 	carol := &tfaClient{t: t, http: &http.Client{Jar: jar}, base: fx.base}
 	if status, body := carol.login("carol", "secret"); status != http.StatusForbidden ||
-		!strings.Contains(body, "not a member of any active workspace") {
+		!strings.Contains(body, "You are not in a workspace yet") || strings.Contains(body, "Create workspace") {
 		t.Fatalf("carol after login: %d %s", status, firstLine(body))
 	}
 	if status, _ := carol.get("/memos"); status != http.StatusForbidden {

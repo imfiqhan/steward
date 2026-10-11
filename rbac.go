@@ -25,6 +25,9 @@ func (a *Panel) registerBuiltins() {
 	a.registerSettingsResource()
 	if a.TenancyEnabled() {
 		a.registerTenantsResource()
+		if a.invitationsEnabled() {
+			a.registerInvitationsResource()
+		}
 	}
 }
 
@@ -56,6 +59,9 @@ func (a *Panel) syncPivot(c *Context, table, ownerCol string, ownerID uint, relC
 
 func (a *Panel) rolesOptions() func(c *Context) Options {
 	return func(c *Context) Options {
+		if c.Tenant() != nil {
+			return a.workspaceRoleOptions(c)
+		}
 		var roles []Role
 		if err := c.Panel.db.WithContext(c.Ctx()).Order("id").Find(&roles).Error; err != nil {
 			return Options{}
@@ -76,7 +82,11 @@ func (a *Panel) registerUsersResource() {
 	}
 	repo.With("Roles")
 
-	res := Register[User](a).Slug("auth/users").Title("Administrators").
+	title := "Administrators"
+	if a.TenancyEnabled() {
+		title = "Members"
+	}
+	res := Register[User](a).Slug("auth/users").Title(title).
 		Icon("users").Group("Admin").
 		// Reachable from the palette by whoever may already list them: the
 		// search runs behind the same ViewAny gate the grid does.
@@ -130,16 +140,51 @@ func (a *Panel) registerUsersResource() {
 				}
 				return ids
 			})
+		f.Saving(func(c *Context, u *User) error {
+			t := c.Tenant()
+			if t == nil {
+				return nil
+			}
+			if u.ID == 0 {
+				if err := a.canAddMember(c.Ctx(), t.ID); err != nil {
+					return err
+				}
+			}
+			ids, err := a.allowedRoleIDs(c.Ctx(), c.R.Form["Roles"])
+			if err != nil {
+				return err
+			}
+			if u.ID != 0 {
+				return a.checkAdminsRemain(c, t, []uint{u.ID}, ids)
+			}
+			return nil
+		})
 		f.Saved(func(c *Context, u *User, _ bool) error {
 			if t := c.Tenant(); t != nil {
-				return a.syncTenantRoles(c.Ctx(), t.ID, u.ID, c.R.Form["Roles"])
+				ids, err := a.allowedRoleIDs(c.Ctx(), c.R.Form["Roles"])
+				if err != nil {
+					return err
+				}
+				return a.syncTenantRoles(c.Ctx(), t.ID, u.ID, ids)
 			}
 			return a.syncPivot(c, prefixed("role_users"), "user_id", u.ID, "role_id", c.R.Form["Roles"])
 		})
 		f.Deleting(func(c *Context, ids []string) error {
 			me := strconv.FormatUint(uint64(c.User.ID), 10)
 			if slices.Contains(ids, me) {
+				if c.Tenant() != nil {
+					return errors.New("you cannot remove yourself from the workspace")
+				}
 				return errors.New("you cannot delete your own account")
+			}
+			if t := c.Tenant(); t != nil {
+				removed := make([]uint, 0, len(ids))
+				for _, s := range ids {
+					if id, err := strconv.ParseUint(s, 10, 64); err == nil {
+						removed = append(removed, uint(id))
+					}
+				}
+				return a.checkAdminsRemain(c, t, removed, nil)
 			}
 			return nil
 		})
@@ -359,3 +404,35 @@ func (a *Panel) registerSettingsResource() {
 }
 
 // registerMenuResource is defined in menu_sync.go alongside the sync logic.
+
+// checkAdminsRemain refuses a change that takes the owner's administrator
+// role away, or leaves the tenant without any administrator. changed are the
+// members being edited (newRoles is their role set) or removed (newRoles nil).
+func (a *Panel) checkAdminsRemain(c *Context, t *Tenant, changed []uint, newRoles []uint) error {
+	adminID := a.administratorRoleID(c.Ctx())
+	keepsAdmin := slices.Contains(newRoles, adminID)
+	for _, id := range changed {
+		if a.owns(t, id) && !keepsAdmin {
+			if newRoles == nil {
+				return errors.New("the workspace owner cannot be removed; transfer ownership first")
+			}
+			return errors.New("the workspace owner must stay an administrator; transfer ownership first")
+		}
+	}
+	if keepsAdmin {
+		return nil
+	}
+	db := a.db.WithContext(WithoutTenant(c.Ctx())).Model(&TenantUserRole{})
+	var losing int64
+	db.Where("tenant_id = ? AND role_id = ? AND user_id IN ?", t.ID, adminID, changed).Count(&losing)
+	if losing == 0 {
+		return nil
+	}
+	var others int64
+	a.db.WithContext(WithoutTenant(c.Ctx())).Model(&TenantUserRole{}).
+		Where("tenant_id = ? AND role_id = ? AND user_id NOT IN ?", t.ID, adminID, changed).Count(&others)
+	if others == 0 {
+		return errors.New("a workspace needs at least one administrator")
+	}
+	return nil
+}

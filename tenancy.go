@@ -18,12 +18,20 @@ import (
 // Tenant is one isolated workspace. Rows of tenant-scoped tables belong to
 // exactly one tenant; accounts belong to any number through TenantUser.
 type Tenant struct {
-	ID        uint   `gorm:"primaryKey"`
-	Slug      string `gorm:"size:64;uniqueIndex"`
-	Name      string `gorm:"size:255"`
-	Active    bool   `gorm:"default:true"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID     uint   `gorm:"primaryKey"`
+	Slug   string `gorm:"size:64;uniqueIndex"`
+	Name   string `gorm:"size:255"`
+	Active bool   `gorm:"default:true"`
+	// OwnerUserID is the one member who cannot be removed or demoted and who
+	// alone may rename the workspace or hand it over. NULL means no owner.
+	OwnerUserID *uint `gorm:"index"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+// OwnedBy reports whether userID owns the tenant.
+func (t *Tenant) OwnedBy(userID uint) bool {
+	return t != nil && t.OwnerUserID != nil && *t.OwnerUserID == userID
 }
 
 func (Tenant) TableName() string { return prefixed("tenants") }
@@ -91,6 +99,36 @@ type TenancyConfig struct {
 	// Tables names tenant-scoped tables that have no model embedding
 	// TenantScoped, so queries built with db.Table(name) are scoped too.
 	Tables []string
+
+	// Roles lists the role slugs a workspace may assign to its members, on
+	// the Members page and in invitations. Nil offers every role. Platform
+	// mode is not restricted.
+	Roles []string
+
+	// Signup lets a person whose SSO identity matches no account create one,
+	// together with a new workspace they own. Nil keeps sign-in invite-only.
+	Signup *SignupConfig
+
+	// CanAddMember is asked before an account joins a tenant: when an
+	// invitation is created and when an account is created on the Members
+	// page. A non-nil error refuses, and its message is shown.
+	CanAddMember func(ctx context.Context, tenantID uint) error
+
+	// DisableInvitations removes the Invitations page and the invitation
+	// links: members are then added on the Members page only.
+	DisableInvitations bool
+
+	// DisableOwnership ignores tenant owners: no owner field, no protection
+	// of the owner, no Workspace settings page, and signup does not record
+	// one. The last-administrator protection still applies.
+	DisableOwnership bool
+}
+
+// SignupConfig turns on self-service signup through an AuthProvider.
+type SignupConfig struct {
+	// Created runs inside the signup transaction, after the account, the
+	// tenant and the owner's membership exist. An error rolls all of it back.
+	Created func(ctx context.Context, tx *gorm.DB, u *User, t *Tenant) error
 }
 
 // ErrNoTenant is returned for a query on a tenant-scoped table through a
@@ -422,6 +460,9 @@ func (a *Panel) withTenant(next http.Handler) http.Handler {
 		ctx := r.Context()
 		db := a.db.WithContext(WithoutTenant(ctx))
 		state := &ctxTenantState{platform: user.IsAdministrator()}
+		if tokenOf(r) == nil && a.invitationsEnabled() {
+			a.acceptPendingInvite(w, r, user)
+		}
 
 		id, err := a.requestedTenant(r, user)
 		if err != nil {
@@ -457,7 +498,11 @@ func (a *Panel) withTenant(next http.Handler) http.Handler {
 			ctx = WithoutTenant(ctx)
 		default:
 			if !a.tenantlessPath(r.URL.Path) {
-				a.deny(w, r, http.StatusForbidden, "your account is not a member of any active workspace")
+				if wantsJSONLike(r) || r.Header.Get("HX-Request") == "true" || tokenOf(r) != nil {
+					a.deny(w, r, http.StatusForbidden, "your account is not a member of any active workspace")
+					return
+				}
+				a.renderNoWorkspace(w, r, user)
 				return
 			}
 		}
@@ -467,6 +512,7 @@ func (a *Panel) withTenant(next http.Handler) http.Handler {
 			a.saveSessionW(w, r, sess)
 		}
 		ctx = context.WithValue(ctx, tenantStateKey{}, state)
+		ctx = context.WithValue(ctx, requestBaseKey{}, a.publicBase(r))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -493,6 +539,20 @@ func (a *Panel) requestedTenant(r *http.Request, u *User) (uint, error) {
 func (a *Panel) tenantlessPath(p string) bool {
 	rel := "/" + strings.TrimLeft(strings.TrimPrefix(p, a.cfg.Prefix), "/")
 	return a.publicPath(p) || rel == "/auth/logout" || rel == "/auth/tenant"
+}
+
+// renderNoWorkspace answers a signed-in account that belongs to no active
+// workspace: it offers to create one when signup is on, otherwise explains
+// that an invitation is needed.
+func (a *Panel) renderNoWorkspace(w http.ResponseWriter, r *http.Request, user *User) {
+	c := &Context{W: w, R: r, Panel: a, User: user, sess: sessionOf(r)}
+	w.WriteHeader(http.StatusForbidden)
+	if err := a.renderStandalone(c, "auth/no_workspace.html", map[string]any{
+		"Signup":        a.cfg.Tenancy.Signup != nil,
+		"WorkspaceName": defaultWorkspaceName(displayName(user)),
+	}); err != nil {
+		a.log.Error("steward: render no-workspace page", "err", err)
+	}
 }
 
 func (a *Panel) isMember(db *gorm.DB, tenantID, userID uint) bool {
@@ -646,6 +706,31 @@ func (c *Context) TenantID() uint {
 		return t.ID
 	}
 	return 0
+}
+
+// IsTenantOwner reports whether the user owns the request's tenant. It is
+// always false with TenancyConfig.DisableOwnership.
+func (c *Context) IsTenantOwner() bool {
+	return c.User != nil && c.Panel.owns(c.Tenant(), c.User.ID)
+}
+
+func (a *Panel) invitationsEnabled() bool {
+	return a.cfg.Tenancy != nil && !a.cfg.Tenancy.DisableInvitations
+}
+
+func (a *Panel) ownershipEnabled() bool {
+	return a.cfg.Tenancy != nil && !a.cfg.Tenancy.DisableOwnership
+}
+
+// owns is Tenant.OwnedBy, honouring TenancyConfig.DisableOwnership.
+func (a *Panel) owns(t *Tenant, userID uint) bool {
+	return a.ownershipEnabled() && t.OwnedBy(userID)
+}
+
+// IsTenantAdmin reports whether the user administers the request's tenant:
+// it holds the administrator role there, or platform-wide.
+func (c *Context) IsTenantAdmin() bool {
+	return c.User != nil && c.Tenant() != nil && c.User.IsAdministrator()
 }
 
 // IsPlatformAdmin reports whether the user holds the administrator role

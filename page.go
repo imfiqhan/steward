@@ -71,6 +71,9 @@ type pageMeta struct {
 	Tenant        *Tenant
 	Tenants       []Tenant
 	PlatformAdmin bool
+	// ManageWorkspace is set for whoever may open the workspace settings:
+	// the tenant's owner or a platform administrator inside a tenant.
+	ManageWorkspace bool
 }
 
 // themeCookie stores the viewer's light/dark preference.
@@ -108,6 +111,7 @@ func (a *Panel) pageMetaFor(c *Context, title string) pageMeta {
 		meta.Tenant = c.Tenant()
 		meta.PlatformAdmin = c.IsPlatformAdmin()
 		meta.Tenants = a.switchableTenants(c)
+		meta.ManageWorkspace = c.canManageWorkspace()
 	}
 	return meta
 }

@@ -86,6 +86,18 @@ func (a *Panel) buildRoutes() *http.ServeMux {
 	mux.HandleFunc("POST "+p+"/auth/logout", a.h(a.logoutHandler))
 	if a.TenancyEnabled() {
 		mux.HandleFunc("POST "+p+"/auth/tenant", a.h(a.switchTenant))
+		if a.invitationsEnabled() {
+			mux.HandleFunc("GET "+p+"/auth/invite/{token}", a.h(a.invitePage))
+			mux.HandleFunc("POST "+p+"/auth/invite/{token}", a.h(a.inviteAccept))
+		}
+		if a.ownershipEnabled() {
+			mux.HandleFunc("GET "+p+"/auth/workspace", a.h(a.workspacePage))
+			mux.HandleFunc("POST "+p+"/auth/workspace", a.h(a.workspaceSubmit))
+		}
+		if a.signupEnabled() {
+			mux.HandleFunc("GET "+p+"/auth/signup", a.h(a.signupPage))
+			mux.HandleFunc("POST "+p+"/auth/signup", a.h(a.signupSubmit))
+		}
 	}
 	mux.HandleFunc("GET "+p+"/auth/profile", a.h(a.profilePage))
 	mux.HandleFunc("POST "+p+"/auth/profile", a.h(a.profileSubmit))

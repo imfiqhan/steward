@@ -4,6 +4,48 @@ Steward is `0.x`: the API can change between releases, and this file is where
 those changes are written down. Read the **Upgrading** notes before moving a
 running panel to a new version.
 
+## Unreleased
+
+### Upgrading
+
+- Migration `0008` adds `owner_user_id` to `tenants` and creates
+  `tenant_invitations`. It runs on boot like the others. Existing tenants have
+  no owner until a platform administrator picks one on the Tenants form.
+- A signed-in account with no active workspace now gets an HTML page instead
+  of a plain-text 403. JSON and HTMX requests still get the 403.
+- Under tenancy the Users page is titled **Members**.
+
+### Added
+
+- **Tenant owners.** The owner can't be removed or lose the administrator
+  role, and alone renames the workspace or transfers ownership at
+  `{Prefix}/auth/workspace`, linked from the user menu. The last administrator
+  of a tenant can't be removed or demoted. `Context.IsTenantOwner()` and
+  `Context.IsTenantAdmin()` for application code.
+- **Invitations** (`{Prefix}/auth/invitations`): email plus role, a 7-day link
+  shown with a copy button and emailed when a `Mailer` is set. The link is
+  accepted by signing in with any provider (a new account is created for an
+  unknown identity), with a password, or with one click when already signed
+  in. Links can be renewed and revoked.
+- **Signup** with `TenancyConfig.Signup`: an unknown identity with a verified
+  email names a workspace and becomes its owner. `SignupConfig.Created` runs
+  in the same transaction.
+- `TenancyConfig.Roles` limits the roles a tenant may assign, on the Members
+  page and in invitations, and refuses others server-side.
+- `TenancyConfig.CanAddMember` refuses new members, for plan limits.
+- `TenancyConfig.DisableInvitations` and `TenancyConfig.DisableOwnership`
+  turn those two features off for an app that does not want them. Both are
+  on by default under tenancy; neither exists without it.
+
+### Fixed
+
+- **Account secrets no longer appear in JSON.** `User.Password`,
+  `RememberToken` and the two-factor fields, and `Token.Hash`, are tagged
+  `json:"-"`. A grid listing a model that preloads its user (`Accept:
+  application/json`) used to include them.
+- A member without an administrator role can switch workspaces: `POST
+  /auth/tenant` no longer needs a permission.
+
 ## v0.6.0
 
 ### Upgrading

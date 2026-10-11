@@ -143,6 +143,10 @@ func (a *Panel) permissionSkip(rel string) bool {
 	switch rel {
 	case "/", "/auth/login", "/auth/logout", "/auth/profile":
 		return true
+	// Switching workspace is limited to the user's own memberships, and the
+	// workspace page to the owner, by their handlers.
+	case "/auth/tenant", "/auth/workspace":
+		return true
 	}
 	// A notification is addressed to one account and every query is scoped to
 	// it, so the bell needs no permission of its own; gating it would leave a

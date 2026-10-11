@@ -92,6 +92,12 @@
                hx-get="{{url "auth/profile"}}" hx-target="#page-content" hx-push-url="true">
               Profile
             </a>
+            {{if .Page.ManageWorkspace}}
+            <a role="menuitem" id="user-menu-workspace" tabindex="-1" href="{{url "auth/workspace"}}"
+               hx-get="{{url "auth/workspace"}}" hx-target="#page-content" hx-push-url="true">
+              Workspace settings
+            </a>
+            {{end}}
           </div>
           <hr role="separator"/>
           {{/* role="none" keeps the form out of the menu's accessibility tree:

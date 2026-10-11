@@ -2,10 +2,15 @@ package steward
 
 import (
 	"context"
+	"errors"
+	"html/template"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // platformOnly lets platform administrators do everything and everyone else
@@ -37,6 +42,9 @@ type tenantUsersPolicy struct{ AllowAll[User] }
 func (tenantUsersPolicy) Update(c *Context, u *User) bool {
 	if c.IsPlatformAdmin() || c.Tenant() == nil {
 		return true
+	}
+	if c.Panel.owns(c.Tenant(), u.ID) && u.ID != c.User.ID {
+		return false
 	}
 	return c.Panel.ownedByTenant(c.Ctx(), c.TenantID(), u.ID)
 }
@@ -147,19 +155,15 @@ func (r tenantUserRepo) Delete(ctx context.Context, ids []string) error {
 }
 
 // syncTenantRoles replaces the user's roles inside one tenant.
-func (a *Panel) syncTenantRoles(ctx context.Context, tenantID, userID uint, ids []string) error {
+func (a *Panel) syncTenantRoles(ctx context.Context, tenantID, userID uint, ids []uint) error {
 	return a.db.WithContext(WithoutTenant(ctx)).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("tenant_id = ? AND user_id = ?", tenantID, userID).
 			Delete(&TenantUserRole{}).Error; err != nil {
 			return err
 		}
 		now := time.Now()
-		for _, raw := range ids {
-			roleID, err := strconv.ParseUint(raw, 10, 64)
-			if err != nil {
-				continue
-			}
-			row := TenantUserRole{TenantID: tenantID, UserID: userID, RoleID: uint(roleID), CreatedAt: now}
+		for _, roleID := range ids {
+			row := TenantUserRole{TenantID: tenantID, UserID: userID, RoleID: roleID, CreatedAt: now}
 			if err := tx.Create(&row).Error; err != nil {
 				return err
 			}
@@ -188,6 +192,18 @@ func (a *Panel) registerTenantsResource() {
 		d.Field("Name")
 		d.Field("Slug")
 		d.Field("Active")
+		if a.ownershipEnabled() {
+			d.FieldFunc("Owner", "Owner", func(t *Tenant) template.HTML {
+				if t.OwnerUserID == nil {
+					return template.HTML(`<span class="text-muted-foreground">None</span>`)
+				}
+				var u User
+				if a.db.WithContext(WithoutTenant(context.Background())).First(&u, *t.OwnerUserID).Error != nil {
+					return ""
+				}
+				return template.HTML(template.HTMLEscapeString(displayName(&u) + " (" + u.Username + ")"))
+			})
+		}
 		d.Field("CreatedAt", "Created")
 	})
 
@@ -222,8 +238,36 @@ func (a *Panel) registerTenantsResource() {
 				}
 				return out
 			})
+		if a.ownershipEnabled() {
+			f.Select("OwnerUserID", "Owner").OptionsFunc(userOptions).
+				Help("The owner is always an administrator and cannot be removed.").
+				SavingValue(func(_ *Context, raw string) (any, error) {
+					if strings.TrimSpace(raw) == "" {
+						return nil, nil
+					}
+					id, err := strconv.ParseUint(raw, 10, 64)
+					if err != nil {
+						return nil, errors.New("choose an owner from the list")
+					}
+					return uint(id), nil
+				})
+			f.Saving(func(c *Context, t *Tenant) error {
+				if t.OwnerUserID != nil && !slices.Contains(c.R.Form["Members"], strconv.FormatUint(uint64(*t.OwnerUserID), 10)) {
+					return errors.New("the owner must be one of the members")
+				}
+				return nil
+			})
+		}
 		f.Saved(func(c *Context, t *Tenant, _ bool) error {
-			return a.syncMembers(c.Ctx(), t.ID, c.R.Form["Members"])
+			if err := a.syncMembers(c.Ctx(), t.ID, c.R.Form["Members"]); err != nil {
+				return err
+			}
+			if !a.ownershipEnabled() || t.OwnerUserID == nil {
+				return nil
+			}
+			return a.db.WithContext(WithoutTenant(c.Ctx())).Clauses(clause.OnConflict{DoNothing: true}).
+				Create(&TenantUserRole{TenantID: t.ID, UserID: *t.OwnerUserID,
+					RoleID: a.administratorRoleID(c.Ctx()), CreatedAt: time.Now()}).Error
 		})
 		f.Deleting(func(c *Context, ids []string) error {
 			db := c.Panel.db.WithContext(WithoutTenant(c.Ctx()))

@@ -64,6 +64,9 @@
             <button type="submit" class="btn w-full">Sign in</button>
           </form>
           {{end}}
+          {{if .Data.Signup}}
+          <p class="mt-6 text-center text-sm text-muted-foreground">New to {{.Page.Brand}}? Continue with an account above to create your workspace.</p>
+          {{end}}
         </section>
       </div>
     </div>

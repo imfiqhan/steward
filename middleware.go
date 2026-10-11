@@ -149,6 +149,12 @@ func (a *Panel) publicPath(p string) bool {
 	if a.ssoEnabled() && strings.HasPrefix(rel, "/auth/sso/") {
 		return true
 	}
+	// An invitation is opened before signing in, and signup completes one.
+	// Both handlers decide for themselves what a signed-in visitor may do.
+	if (a.invitationsEnabled() && strings.HasPrefix(rel, "/auth/invite/")) ||
+		(a.signupEnabled() && rel == "/auth/signup") {
+		return true
+	}
 	for _, pat := range a.cfg.AuthExcept {
 		pat = "/" + strings.TrimLeft(pat, "/")
 		if ok, err := path.Match(pat, rel); err == nil && ok {

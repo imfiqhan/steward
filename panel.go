@@ -546,6 +546,8 @@ func (a *Panel) coreTables() migrations.Tables {
 		UserModel:           &User{},
 		AddTwoFactorColumns: twoFactorColumns,
 		TenancyModels:       []any{&Tenant{}, &TenantUser{}, &TenantUserRole{}, &UserIdentity{}},
+		TenantModel:         &Tenant{},
+		InvitationModel:     &TenantInvitation{},
 		AddTenantColumns:    addTenantColumns,
 		DropTenantColumns:   dropTenantColumns,
 		SeedFn:              seedDefaults,
