@@ -13,18 +13,43 @@
   </button>
   <div class="ms-auto flex items-center gap-1">
     {{if and .Page.Tenancy (or .Page.PlatformAdmin (gt (len .Page.Tenants) 1))}}
-    <form method="post" action="{{url "auth/tenant"}}" class="steward-tenant-switcher">
-      <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
-      <label for="steward-tenant" class="sr-only">Workspace</label>
-      <select id="steward-tenant" name="tenant" class="select h-8 text-sm" onchange="this.form.submit()">
-        {{if .Page.PlatformAdmin}}<option value="0" {{if not .Page.Tenant}}selected{{end}}>All workspaces</option>{{end}}
-        {{$cur := .Page.Tenant}}
-        {{range .Page.Tenants}}
-        <option value="{{.ID}}" {{if and $cur (eq $cur.ID .ID)}}selected{{end}}>{{.Name}}</option>
-        {{end}}
-      </select>
-      <noscript><button type="submit" class="btn" data-variant="outline" data-size="sm">Switch</button></noscript>
-    </form>
+    {{$cur := .Page.Tenant}}
+    <div id="steward-tenant" class="dropdown-menu steward-tenant-switcher">
+      <button type="button" id="steward-tenant-trigger" aria-haspopup="menu" aria-controls="steward-tenant-menu"
+              aria-expanded="false" class="btn" data-variant="outline" data-size="sm"
+              aria-label="Workspace: {{if $cur}}{{$cur.Name}}{{else}}All workspaces{{end}}">
+        {{icon "building-2"}}
+        <span class="max-w-32 truncate">{{if $cur}}{{$cur.Name}}{{else}}All workspaces{{end}}</span>
+        {{icon "chevrons-up-down" "size-3.5 opacity-60"}}
+      </button>
+      <div id="steward-tenant-popover" data-popover aria-hidden="true" class="min-w-56" data-align="end">
+        {{/* One form for every item: each item is a submit button carrying its
+             tenant ID, so switching needs no script beyond the menu itself. */}}
+        <form method="post" action="{{url "auth/tenant"}}" role="none">
+          <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+          <div role="menu" id="steward-tenant-menu" aria-labelledby="steward-tenant-heading">
+            <div role="group" aria-labelledby="steward-tenant-heading">
+              <div role="heading" id="steward-tenant-heading">Workspaces</div>
+              {{if .Page.PlatformAdmin}}
+              <button type="submit" name="tenant" value="0" role="menuitemradio" tabindex="-1"
+                      aria-checked="{{if $cur}}false{{else}}true{{end}}">
+                <span class="flex-1 truncate text-start">All workspaces</span>
+                {{if not $cur}}{{icon "check" "ms-auto"}}{{end}}
+              </button>
+              {{end}}
+              {{range .Page.Tenants}}
+              {{$on := and $cur (eq $cur.ID .ID)}}
+              <button type="submit" name="tenant" value="{{.ID}}" role="menuitemradio" tabindex="-1"
+                      aria-checked="{{if $on}}true{{else}}false{{end}}">
+                <span class="flex-1 truncate text-start">{{.Name}}</span>
+                {{if $on}}{{icon "check" "ms-auto"}}{{end}}
+              </button>
+              {{end}}
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
     {{else if and .Page.Tenancy .Page.Tenant}}
     <span class="text-sm text-muted-foreground px-2">{{.Page.Tenant.Name}}</span>
     {{end}}
