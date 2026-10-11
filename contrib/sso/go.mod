@@ -7,7 +7,7 @@ require (
 	github.com/crewjam/saml v0.5.1
 	github.com/glebarez/sqlite v1.11.0
 	github.com/go-jose/go-jose/v4 v4.1.5
-	github.com/imfiqhan/steward v0.5.1
+	github.com/imfiqhan/steward v0.6.0
 	golang.org/x/oauth2 v0.37.0
 	gorm.io/gorm v1.31.2
 )
