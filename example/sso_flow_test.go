@@ -16,25 +16,25 @@ import (
 	steward "github.com/imfiqhan/steward"
 )
 
-// fakeIdP is an AuthProvider whose "identity provider" is a map from
+// fakeIDP is an AuthProvider whose "identity provider" is a map from
 // authorization code to identity. AuthURL points at a host the client never
 // contacts; the test plays the IdP by calling the callback itself.
-type fakeIdP struct {
+type fakeIDP struct {
 	id    string
 	codes map[string]steward.ExternalIdentity
 }
 
-func (p *fakeIdP) ID() string    { return p.id }
-func (p *fakeIdP) Label() string { return "Continue with " + p.id }
-func (p *fakeIdP) Icon() string  { return "google" }
+func (p *fakeIDP) ID() string    { return p.id }
+func (p *fakeIDP) Label() string { return "Continue with " + p.id }
+func (p *fakeIDP) Icon() string  { return "google" }
 
-func (p *fakeIdP) AuthURL(_ context.Context, req *steward.SSORequest) (string, error) {
+func (p *fakeIDP) AuthURL(_ context.Context, req *steward.SSORequest) (string, error) {
 	req.Values["nonce"] = "n-" + req.State[:6]
 	q := url.Values{"state": {req.State}, "redirect_uri": {req.CallbackURL}}
 	return "https://idp.invalid/authorize?" + q.Encode(), nil
 }
 
-func (p *fakeIdP) Exchange(_ context.Context, req *steward.SSORequest, r *http.Request) (*steward.ExternalIdentity, error) {
+func (p *fakeIDP) Exchange(_ context.Context, req *steward.SSORequest, r *http.Request) (*steward.ExternalIdentity, error) {
 	if req.Values["nonce"] != "n-"+req.State[:6] {
 		return nil, errors.New("nonce lost between redirect and callback")
 	}
@@ -49,13 +49,13 @@ type ssoFixture struct {
 	db   *gorm.DB
 	app  *steward.Panel
 	base string
-	idp  *fakeIdP
+	idp  *fakeIDP
 }
 
 func newSSOFixture(t *testing.T, mutate func(*steward.Config)) *ssoFixture {
 	t.Helper()
 	db := testDB(t)
-	idp := &fakeIdP{id: "fake", codes: map[string]steward.ExternalIdentity{}}
+	idp := &fakeIDP{id: "fake", codes: map[string]steward.ExternalIdentity{}}
 	cfg := steward.Config{
 		Prefix: "/admin", DB: db, SecretKey: []byte("sso-flow-test-secret-key"),
 		AuthProviders: []steward.AuthProvider{idp},
@@ -330,7 +330,7 @@ func TestPasswordLoginCanBeDisabled(t *testing.T) {
 
 func TestDuplicateProviderIDsFailVerify(t *testing.T) {
 	db := testDB(t)
-	a, b := &fakeIdP{id: "dup"}, &fakeIdP{id: "dup"}
+	a, b := &fakeIDP{id: "dup"}, &fakeIDP{id: "dup"}
 	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("sso-flow-test-secret-key"),
 		AuthProviders: []steward.AuthProvider{a, b}})
 	if err != nil {

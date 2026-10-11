@@ -93,7 +93,7 @@ func TestLegacyAdminPrefixKeepsExistingInstall(t *testing.T) {
 		}
 	}
 
-	var user steward.AdminUser // the deprecated alias still compiles
+	var user steward.AdminUser //nolint:staticcheck // the deprecated alias must keep compiling
 	if err := db.Preload("Roles").Take(&user, 1).Error; err != nil {
 		t.Fatalf("loading seeded user with roles: %v", err)
 	}
