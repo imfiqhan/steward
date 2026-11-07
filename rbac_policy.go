@@ -3,6 +3,7 @@ package steward
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"gorm.io/gorm"
@@ -180,7 +181,7 @@ func (a *Panel) withPermission(next http.Handler) http.Handler {
 			return
 		}
 		rules := a.loadPermissionRules(r.Context(), user)
-		if httpmatch.Matches(rules, r.Method, rel) {
+		if httpmatch.Matches(rules, r.Method, rel) || a.endpointAllowed(rules, r, rel) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -191,4 +192,65 @@ func (a *Panel) withPermission(next http.Handler) http.Handler {
 		}
 		a.renderError(c, http.StatusForbidden, "Permission denied", nil)
 	})
+}
+
+// endpointAllowed authorizes a resource's own endpoints — _upload, _preview,
+// _options, _schema and _action/{name} — through the route of the operation
+// they serve, when no rule names them directly:
+//
+//	POST {base}/_upload?id=X, _preview?id=X   as  PUT {base}/X
+//	POST {base}/_upload, _preview             as  POST {base}
+//	POST {base}/_action/{name}  ids=A,B       as  PUT {base}/A and PUT {base}/B
+//	POST {base}/_action/{name}  (no ids)      as  POST {base}
+//	GET  {base}/_options, _schema             as  GET {base} or GET {base}/create
+//
+// A permission written per operation (dcat-admin's shape: "POST /posts",
+// "PUT /posts/*") then covers the endpoints that operation's screen calls. It
+// only widens what a direct match allows; each handler still applies the
+// resource's policy to the row it touches.
+func (a *Panel) endpointAllowed(rules []httpmatch.Rule, r *http.Request, rel string) bool {
+	for slug := range a.bySlug {
+		base := "/" + slug
+		if !strings.HasPrefix(rel, base+"/_") {
+			continue
+		}
+		tail := rel[len(base)+1:]
+		switch {
+		case r.Method == http.MethodPost && (tail == "_upload" || tail == "_preview"):
+			if id := r.URL.Query().Get("id"); id != "" {
+				return httpmatch.Matches(rules, http.MethodPut, base+"/"+url.PathEscape(id))
+			}
+			return httpmatch.Matches(rules, http.MethodPost, base)
+
+		case r.Method == http.MethodGet && (tail == "_options" || tail == "_schema"):
+			return httpmatch.Matches(rules, http.MethodGet, base) ||
+				httpmatch.Matches(rules, http.MethodGet, base+"/create")
+
+		case r.Method == http.MethodPost && strings.HasPrefix(tail, "_action/"):
+			// The handler reads the same field after this; ParseForm keeps
+			// the parsed body on the request, so it is not consumed twice.
+			if err := r.ParseForm(); err != nil {
+				return false
+			}
+			var ids []string
+			for _, raw := range r.Form["ids"] {
+				for id := range strings.SplitSeq(raw, ",") {
+					if id = strings.TrimSpace(id); id != "" {
+						ids = append(ids, id)
+					}
+				}
+			}
+			if len(ids) == 0 {
+				return httpmatch.Matches(rules, http.MethodPost, base)
+			}
+			for _, id := range ids {
+				if !httpmatch.Matches(rules, http.MethodPut, base+"/"+url.PathEscape(id)) {
+					return false
+				}
+			}
+			return true
+		}
+		return false
+	}
+	return false
 }

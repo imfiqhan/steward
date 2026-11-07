@@ -4,6 +4,22 @@ Steward is `0.x`: the API can change between releases, and this file is where
 those changes are written down. Read the **Upgrading** notes before moving a
 running panel to a new version.
 
+## Unreleased
+
+### Fixed
+
+- **Permissions written per operation reach the endpoints that operation
+  uses.** A role granted `POST /posts` and `PUT /posts/*` — the shape a
+  dcat-admin export carries — could open the create and edit forms but not
+  upload an image in them, run a batch action, or search a select's options:
+  `_upload`, `_action/{name}` and `_options` are routes of their own, and no
+  rule named them. When no rule matches one directly, it is now checked as the
+  operation it serves: an upload or preview as the form's submit (`PUT
+  {base}/{id}` on an edit, `POST {base}` on a create), an action as `PUT` on
+  every selected row (`POST {base}` for a tool action), `_options` and
+  `_schema` as `GET {base}` or `GET {base}/create`. It only widens what a
+  direct match allows; each handler still applies the policy.
+
 ## v0.7.0
 
 ### Upgrading
