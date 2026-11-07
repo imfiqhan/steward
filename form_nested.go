@@ -369,7 +369,11 @@ func (h *hasManyForm[T, C]) persist(c *Context, parent *T, payload any) error {
 			if err := setField(&child, h.fkInfo, pkVal); err != nil {
 				return err
 			}
-			if err := h.repo.Create(c.Ctx(), &child); err != nil {
+			paths := make([]string, 0, len(p.values))
+			for path := range p.values {
+				paths = append(paths, path)
+			}
+			if err := createKeeping[C](c.Ctx(), h.repo, h.childFT, &child, paths); err != nil {
 				return err
 			}
 			// Create fills the primary key. It is the only moment the made-up

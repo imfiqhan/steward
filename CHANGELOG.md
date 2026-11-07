@@ -20,6 +20,13 @@ running panel to a new version.
   `_schema` as `GET {base}` or `GET {base}/create`. It only widens what a
   direct match allows; each handler still applies the policy.
 
+- **A new record stores what its form submitted.** GORM replaces a zero value
+  with the column's tag default on insert, and an explicit `Select` does not
+  stop it, so a `Switch` left off over `gorm:"default:true"` was saved on. The
+  fields the form wrote are now put back after the insert when it changed
+  them, for repeater rows as well; a column the form does not carry still gets
+  its default.
+
 ## v0.7.0
 
 ### Upgrading

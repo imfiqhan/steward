@@ -1,6 +1,7 @@
 package steward
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -769,7 +770,11 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 
 	var err error
 	if creating {
-		err = t.repo.Create(c.Ctx(), m)
+		submitted := make([]string, 0, len(writes))
+		for _, w := range writes {
+			submitted = append(submitted, w.fd.path)
+		}
+		err = createKeeping(c.Ctx(), t.repo, t.ft, m, submitted)
 	} else {
 		// After the hook, not before: a Saving hook that sets a field the form
 		// never submitted was writing nothing at all, because the column list
@@ -1388,6 +1393,51 @@ func (t *typedResource[T]) snapshotColumns(m *T) map[string]any {
 		}
 	}
 	return out
+}
+
+// createKeeping inserts m and then writes back any of the named fields whose
+// value the insert replaced.
+//
+// GORM substitutes a column's tag default for a zero value on create — a
+// Switch left off over `default:true` was stored as true — and an explicit
+// Select does not stop it. Only the named fields are restored, to the values
+// they held just before the insert; a column the caller never set keeps its
+// default.
+func createKeeping[M any](ctx context.Context, repo Repository[M], ft *fieldTable, m *M, paths []string) error {
+	rv := reflect.ValueOf(m)
+	type held struct {
+		info *fieldInfo
+		val  any
+		ok   bool
+	}
+	intended := make(map[string]held, len(paths))
+	for _, path := range paths {
+		info := ft.byPath[path]
+		if info == nil || info.Relation != "" || info.DBName == "" || info.Primary {
+			continue
+		}
+		v, ok := info.value(rv)
+		intended[path] = held{info, v, ok}
+	}
+	if err := repo.Create(ctx, m); err != nil {
+		return err
+	}
+	var restore []string
+	for path, h := range intended {
+		now, ok := h.info.value(rv)
+		if h.ok == ok && (!ok || sameValue(h.val, now)) {
+			continue
+		}
+		if err := setField(m, h.info, h.val); err != nil {
+			return fmt.Errorf("restoring %s: %w", path, err)
+		}
+		restore = append(restore, path)
+	}
+	if len(restore) == 0 {
+		return nil
+	}
+	sort.Strings(restore)
+	return repo.Update(ctx, m, restore)
 }
 
 // changedColumns lists what moved since the snapshot.
