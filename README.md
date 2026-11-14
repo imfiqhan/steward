@@ -92,6 +92,8 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
       subquery; to-many paths are rejected at boot
 - [x] Windowed pagination (`1 … 18 19 20 … 37`) with per-page selector
 - [x] CSV export
+- [x] CSV import (`Grid.Import`) — column mapping, rows saved through the
+      form on the job queue, upsert by key, an error report
 - [x] Batch delete and custom row/batch/tool actions, confirmed via
       alert dialogs
 - [x] Row actions as side-by-side buttons or a dropdown menu, panel-wide via

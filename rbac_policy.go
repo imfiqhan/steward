@@ -232,6 +232,7 @@ func matchEach(rules []httpmatch.Rule, method, base string, ids []string) bool {
 //	POST {base}/_action/{name}  (no ids)      as  POST {base}
 //	GET  {base}/_options, _schema             as  GET {base} or GET {base}/create
 //	POST {base}/_restore, _force_delete ids=A as  DELETE {base}/A for every id
+//	GET, POST {base}/_import                  as  POST {base}
 //
 // A permission written per operation (dcat-admin's shape: "POST /posts",
 // "PUT /posts/*") then covers the endpoints that operation's screen calls. It
@@ -264,6 +265,11 @@ func (a *Panel) endpointAllowed(rules []httpmatch.Rule, r *http.Request, rel str
 				return httpmatch.Matches(rules, http.MethodPost, base)
 			}
 			return matchEach(rules, http.MethodPut, base, ids)
+
+		case (r.Method == http.MethodGet || r.Method == http.MethodPost) &&
+			tail == "_import":
+			// An import creates records; its pages are part of doing so.
+			return httpmatch.Matches(rules, http.MethodPost, base)
 
 		case r.Method == http.MethodPost && (tail == "_restore" || tail == "_force_delete"):
 			// Undoing a delete, or finishing one, is as much a delete as the

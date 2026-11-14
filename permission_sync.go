@@ -64,7 +64,7 @@ func (a *Panel) permissionDefs() []permissionDef {
 			permissionDef{key: m.slug + "#view", parent: m.slug, slug: slug + "-view",
 				name: m.title + ": view", method: "GET", path: base + "\n" + base + "/*"},
 			permissionDef{key: m.slug + "#create", parent: m.slug, slug: slug + "-create",
-				name: m.title + ": create", path: "GET:" + base + "/create\nPOST:" + base},
+				name: m.title + ": create", path: "GET:" + base + "/create\nPOST:" + base + "\nGET,POST:" + base + "/_import*"},
 			permissionDef{key: m.slug + "#update", parent: m.slug, slug: slug + "-update",
 				name: m.title + ": update", path: strings.Join(update, "\n")},
 			permissionDef{key: m.slug + "#delete", parent: m.slug, slug: slug + "-delete",

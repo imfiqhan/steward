@@ -592,20 +592,20 @@ func UserTenantRoles(ctx context.Context, db *gorm.DB, tenantID, userID uint) ([
 
 // exportTenantState rebuilds the tenant an export was queued in, with the
 // user's roles in it, for a job that runs without a request.
-func (a *Panel) exportTenantState(ctx context.Context, job *ExportJob, u *User) (*ctxTenantState, error) {
+func (a *Panel) jobTenantState(ctx context.Context, tenantID uint, u *User) (*ctxTenantState, error) {
 	db := a.db.WithContext(WithoutTenant(ctx))
 	state := &ctxTenantState{platform: u.IsAdministrator()}
-	if job.TenantID == 0 {
+	if tenantID == 0 {
 		if !state.platform {
-			return nil, errors.New("export was queued outside any tenant")
+			return nil, errors.New("the job was queued outside any tenant")
 		}
 		return state, nil
 	}
-	if !state.platform && !a.isMember(db, job.TenantID, u.ID) {
+	if !state.platform && !a.isMember(db, tenantID, u.ID) {
 		return nil, errors.New("the account that asked is no longer a member of the tenant")
 	}
 	var t Tenant
-	if err := db.First(&t, job.TenantID).Error; err != nil {
+	if err := db.First(&t, tenantID).Error; err != nil {
 		return nil, err
 	}
 	roles, err := a.tenantRoles(db, t.ID, u.ID)

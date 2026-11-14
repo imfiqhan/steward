@@ -8,6 +8,9 @@ running panel to a new version.
 
 ### Upgrading
 
+- Migration `0012` creates `steward_import_runs`.
+- With `Config.QueueWorkers` at zero, the panel now runs the framework's own
+  `steward.*` job types (the CSV import) on one worker of its own.
 - Migration `0011` creates `steward_record_history`.
 - A grid over a model with `gorm.DeletedAt` now shows a **Trash** button. Set
   `Grid.DisableTrash()` to keep the previous toolbar. Synced permissions'
@@ -20,6 +23,13 @@ running panel to a new version.
 - The Permissions list is now a tree over `ParentID`, ordered by `Order`.
 
 ### Added
+
+- **CSV import.** `Grid.Import()` adds an Import button: upload a CSV, match
+  its columns to the form's fields (pre-matched by header, so an export round
+  trips), and the rows are saved through the form — rules, hooks, policy,
+  history — as a job on the queue. A column holding the record key updates
+  that record. The account is notified with the counts and a report of the
+  rows that failed and why.
 
 - **Record history.** `Resource.History()` records every create, edit
   (inline ones included), delete, restore and permanent delete made through the

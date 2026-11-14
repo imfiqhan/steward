@@ -290,7 +290,9 @@ type Panel struct {
 	exportStop chan struct{}
 	// jobTypes are the registered kinds of queued work; queueWake nudges an
 	// idle queue worker in this process and queueStop ends the panel's own.
-	jobTypes  map[string]jobRunner
+	jobTypes map[string]jobRunner
+	// importJob queues CSV imports; nil when no grid imports.
+	importJob *JobType[importPayload]
 	queueWake chan struct{}
 	queueStop context.CancelFunc
 	bg        sync.WaitGroup
@@ -484,6 +486,8 @@ func (a *Panel) build() error {
 		}
 	}
 
+	a.registerImportJob()
+
 	if err := a.syncMenu(context.Background()); err != nil {
 		return fmt.Errorf("steward: menu sync: %w", err)
 	}
@@ -592,6 +596,7 @@ func (a *Panel) coreTables() migrations.Tables {
 		PermissionModel:     &Permission{},
 		JobModel:            &QueuedJob{},
 		HistoryModel:        &RecordChange{},
+		ImportModel:         &ImportRun{},
 		AddTenantColumns:    addTenantColumns,
 		DropTenantColumns:   dropTenantColumns,
 		SeedFn:              seedDefaults,

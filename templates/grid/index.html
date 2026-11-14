@@ -37,6 +37,12 @@
         </div>
       </div>
       {{end}}
+      {{with .Data.ImportURL}}
+      <a href="{{.}}" class="btn" data-variant="outline" data-steward-import
+         hx-get="{{.}}" hx-target="#page-content" hx-push-url="true">
+        {{icon "upload"}} {{t "Import"}}
+      </a>
+      {{end}}
       {{if .Data.Features.create}}
       <a href="{{.Data.BaseURL}}/create" class="btn"
          hx-get="{{.Data.BaseURL}}/create" hx-target="#page-content" hx-push-url="true">

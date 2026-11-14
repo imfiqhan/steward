@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"html/template"
 	"runtime/debug"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -208,8 +210,7 @@ func (a *Panel) releaseStaleJobs(ctx context.Context) error {
 // claimJob takes the next due job of a type this process knows. The UPDATE's
 // affected-row count is the claim, so several workers in several processes can
 // poll the same table without two of them running one job.
-func (a *Panel) claimJob(ctx context.Context) (*QueuedJob, bool, error) {
-	names := a.jobNames()
+func (a *Panel) claimJob(ctx context.Context, names []string) (*QueuedJob, bool, error) {
 	if len(names) == 0 {
 		return nil, false, nil
 	}
@@ -312,13 +313,18 @@ func (a *Panel) RunQueuedJobs(ctx context.Context) (int, error) {
 	if err := a.Build(); err != nil {
 		return 0, err
 	}
+	return a.runQueued(ctx, a.jobNames())
+}
+
+// runQueued is RunQueuedJobs over the named job types only.
+func (a *Panel) runQueued(ctx context.Context, names []string) (int, error) {
 	ctx = WithoutTenant(ctx)
 	if err := a.releaseStaleJobs(ctx); err != nil {
 		return 0, err
 	}
 	n := 0
 	for ctx.Err() == nil {
-		job, ok, err := a.claimJob(ctx)
+		job, ok, err := a.claimJob(ctx, names)
 		if err != nil {
 			return n, err
 		}
@@ -337,6 +343,11 @@ func (a *Panel) RunQueuedJobs(ctx context.Context) (int, error) {
 // done, polling for jobs queued by other processes and waking at once for
 // jobs queued by this one.
 func (a *Panel) WorkQueue(ctx context.Context, workers int) {
+	a.workQueue(ctx, workers, a.jobNames())
+}
+
+// workQueue is WorkQueue over the named job types only.
+func (a *Panel) workQueue(ctx context.Context, workers int, names []string) {
 	workers = max(workers, 1)
 	done := make(chan struct{})
 	for range workers {
@@ -345,7 +356,7 @@ func (a *Panel) WorkQueue(ctx context.Context, workers int) {
 			tick := time.NewTicker(jobPoll)
 			defer tick.Stop()
 			for ctx.Err() == nil {
-				if _, err := a.RunQueuedJobs(ctx); err != nil && !errors.Is(err, context.Canceled) {
+				if _, err := a.runQueued(ctx, names); err != nil && !errors.Is(err, context.Canceled) {
 					a.log.Error("steward: running queued jobs", "err", err)
 				}
 				select {
@@ -371,9 +382,18 @@ func (a *Panel) wakeQueue() {
 }
 
 // startQueueWorkers runs Config.QueueWorkers workers inside the panel process
-// until Close.
+// until Close. With none configured, the framework's own job types — the
+// steward.* ones, such as a CSV import — still get one worker here, as queued
+// exports do: a feature of the panel should not need a second process to
+// finish.
 func (a *Panel) startQueueWorkers() {
-	if a.cfg.QueueWorkers <= 0 || len(a.jobTypes) == 0 {
+	names := a.jobNames()
+	workers := a.cfg.QueueWorkers
+	if workers <= 0 {
+		names = slices.DeleteFunc(names, func(n string) bool { return !strings.HasPrefix(n, "steward.") })
+		workers = 1
+	}
+	if len(names) == 0 {
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -381,7 +401,7 @@ func (a *Panel) startQueueWorkers() {
 	a.bg.Add(1)
 	go func() {
 		defer a.bg.Done()
-		a.WorkQueue(ctx, a.cfg.QueueWorkers)
+		a.workQueue(ctx, workers, names)
 	}()
 }
 

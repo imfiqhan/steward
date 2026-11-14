@@ -514,9 +514,12 @@ func TestOwnerAndInvitationMigrationRollsBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	runner := app.MigrationRunner(nil)
-	// 0011, 0010 and 0009 sit above 0008, so four steps reach it.
-	if err := runner.Down(t.Context(), 4); err != nil {
-		t.Fatalf("rolling back 0011 to 0008: %v", err)
+	// 0012 down to 0009 sit above 0008, so five steps reach it.
+	if err := runner.Down(t.Context(), 5); err != nil {
+		t.Fatalf("rolling back 0012 to 0008: %v", err)
+	}
+	if db.Migrator().HasTable(&steward.ImportRun{}) {
+		t.Fatal("0012 down left its table behind")
 	}
 	if db.Migrator().HasTable(&steward.RecordChange{}) {
 		t.Fatal("0011 down left its table behind")
@@ -544,6 +547,9 @@ func TestOwnerAndInvitationMigrationRollsBack(t *testing.T) {
 	}
 	if !db.Migrator().HasTable(&steward.RecordChange{}) {
 		t.Fatal("0011 up did not restore its table")
+	}
+	if !db.Migrator().HasTable(&steward.ImportRun{}) {
+		t.Fatal("0012 up did not restore its table")
 	}
 }
 

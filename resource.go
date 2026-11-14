@@ -689,6 +689,12 @@ func (t *typedResource[T]) registerRoutes(a *Panel, mux *http.ServeMux) {
 	mux.HandleFunc("POST "+base+"/_preview", a.h(t.previewMarkdown))
 	mux.HandleFunc("POST "+base+"/_action/{name}", a.h(t.dispatchAction))
 	mux.HandleFunc("POST "+base+"/_restore", a.h(t.restoreRows))
+	if t.importOn() {
+		// One path for both steps: a {run} segment would collide with
+		// {id}/edit in ServeMux, so the run rides in a parameter.
+		mux.HandleFunc("GET "+base+"/_import", a.h(t.importPage))
+		mux.HandleFunc("POST "+base+"/_import", a.h(t.importPost))
+	}
 	mux.HandleFunc("POST "+base+"/_force_delete", a.h(t.forceDeleteRows))
 	for _, p := range t.res.pages {
 		mux.HandleFunc(p.method+" "+base+"/"+p.rel, a.h(p.h))

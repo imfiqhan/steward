@@ -407,6 +407,9 @@ type gridVM struct {
 	BatchActions []actionVM
 	ToolActions  []actionVM
 	ReorderURL   string
+	// ImportURL is where the Import button leads; empty when the grid does
+	// not import or the reader may not create.
+	ImportURL string
 	// Trash is the toolbar's link into or out of the trash; nil when the
 	// resource has none.
 	Trash *trashVM
@@ -493,6 +496,9 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		},
 	}
 
+	if !st.trashed && t.importAllowed(c) {
+		vm.ImportURL = c.URL(m.slug, "_import")
+	}
 	if t.trash != nil {
 		vm.Trash = &trashVM{Active: st.trashed}
 		if st.trashed {

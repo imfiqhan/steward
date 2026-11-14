@@ -747,15 +747,35 @@ func setFormValues(c *Context, path string, vals []string) {
 	}
 }
 
-func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
+// saveOutcome is what apply reports: the saved record, a refusal with the
+// status and message it answers with, or the fields that failed validation.
+type saveOutcome[T any] struct {
+	m        *T
+	status   int
+	message  string
+	errs     map[string][]string
+	savedErr error
+}
+
+func refused[T any](status int, message string) saveOutcome[T] {
+	return saveOutcome[T]{status: status, message: message}
+}
+
+// apply is the create/update pipeline short of the response: hooks, policy,
+// validation, decode, persistence, nested rows, history and the Saved hook. It
+// reads the submission from c.R.Form, so a caller with no browser behind it —
+// the CSV import — fills a request's form and runs the same steps a form does.
+// A refusal or validation failure comes back in the outcome; err is for
+// failures nobody submitting could fix.
+func (t *typedResource[T]) apply(c *Context, id string, creating bool) (saveOutcome[T], error) {
 	f := t.form
 	if f.submittedFn != nil {
 		if err := f.submittedFn(c); err != nil {
-			return c.Envelope(Error(err.Error()).Code(http.StatusBadRequest))
+			return refused[T](http.StatusBadRequest, err.Error()), nil
 		}
 	}
 	if err := c.R.ParseMultipartForm(32 << 20); err != nil && !errors.Is(err, http.ErrNotMultipart) {
-		return err
+		return saveOutcome[T]{}, err
 	}
 	// Before anything reads the form, so a hook sees the ordinary shape.
 	if bad := t.expandListFields(c); len(bad) > 0 {
@@ -763,14 +783,14 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 		for _, label := range bad {
 			errs[label] = []string{c.T("%s was submitted in a form this field cannot read.", label)}
 		}
-		return c.Envelope(ValidationErrors(errs))
+		return saveOutcome[T]{errs: errs}, nil
 	}
 
 	// Load the target model.
 	var m *T
 	if creating {
 		if !t.canCreate(c) {
-			return c.Envelope(Error("You do not have permission to create this.").Code(http.StatusForbidden))
+			return refused[T](http.StatusForbidden, "You do not have permission to create this."), nil
 		}
 		m = new(T)
 	} else {
@@ -778,12 +798,12 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 		m, err = t.repo.Find(c.Ctx(), id)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return c.Envelope(Error("Record not found.").Code(http.StatusNotFound))
+				return refused[T](http.StatusNotFound, "Record not found."), nil
 			}
-			return err
+			return saveOutcome[T]{}, err
 		}
 		if !t.canUpdate(c, m) {
-			return c.Envelope(Error("You do not have permission to update this.").Code(http.StatusForbidden))
+			return refused[T](http.StatusForbidden, "You do not have permission to update this."), nil
 		}
 	}
 
@@ -876,7 +896,7 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	}
 
 	if len(errs) > 0 {
-		return c.Envelope(ValidationErrors(errs))
+		return saveOutcome[T]{errs: errs}, nil
 	}
 
 	// What the upload fields hold before this save, so anything they stop
@@ -899,13 +919,13 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 
 	for _, w := range writes {
 		if err := setField(m, w.fd.info, w.val); err != nil {
-			return fmt.Errorf("setting %s: %w", w.fd.path, err)
+			return saveOutcome[T]{}, fmt.Errorf("setting %s: %w", w.fd.path, err)
 		}
 	}
 
 	if f.savingFn != nil {
 		if err := f.savingFn(c, m); err != nil {
-			return c.Envelope(Error(err.Error()).Code(http.StatusBadRequest))
+			return refused[T](http.StatusBadRequest, err.Error()), nil
 		}
 	}
 
@@ -928,7 +948,7 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 		}
 	}
 	if err != nil {
-		return err
+		return saveOutcome[T]{}, err
 	}
 	if t.historyOn() {
 		action := ChangeUpdated
@@ -945,7 +965,7 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	// that hook resolve a reference from one repeater's rows to another's.
 	for i, n := range f.nested {
 		if err := n.persist(c, m, nestedPayloads[i]); err != nil {
-			return fmt.Errorf("saving %s rows: %w", n.fieldName(), err)
+			return saveOutcome[T]{}, fmt.Errorf("saving %s rows: %w", n.fieldName(), err)
 		}
 	}
 	// Saved runs after the row and its nested rows are written, which is the
@@ -958,7 +978,22 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 			c.Panel.log.Error("steward: saved hook", "err", savedErr)
 		}
 	}
+	return saveOutcome[T]{m: m, savedErr: savedErr}, nil
+}
 
+// save answers a form's create or update with the envelope the browser acts on.
+func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
+	out, err := t.apply(c, id, creating)
+	if err != nil {
+		return err
+	}
+	if out.status != 0 {
+		return c.Envelope(Error(out.message).Code(out.status))
+	}
+	if len(out.errs) > 0 {
+		return c.Envelope(ValidationErrors(out.errs))
+	}
+	savedErr := out.savedErr
 	// A grid's quick-create row stays on the list and reloads it.
 	if creating && c.R.FormValue("_quick") == "1" {
 		done := c.T("%s created.", t.res.m.title)

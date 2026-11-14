@@ -45,6 +45,8 @@ type Tables struct {
 	JobModel any
 	// HistoryModel is the record history table, created by 0011.
 	HistoryModel any
+	// ImportModel is the CSV import table, created by 0012.
+	ImportModel any
 	// PermissionModel gains its sync columns (Source, CodeKey, Overridden)
 	// in 0009.
 	PermissionModel any
@@ -223,6 +225,15 @@ func Core(t Tables) []migrate.Migration {
 			},
 			Down: func(tx *gorm.DB) error {
 				return tx.Migrator().DropTable(t.HistoryModel)
+			},
+		},
+		{
+			Name: "0012_create_import_runs",
+			Up: func(tx *gorm.DB) error {
+				return tx.Migrator().AutoMigrate(t.ImportModel)
+			},
+			Down: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable(t.ImportModel)
 			},
 		},
 	}

@@ -32,6 +32,7 @@ type Grid[T any] struct {
 	treePath       string
 	quickCreate    []string
 	quickDeclared  string
+	importOn       bool
 
 	off map[string]bool // feature switches (create, delete, filter, ...)
 }

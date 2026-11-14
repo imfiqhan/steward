@@ -1,0 +1,74 @@
+{{/* CSV import: the upload form, then the page matching each column to a
+     field. Both are ordinary form posts; the run itself happens on the queue. */}}
+<div class="p-6 grid grid-cols-1 gap-4 max-w-4xl">
+  <div>
+    <p class="text-sm text-muted-foreground">{{t .Data.Title}}</p>
+    <h2 class="text-2xl font-semibold">{{t "Import from CSV"}}</h2>
+  </div>
+  {{with .Data.Error}}
+  <div class="alert" data-variant="destructive"><h2>{{.}}</h2></div>
+  {{end}}
+  {{if not .Data.Run}}
+  <form class="card" action="{{.Data.Action}}" method="post" enctype="multipart/form-data" data-steward-import-upload>
+    <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+    <section class="grid gap-4">
+      <p class="text-sm text-muted-foreground">
+        {{t "The first row names the columns. You choose which field each one fills on the next page; a column holding the record's key updates that record instead of creating one."}}
+      </p>
+      <div class="grid gap-2">
+        <label class="label" for="import-file">{{t "CSV file"}}</label>
+        <input class="input" id="import-file" type="file" name="file" accept=".csv,text/csv" required/>
+        <p class="text-sm text-muted-foreground">{{t "up to %v" .Data.MaxSize}}</p>
+      </div>
+    </section>
+    <footer class="flex items-center">
+      <a class="btn" data-variant="ghost" href="{{.Data.CancelURL}}"
+         hx-get="{{.Data.CancelURL}}" hx-target="#page-content" hx-push-url="true">{{t "Cancel"}}</a>
+      <button type="submit" class="btn ms-auto">{{icon "upload"}} {{t "Upload and continue"}}</button>
+    </footer>
+  </form>
+  {{else}}
+  <form class="card" action="{{.Data.Action}}" method="post" data-steward-import-map>
+    <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
+    <input type="hidden" name="run" value="{{.Data.Run.ID}}"/>
+    <header>
+      <h2>{{.Data.Run.FileName}}</h2>
+      <p>{{t "%v rows. Match each column to the field it fills, or skip it." .Data.RowCount}}</p>
+    </header>
+    <section class="px-0">
+      <div class="table-container">
+        <table class="table">
+          <thead>
+            <tr><th>{{t "Column"}}</th><th>{{t "Sample values"}}</th><th>{{t "Field"}}</th></tr>
+          </thead>
+          <tbody>
+            {{range .Data.Columns}}
+            {{$col := .}}
+            <tr>
+              <td class="font-medium">{{if .Header}}{{.Header}}{{else}}<span class="text-muted-foreground">{{t "Column %v" .Index}}</span>{{end}}</td>
+              <td class="text-sm text-muted-foreground">
+                {{range $i, $s := .Samples}}{{if $i}} · {{end}}{{if $s}}{{$s}}{{else}}—{{end}}{{end}}
+              </td>
+              <td>
+                <select class="select w-full" name="col_{{.Index}}" aria-label="{{t "Field for %v" .Header}}">
+                  <option value="">{{t "— skip —"}}</option>
+                  {{range $.Data.Targets}}
+                  <option value="{{.Path}}"{{if eq .Path $col.Selected}} selected{{end}}>{{.Label}}</option>
+                  {{end}}
+                </select>
+              </td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <footer class="flex flex-wrap items-center gap-2">
+      <p class="text-sm text-muted-foreground">{{t "Each row is saved through the form, with its rules. Rows that fail are skipped and listed in a report."}}</p>
+      <a class="btn ms-auto" data-variant="ghost" href="{{.Data.CancelURL}}"
+         hx-get="{{.Data.CancelURL}}" hx-target="#page-content" hx-push-url="true">{{t "Cancel"}}</a>
+      <button type="submit" class="btn">{{icon "upload"}} {{t "Import %v rows" .Data.RowCount}}</button>
+    </footer>
+  </form>
+  {{end}}
+</div>

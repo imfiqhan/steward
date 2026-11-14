@@ -228,7 +228,7 @@ func (a *Panel) runExport(ctx context.Context, job *ExportJob) error {
 	}
 	c := &Context{R: req, Panel: a, User: &user}
 	if a.TenancyEnabled() {
-		state, err := a.exportTenantState(ctx, job, &user)
+		state, err := a.jobTenantState(ctx, job.TenantID, &user)
 		if err != nil {
 			return err
 		}
