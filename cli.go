@@ -57,12 +57,20 @@ type App struct {
 //	permission:sync           write the permission tree for registered resources
 //	search:reindex [-batch]   rebuild the search index from the database
 //	user:create               create a panel account interactively
+//	tools [-json] [command]   list the command catalog, or one command's arguments
+//	mcp [-user] [-tenant]     serve the catalog as MCP tools over stdio
+//	<resource>:<op> [flags]   run one catalog command, e.g. posts:list -q go
 func CLI(app App) {
 	if err := runCLI(app, os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
 	}
 }
+
+// RunCLI is CLI that returns the failure instead of exiting, for an app that
+// handles a few commands of its own before handing the rest over, and for
+// tests. args excludes the program name.
+func RunCLI(app App, args []string) error { return runCLI(app, args) }
 
 func runCLI(app App, args []string) error {
 	if app.Build == nil {
@@ -89,9 +97,10 @@ func runCLI(app App, args []string) error {
 	switch cmd {
 	case "help", "-h", "--help":
 		fmt.Println("commands: " + strings.Join(cliCommands, ", "))
+		fmt.Println("data commands (<resource>:<operation>): see `tools`")
 		return nil
 	}
-	if !slices.Contains(cliCommands, cmd) {
+	if !slices.Contains(cliCommands, cmd) && !isDataCommand(cmd) {
 		return fmt.Errorf("unknown command %q%s", cmd, suggest.Block(cmd, cliCommands))
 	}
 
@@ -101,7 +110,32 @@ func runCLI(app App, args []string) error {
 	}
 	ctx := WithoutTenant(context.Background())
 
+	// A catalog command is known only once the resources have compiled.
+	if !slices.Contains(cliCommands, cmd) {
+		if err := a.Build(); err != nil {
+			return err
+		}
+		dc, ok := a.lookupCommand(cmd)
+		if !ok {
+			return fmt.Errorf("unknown command %q%s", cmd,
+				suggest.Block(cmd, append(a.commandNames(), cliCommands...)))
+		}
+		return runDataCommand(ctx, a, dc, args, os.Stdout)
+	}
+
 	switch cmd {
+	case "tools":
+		if err := a.Build(); err != nil {
+			return err
+		}
+		return runToolsCommand(a, args, os.Stdout)
+
+	case "mcp":
+		if err := a.Build(); err != nil {
+			return err
+		}
+		return runMCPCommand(ctx, a, args)
+
 	case "serve":
 		fs := flag.NewFlagSet("serve", flag.ContinueOnError)
 		addr := fs.String("addr", defaultAddr(app), "listen address")
@@ -375,7 +409,7 @@ func downPlan(sts []migrate.Status, steps int) (n int, everything bool) {
 var (
 	cliCommands = []string{
 		"serve", "worker", "migrate", "menu:sync", "permission:sync", "search:reindex",
-		"user:create", "help",
+		"user:create", "tools", "mcp", "help",
 	}
 	migrateSubcommands = []string{"up", "down", "status"}
 )

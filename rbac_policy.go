@@ -161,6 +161,15 @@ func (a *Panel) permissionSkip(rel string) bool {
 	if strings.HasPrefix(rel, "/_exports/") {
 		return true
 	}
+	// An import report is the importing account's own, as an export is.
+	if strings.HasPrefix(rel, "/_imports/") {
+		return true
+	}
+	// The MCP endpoint only dispatches: every tool call is a request of its own
+	// through this check.
+	if rel == "/_mcp" {
+		return true
+	}
 	return strings.HasPrefix(rel, "/_assets/") ||
 		strings.HasPrefix(rel, "/_uploads/") ||
 		strings.HasPrefix(rel, "/_widget/") ||

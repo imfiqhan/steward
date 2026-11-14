@@ -127,6 +127,9 @@ func (a *Panel) buildRoutes() *http.ServeMux {
 	// the file holds whatever rows that account was allowed to read.
 	mux.HandleFunc("GET "+p+"/_exports/{id}/download", a.h(a.downloadExport))
 	mux.HandleFunc("GET "+p+"/_imports/{id}/report", a.h(a.downloadImportReport))
+	if a.cfg.EnableMCP {
+		mux.HandleFunc(p+"/_mcp", a.h(a.mcpHTTP))
+	}
 
 	mux.HandleFunc("GET "+p+"/_assets/", a.serveAsset)
 	mux.HandleFunc("GET "+p+"/_command", a.h(a.commandSearch))

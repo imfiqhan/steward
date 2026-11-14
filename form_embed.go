@@ -67,6 +67,9 @@ type embedder interface {
 	compile(a *Panel, slug string, fd fieldSpec, info *fieldInfo) []error
 	// view renders the group for the stored value, current.
 	view(c *Context, name, label string, current any) (*nestedRowVM, *nestedVM)
+	// fieldPaths lists the embedded form's field paths, for a command's
+	// description of the argument.
+	fieldPaths() []string
 	// decode reads the submitted group. present is false when the form
 	// carried nothing for it, which leaves the column alone.
 	decode(c *Context, name string, current any) (val any, present bool, errs map[string][]string)
@@ -78,6 +81,16 @@ type embedForm[E any] struct {
 	many bool
 	// ptr marks a single embed stored through *E.
 	ptr bool
+}
+
+func (e *embedForm[E]) fieldPaths() []string {
+	var out []string
+	for _, cf := range e.form.fields {
+		if !cf.divider && !cf.ignored && cf.info != nil {
+			out = append(out, cf.path)
+		}
+	}
+	return out
 }
 
 // embedKinds are the field kinds an embedded form renders. Uploads and

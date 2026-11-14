@@ -98,6 +98,16 @@ func (a *Panel) withSession(next http.Handler) http.Handler {
 	})
 }
 
+// mcpPath reports the MCP endpoint, which is bearer-only: its handler refuses
+// any caller without a token, so a missing one is answered as 401 by auth
+// rather than as a CSRF failure a client cannot act on.
+func (a *Panel) mcpPath(p string) bool {
+	if !a.cfg.EnableMCP {
+		return false
+	}
+	return "/"+strings.TrimLeft(strings.TrimPrefix(p, a.cfg.Prefix), "/") == "/_mcp"
+}
+
 // withCSRF enforces the double-submit token on state-changing methods.
 //
 // Bearer callers are exempt: CSRF defends against a browser attaching an
@@ -111,7 +121,8 @@ func (a *Panel) withCSRF(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if tokenOf(r) != nil || (a.cfg.EnableTokenAuth && a.tokenEndpoint(r.URL.Path)) || a.ssoCallbackPath(r.URL.Path) {
+		if tokenOf(r) != nil || (a.cfg.EnableTokenAuth && a.tokenEndpoint(r.URL.Path)) ||
+			a.ssoCallbackPath(r.URL.Path) || a.mcpPath(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}

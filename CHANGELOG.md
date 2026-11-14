@@ -24,6 +24,18 @@ running panel to a new version.
 
 ### Added
 
+- **CLI data commands and an MCP server.** The registered resources compile
+  into a command catalog — list, get, create, update, delete, grid actions,
+  restore — with arguments taken from the grid and form. It is the same for
+  every caller; each call runs through the panel's own handler as the account
+  it acts for, so permissions, workspace, policies, validation, history and the
+  operation log all apply. Three surfaces read it: `./app <resource>:<op>`
+  with flags, `./app mcp` (MCP over stdio), and `{prefix}/_mcp` (MCP over HTTP
+  with a bearer token, behind `Config.EnableMCP`). `./app tools` lists the
+  catalog. `-user`/`-tenant` default to `STEWARD_MCP_USER`/`STEWARD_MCP_TENANT`.
+  `Resource.DisableMCP()` and `Resource.Describe()` shape it, and `RunCLI` is
+  `CLI` without the exit.
+
 - **CSV import.** `Grid.Import()` adds an Import button: upload a CSV, match
   its columns to the form's fields (pre-matched by header, so an export round
   trips), and the rows are saved through the form — rules, hooks, policy,
@@ -104,6 +116,10 @@ running panel to a new version.
   retries a job.
 
 ### Fixed
+
+- **An import report downloads for the account that ran it.** The report
+  route was checked against the account's permissions, which name resources,
+  so any role but the administrator was refused its own report.
 
 - **The pinned actions column shows its divider.** It was a border, which a
   sticky cell under `border-collapse` leaves behind; it is now drawn by the

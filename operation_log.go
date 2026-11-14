@@ -30,7 +30,9 @@ func (a *Panel) withOperationLog(next http.Handler) http.Handler {
 		// password and the response carries a credential.
 		skip := !mutating || user == nil ||
 			strings.Contains(rel, "/_upload") ||
-			rel == "/auth/login" || rel == "/auth/token"
+			rel == "/auth/login" || rel == "/auth/token" ||
+			// Each tool call is logged as the request it makes.
+			rel == "/_mcp"
 
 		next.ServeHTTP(w, r)
 		if skip {

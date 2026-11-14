@@ -176,3 +176,48 @@ func TestImportNeedsCreate(t *testing.T) {
 		t.Errorf("upload without Create = %d, want 403", code)
 	}
 }
+
+// The report belongs to the account that ran the import, whatever its role:
+// a role that may only list and create still downloads its own report.
+func TestImportReportNeedsNoPermissionOfItsOwn(t *testing.T) {
+	app, db, srv := newImportPanel(t, nil)
+	perms := []steward.Permission{
+		{Name: "List", Slug: "im-list", HTTPMethod: "GET", HTTPPath: "/im_rows\n/im_rows/*"},
+		{Name: "Create", Slug: "im-create", HTTPMethod: "POST", HTTPPath: "/im_rows"},
+	}
+	for i := range perms {
+		db.Create(&perms[i])
+	}
+	addUser(t, app, "clerk", perms)
+	c := signInAs(t, srv, "clerk")
+	code, loc := uploadCSV(t, c, "rows.csv", "Title,Count\nok,1\nbad,-5\n")
+	m := importRunRe.FindStringSubmatch(loc)
+	if code != http.StatusFound || m == nil {
+		t.Fatalf("upload = %d → %q", code, loc)
+	}
+	// The second row breaks Count's minimum, so there is a report.
+	if _, err := uploadCSVRow(t, c, m[1]); err != nil {
+		t.Fatal(err)
+	}
+	var run steward.ImportRun
+	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		_, _ = app.RunQueuedJobs(t.Context())
+		db.First(&run, m[1])
+		if run.Status == steward.ImportDone {
+			break
+		}
+	}
+	if run.ReportPath == "" {
+		t.Fatalf("the run has no report: %+v", run)
+	}
+	if code, body := c.do("GET", "/_imports/"+m[1]+"/report", "", nil); code != http.StatusOK {
+		t.Errorf("the clerk's own report = %d %s", code, firstLine(body))
+	}
+}
+
+func uploadCSVRow(t *testing.T, c *opClient, run string) (int, error) {
+	t.Helper()
+	form := url.Values{"run": {run}, "col_0": {"Title"}, "col_1": {"Count"}}
+	code, _ := c.do("POST", "/im_rows/_import", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	return code, nil
+}

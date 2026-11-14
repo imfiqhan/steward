@@ -202,6 +202,9 @@ cover it, and an HTML DSL in Go would be more surface for less flexibility.
 - [x] `Searcher` interface with an in-memory full-text implementation
 - [x] Template overlay (override any view by dropping a file), every Lucide
       icon embedded as one sprite, dark mode, `no_ui` build tag
+- [x] Command catalog for scripts and AI agents — `./app posts:list`,
+      `./app tools`, and MCP over stdio (`./app mcp`) or HTTP
+      (`Config.EnableMCP`), run under the account's permissions and policies
 - [x] Localization (`Config.Locale`) — English and Indonesian shipped, every
       text looked up by its English sentence, app labels translatable through
       `Config.Translations`

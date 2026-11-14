@@ -116,6 +116,13 @@ type Config struct {
 	// called.
 	DisableQueryProbe bool
 
+	// EnableMCP mounts {prefix}/_mcp, a Model Context Protocol endpoint that
+	// offers the command catalog to AI agents as tools. It is bearer-only, so
+	// it needs EnableTokenAuth; each call runs as the token's account, under
+	// its permissions and policies. `./app mcp` serves the same tools over
+	// stdio without it.
+	EnableMCP bool
+
 	// Locale is the language the panel's own text is shown in: "en" (the
 	// default) or "id". Labels and messages an application writes are its own;
 	// Panel.T and Context.T translate them through the same catalog.
@@ -291,6 +298,10 @@ type Panel struct {
 	// jobTypes are the registered kinds of queued work; queueWake nudges an
 	// idle queue worker in this process and queueStop ends the panel's own.
 	jobTypes map[string]jobRunner
+	// commands is the command catalog the CLI's data commands and the MCP
+	// tools read; commandIndex finds one by either spelling.
+	commands     []*command
+	commandIndex map[string]*command
 	// importJob queues CSV imports; nil when no grid imports.
 	importJob *JobType[importPayload]
 	queueWake chan struct{}
@@ -487,6 +498,7 @@ func (a *Panel) build() error {
 	}
 
 	a.registerImportJob()
+	a.buildCommands()
 
 	if err := a.syncMenu(context.Background()); err != nil {
 		return fmt.Errorf("steward: menu sync: %w", err)
@@ -510,6 +522,10 @@ func (a *Panel) build() error {
 	// reporting it here means a test asserting Verify catches it.
 	// The brand's mark is the only thing a collapsed sidebar shows for the
 	// panel itself, so a name that resolves to nothing leaves it blank.
+	if a.cfg.EnableMCP && !a.cfg.EnableTokenAuth {
+		a.verifyErrs = append(a.verifyErrs, errors.New(
+			"Config.EnableMCP needs Config.EnableTokenAuth: the endpoint authenticates with bearer tokens"))
+	}
 	if !a.knownLocale(a.locale()) {
 		a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
 			"Config.Locale %q has no catalog%s", a.cfg.Locale, suggest.Block(a.cfg.Locale, a.localeNames())))

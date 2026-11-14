@@ -35,6 +35,8 @@ type Resource[T any] struct {
 	commandDisplay []string
 	searchPaths    []string
 	history        bool
+	noMCP          bool
+	description    string
 
 	gridFn   func(*Grid[T])
 	formFn   func(*Form[T])
