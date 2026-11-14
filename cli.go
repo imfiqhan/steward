@@ -54,6 +54,7 @@ type App struct {
 //	migrate down [-steps N]   roll back (default: last batch)
 //	migrate status            list migrations
 //	menu:sync                 re-sync menu entries from registered resources
+//	permission:sync           write the permission tree for registered resources
 //	search:reindex [-batch]   rebuild the search index from the database
 //	user:create               create a panel account interactively
 func CLI(app App) {
@@ -201,6 +202,20 @@ func runCLI(app App, args []string) error {
 				sub, suggest.Block(sub, migrateSubcommands))
 		}
 
+	case "permission:sync":
+		res, err := a.SyncPermissions(ctx)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("permissions synced: %d created, %d updated\n", res.Created, res.Updated)
+		for _, s := range res.Skipped {
+			fmt.Println("skipped:", s)
+		}
+		for _, k := range res.Orphaned {
+			fmt.Println("no matching resource:", k)
+		}
+		return nil
+
 	case "menu:sync":
 		if err := a.Build(); err != nil {
 			return err
@@ -342,7 +357,7 @@ func downPlan(sts []migrate.Status, steps int) (n int, everything bool) {
 // have. Kept beside the switch that reads them so the two cannot drift.
 var (
 	cliCommands = []string{
-		"serve", "worker", "migrate", "menu:sync", "search:reindex",
+		"serve", "worker", "migrate", "menu:sync", "permission:sync", "search:reindex",
 		"user:create", "help",
 	}
 	migrateSubcommands = []string{"up", "down", "status"}

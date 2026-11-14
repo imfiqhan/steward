@@ -116,6 +116,13 @@ type Config struct {
 	// called.
 	DisableQueryProbe bool
 
+	// SyncPermissions writes a permission tree for every registered resource
+	// at Build: one parent per resource granting all of it, with view, create,
+	// update and delete beneath. Rows it writes are marked as code-owned; an
+	// edit in the UI pins one, and hand-made rows are never touched. Off by
+	// default — `permission:sync` runs the same reconciliation once.
+	SyncPermissions bool
+
 	// DisableAutoMigrate skips running the embedded framework migrations at
 	// Build. Recommended in production: run them explicitly via the app's
 	// `migrate up` command instead.
@@ -455,6 +462,11 @@ func (a *Panel) build() error {
 	if err := a.syncMenu(context.Background()); err != nil {
 		return fmt.Errorf("steward: menu sync: %w", err)
 	}
+	if a.cfg.SyncPermissions {
+		if _, err := a.syncPermissions(context.Background()); err != nil {
+			return fmt.Errorf("steward: permission sync: %w", err)
+		}
+	}
 
 	rend, err := newRenderer(a)
 	if err != nil {
@@ -548,6 +560,7 @@ func (a *Panel) coreTables() migrations.Tables {
 		TenancyModels:       []any{&Tenant{}, &TenantUser{}, &TenantUserRole{}, &UserIdentity{}},
 		TenantModel:         &Tenant{},
 		InvitationModel:     &TenantInvitation{},
+		PermissionModel:     &Permission{},
 		AddTenantColumns:    addTenantColumns,
 		DropTenantColumns:   dropTenantColumns,
 		SeedFn:              seedDefaults,

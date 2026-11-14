@@ -6,6 +6,12 @@ running panel to a new version.
 
 ## Unreleased
 
+### Upgrading
+
+- Migration `0009` adds `source`, `code_key` and `overridden` to
+  `steward_permissions`. Existing rows read as hand-made (`source = db`).
+- The Permissions list is now a tree over `ParentID`, ordered by `Order`.
+
 ### Added
 
 - **Sorting by a to-one relation column.** `Column("Author.Name").Sortable()`
@@ -13,6 +19,12 @@ running panel to a new version.
   paths, ordering by a correlated subquery so the row set is never multiplied.
   Has-many and many-to-many paths are still rejected by `Verify()`, now with a
   message that says why.
+
+- **Permissions synced from registered resources.** `Config.SyncPermissions`
+  (or the `permission:sync` command) writes a tree per resource: one row
+  granting all of it, with view, create, update and delete beneath. It follows
+  the menu sync: code rows are rewritten, an edit in the UI pins one, and
+  hand-made rows are never touched. Roles are not granted anything.
 
 ### Fixed
 

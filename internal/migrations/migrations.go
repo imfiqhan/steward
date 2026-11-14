@@ -41,6 +41,9 @@ type Tables struct {
 	// table 0008 creates.
 	TenantModel     any
 	InvitationModel any
+	// PermissionModel gains its sync columns (Source, CodeKey, Overridden)
+	// in 0009.
+	PermissionModel any
 	// SeedFn inserts default rows (admin user, administrator role, menu).
 	SeedFn func(tx *gorm.DB, passwordHash string) error
 }
@@ -152,6 +155,41 @@ func Core(t Tables) []migrate.Migration {
 					return err
 				}
 				return tx.Migrator().DropColumn(t.TenantModel, "OwnerUserID")
+			},
+		},
+		{
+			Name: "0009_add_permission_sync_columns",
+			Up: func(tx *gorm.DB) error {
+				m := tx.Migrator()
+				for _, field := range []string{"Source", "CodeKey", "Overridden"} {
+					if m.HasColumn(t.PermissionModel, field) {
+						continue
+					}
+					if err := m.AddColumn(t.PermissionModel, field); err != nil {
+						return err
+					}
+				}
+				if m.HasIndex(t.PermissionModel, "CodeKey") {
+					return nil
+				}
+				return m.CreateIndex(t.PermissionModel, "CodeKey")
+			},
+			Down: func(tx *gorm.DB) error {
+				m := tx.Migrator()
+				if m.HasIndex(t.PermissionModel, "CodeKey") {
+					if err := m.DropIndex(t.PermissionModel, "CodeKey"); err != nil {
+						return err
+					}
+				}
+				for _, field := range []string{"Overridden", "CodeKey", "Source"} {
+					if !m.HasColumn(t.PermissionModel, field) {
+						continue
+					}
+					if err := m.DropColumn(t.PermissionModel, field); err != nil {
+						return err
+					}
+				}
+				return nil
 			},
 		},
 	}

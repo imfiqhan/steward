@@ -514,8 +514,12 @@ func TestOwnerAndInvitationMigrationRollsBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	runner := app.MigrationRunner(nil)
-	if err := runner.Down(t.Context(), 1); err != nil {
-		t.Fatalf("rolling back 0008: %v", err)
+	// 0009 sits above 0008, so two steps reach it.
+	if err := runner.Down(t.Context(), 2); err != nil {
+		t.Fatalf("rolling back 0009 and 0008: %v", err)
+	}
+	if db.Migrator().HasColumn(&steward.Permission{}, "CodeKey") {
+		t.Fatal("0009 down left its column behind")
 	}
 	if db.Migrator().HasTable(&steward.TenantInvitation{}) || db.Migrator().HasColumn(&steward.Tenant{}, "OwnerUserID") {
 		t.Fatal("0008 down left its table or column behind")
@@ -525,6 +529,9 @@ func TestOwnerAndInvitationMigrationRollsBack(t *testing.T) {
 	}
 	if !db.Migrator().HasTable(&steward.TenantInvitation{}) || !db.Migrator().HasColumn(&steward.Tenant{}, "OwnerUserID") {
 		t.Fatal("0008 up did not restore its table and column")
+	}
+	if !db.Migrator().HasColumn(&steward.Permission{}, "CodeKey") {
+		t.Fatal("0009 up did not restore its column")
 	}
 }
 

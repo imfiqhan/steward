@@ -123,6 +123,12 @@ type Permission struct {
 	HTTPPath   string `gorm:"type:text"`
 	Order      int    `gorm:"default:0"`
 	ParentID   uint   `gorm:"default:0"`
+	// Source, CodeKey and Overridden follow MenuItem: rows written by
+	// SyncPermissions carry source "code" and a code key, and an edit in the
+	// UI pins them against the next sync.
+	Source     MenuSource `gorm:"size:10;default:db"`
+	CodeKey    *string    `gorm:"size:150;uniqueIndex"`
+	Overridden bool       `gorm:"default:false"`
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }

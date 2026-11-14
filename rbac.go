@@ -321,7 +321,10 @@ func (a *Panel) registerPermissionsResource() {
 		g.Column("Slug")
 		g.Column("HTTPMethod", "Methods").Using(map[any]string{"": "ANY"})
 		g.Column("HTTPPath", "Paths").Limit(60)
+		g.Column("Source").Badge(map[any]BadgeColor{"code": BadgeAzure, "db": BadgeSecondary})
 		g.QuickSearch("Name", "Slug", "HTTPPath")
+		g.DefaultSort("Order", false)
+		g.Tree("ParentID")
 	})
 
 	res.Form(func(f *Form[Permission]) {
@@ -332,6 +335,13 @@ func (a *Panel) registerPermissionsResource() {
 		f.Textarea("HTTPPath", "HTTP paths").Rules("required").
 			Placeholder("/posts*\nGET:/authors").
 			Help("One pattern per line, * wildcards; prefix a line with METHOD[,METHOD]: to restrict it. Paths are relative to the admin prefix.")
+		f.Saved(func(c *Context, p *Permission, created bool) error {
+			// An edit pins a synced row, so the next sync leaves it as edited.
+			if created || p.Source != MenuSourceCode || p.Overridden {
+				return nil
+			}
+			return c.Panel.db.WithContext(c.Ctx()).Model(p).Update("overridden", true).Error
+		})
 	})
 }
 

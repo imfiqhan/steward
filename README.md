@@ -169,9 +169,9 @@ cover it, and an HTML DSL in Go would be more surface for less flexibility.
 - [x] Menu administration — drag-and-drop tree, sync-from-code
 - [x] Operation log (passwords masked) and settings key-value store
 - [x] Profile page and `user:create`
-- [ ] Permission definitions synced from registered resources (the
-      menu-sync pattern: code owns the canonical entries, roles are
-      granted in the DB; hand-written path rules stay as the escape hatch)
+- [x] Permission definitions synced from registered resources
+      (`Config.SyncPermissions`, `permission:sync`): code owns the canonical
+      entries, roles are granted in the DB, hand-written rows are never touched
 
 ### Platform & tooling
 
