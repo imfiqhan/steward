@@ -39,6 +39,10 @@ running panel to a new version.
 
 ### Fixed
 
+- **The pinned actions column shows its divider.** It was a border, which a
+  sticky cell under `border-collapse` leaves behind; it is now drawn by the
+  cell itself.
+
 - **Permissions written per operation reach the endpoints that operation
   uses.** A role granted `POST /posts` and `PUT /posts/*` — the shape a
   dcat-admin export carries — could open the create and edit forms but not
