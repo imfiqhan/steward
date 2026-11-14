@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="en" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
+<html lang="{{.Page.Lang}}" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
 <head>
   {{template "layout/head.html" .}}
-  <title>Recovery codes — {{.Page.Brand}}</title>
+  <title>{{t "Recovery codes — %v" .Page.Brand}}</title>
 </head>
 <body>
   <div class="min-h-screen grid place-items-center p-4">
@@ -10,20 +10,20 @@
       <h1 class="text-center text-2xl font-semibold">{{.Page.Brand}}</h1>
       <div class="card">
         <header>
-          <h2>Save your recovery codes</h2>
-          <p>Two-factor authentication is on. These codes are shown once and are the only way in if you lose your device.</p>
+          <h2>{{t "Save your recovery codes"}}</h2>
+          <p>{{t "Two-factor authentication is on. These codes are shown once and are the only way in if you lose your device."}}</p>
         </header>
         <section class="grid gap-4">
           <div class="alert" data-variant="warning">
-            <h2>Store these somewhere safe now</h2>
-            <section>Each code works once. You will not see them again.</section>
+            <h2>{{t "Store these somewhere safe now"}}</h2>
+            <section>{{t "Each code works once. You will not see them again."}}</section>
           </div>
           <ul class="grid grid-cols-2 gap-2 font-mono text-sm rounded-md border p-4">
             {{range .Data.Codes}}<li class="tabular-nums">{{.}}</li>{{end}}
           </ul>
         </section>
         <footer>
-          <a href="{{.Data.Continue}}" class="btn ms-auto">I have saved them — continue</a>
+          <a href="{{.Data.Continue}}" class="btn ms-auto">{{t "I have saved them — continue"}}</a>
         </footer>
       </div>
     </div>

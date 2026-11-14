@@ -14,4 +14,6 @@
   <link rel="stylesheet" href="{{asset .Page.StyleCSS}}"/>
   {{/* After the stylesheet, so a redefined token wins on equal specificity. */}}
   {{with .Page.ThemeCSS}}<style>{{.}}</style>{{end}}
+  {{/* The script's own text in the panel's language; absent in English. */}}
+  {{with .Page.I18n}}<script type="application/json" id="steward-i18n">{{.}}</script>{{end}}
 {{end}}

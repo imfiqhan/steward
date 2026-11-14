@@ -200,7 +200,7 @@ func (a *Panel) registerUsersResource() {
 			return grantBadges(u.Roles)
 		})
 		d.FieldFunc("TwoFactor", "Two-factor", func(u *User) template.HTML {
-			return statusHTML(u.TwoFactorConfirmedAt != nil, "Enrolled", "Not enrolled")
+			return statusHTML(u.TwoFactorConfirmedAt != nil, a.T("Enrolled"), a.T("Not enrolled"))
 		})
 		d.Field("CreatedAt", "Created")
 	})

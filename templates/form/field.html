@@ -6,13 +6,13 @@
      data-steward-field="{{.Name}}">
   {{if ne .Kind "hidden"}}
   <label class="label" for="field-{{.Name}}">
-    {{.Label}}{{if .Required}}<span class="text-destructive" aria-hidden="true">*</span>{{end}}
+    {{t .Label}}{{if .Required}}<span class="text-destructive" aria-hidden="true">*</span>{{end}}
   </label>
   {{end}}
 
   {{if eq .Kind "textarea"}}
     <textarea id="field-{{.Name}}" name="{{.Name}}" class="textarea" rows="5"
-      placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>
+      placeholder="{{t .Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>
 
   {{else if eq .Kind "markdown"}}
     {{/* The textarea is the field. app.js adds the two tabs beside it and asks
@@ -21,7 +21,7 @@
          JavaScript the textarea is the whole control. */}}
     <div class="steward-markdown" data-steward-markdown data-render="{{.RenderURL}}">
       <textarea id="field-{{.Name}}" name="{{.Name}}" class="textarea font-mono" rows="10"
-        placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>
+        placeholder="{{t .Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>
     </div>
 
   {{else if eq .Kind "icon"}}
@@ -41,7 +41,7 @@
         {{/* An option's value defaults to its text, so naming each icon once
              rather than twice takes ~40% off a list this long. The empty choice
              needs an explicit value, since its text is not "". */}}
-        <option value="">— none —</option>
+        <option value="">{{t "— none —"}}</option>
         {{range .Icons}}<option{{if .Selected}} selected{{end}}>{{.Name}}</option>
         {{- end}}
       </select>
@@ -56,7 +56,7 @@
          data-upload="{{.UploadURL}}"
          {{if .Disabled}}data-disabled="1"{{end}} {{if .ReadOnly}}data-readonly="1"{{end}}>
       <textarea id="field-{{.Name}}" name="{{.Name}}" class="textarea font-mono" rows="12"
-        placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>
+        placeholder="{{t .Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}>{{.Value}}</textarea>
     </div>
 
 
@@ -69,7 +69,7 @@
       <div class="steward-tags-surface" data-steward-tags-chips></div>
       <input type="text" class="steward-tags-input" data-steward-tags-input
              id="field-{{.Name}}"
-             placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}Type and press Enter{{end}}"
+             placeholder="{{if .Placeholder}}{{t .Placeholder}}{{else}}Type and press Enter{{end}}"
              autocomplete="off" autocorrect="off" spellcheck="false"
              {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}/>
       <input type="hidden" name="{{.Name}}" value="{{.Value}}" data-steward-tags-value/>
@@ -93,7 +93,7 @@
            the input turns out to be nested in anything. Chips carry their own
            remove buttons, so the clear button below would be redundant. */}}
       <input type="text" role="combobox" id="field-{{.Name}}"
-             placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}Type to search…{{end}}"
+             placeholder="{{if .Placeholder}}{{t .Placeholder}}{{else}}Type to search…{{end}}"
              autocomplete="off" autocorrect="off" spellcheck="false"
              aria-autocomplete="list" aria-expanded="false"
              aria-controls="field-{{.Name}}-listbox"
@@ -101,7 +101,7 @@
       {{else}}
       <div class="input-group">
         <input type="text" role="combobox" id="field-{{.Name}}"
-               placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}Type to search…{{end}}"
+               placeholder="{{if .Placeholder}}{{t .Placeholder}}{{else}}Type to search…{{end}}"
                autocomplete="off" autocorrect="off" spellcheck="false"
                aria-autocomplete="list" aria-expanded="false"
                aria-controls="field-{{.Name}}-listbox"
@@ -111,12 +111,12 @@
           {{/* Sized explicitly: this is not a .btn, so the rule that sizes a
                button's glyph does not reach it and it would keep its intrinsic
                24px. size-3 is what icon-xs gives the buttons beside it. */}}
-          <button type="button" data-clear aria-label="Clear {{.Label}}">
+          <button type="button" data-clear aria-label="Clear {{t .Label}}">
             {{icon "x" "size-3"}}
           </button>
           {{end}}
           <button type="button" class="btn" data-variant="ghost" data-size="icon-xs"
-                  aria-label="Open suggestions" aria-haspopup="listbox" aria-expanded="false"
+                  aria-label="{{t "Open suggestions"}}" aria-haspopup="listbox" aria-expanded="false"
                   aria-controls="field-{{.Name}}-listbox" {{if .Disabled}}disabled{{end}}>
             {{icon "chevron-down"}}
           </button>
@@ -131,8 +131,8 @@
           {{/* title, because a label wider than the field is truncated: the
                list is capped to the field's width so one long option cannot
                stretch it. */}}
-          <div role="option" data-value="{{.Value}}" data-label="{{.Label}}" title="{{.Label}}"
-               {{if .Selected}}aria-selected="true"{{end}}>{{.Label}}</div>
+          <div role="option" data-value="{{.Value}}" data-label="{{t .Label}}" title="{{t .Label}}"
+               {{if .Selected}}aria-selected="true"{{end}}>{{t .Label}}</div>
           {{end}}
         </div>
       </div>
@@ -140,13 +140,13 @@
     </div>
 
   {{else if eq .Kind "radio"}}
-    <div role="radiogroup" aria-label="{{.Label}}" data-slot="radio-group" class="flex flex-wrap gap-4">
+    <div role="radiogroup" aria-label="{{t .Label}}" data-slot="radio-group" class="flex flex-wrap gap-4">
       {{$f := .}}
       {{range .Options}}
       <div class="flex items-center gap-2">
         <input class="input" type="radio" id="field-{{$f.Name}}-{{.Value}}" name="{{$f.Name}}" value="{{.Value}}"
                {{if .Selected}}checked{{end}} {{if $f.Disabled}}disabled{{end}}/>
-        <label class="label" for="field-{{$f.Name}}-{{.Value}}">{{.Label}}</label>
+        <label class="label" for="field-{{$f.Name}}-{{.Value}}">{{t .Label}}</label>
       </div>
       {{end}}
     </div>
@@ -185,12 +185,12 @@
               {{if .Value}}hidden{{end}} {{if .Disabled}}disabled{{end}}>
         {{icon "upload" "size-4"}}
         <span class="steward-upload-prompt">
-          <span class="steward-upload-action">Choose a file</span>
-          <span class="steward-upload-hint">or drag it here</span>
+          <span class="steward-upload-action">{{t "Choose a file"}}</span>
+          <span class="steward-upload-hint">{{t "or drag it here"}}</span>
         </span>
         {{if or .AcceptLabel .MaxSizeLabel}}
         <span class="steward-upload-limits">
-          {{with .AcceptLabel}}{{.}} · {{end}}up to {{.MaxSizeLabel}}
+          {{with .AcceptLabel}}{{.}} · {{end}}{{t "up to %v" .MaxSizeLabel}}
         </span>
         {{end}}
       </button>
@@ -214,7 +214,7 @@
         {{/* icon-xs, like every other icon button on a form: it sizes its own
              glyph, so passing one would override that and stand out. */}}
         <button type="button" class="btn" data-variant="ghost" data-size="icon-xs"
-                data-steward-upload-remove aria-label="Remove {{.Label}}">
+                data-steward-upload-remove aria-label="Remove {{t .Label}}">
           {{icon "x"}}
         </button>
         {{end}}
@@ -260,11 +260,11 @@
               {{if .Disabled}}disabled{{end}}>
         {{icon "upload" "size-4"}}
         <span class="steward-upload-prompt">
-          <span class="steward-upload-action">Choose files</span>
-          <span class="steward-upload-hint">or drag them here</span>
+          <span class="steward-upload-action">{{t "Choose files"}}</span>
+          <span class="steward-upload-hint">{{t "or drag them here"}}</span>
         </span>
         <span class="steward-upload-limits">
-          {{with .AcceptLabel}}{{.}} · {{end}}up to {{.MaxSizeLabel}} each · max {{.MaxFiles}}
+          {{with .AcceptLabel}}{{.}} · {{end}}{{t "up to %v each · max %v" .MaxSizeLabel .MaxFiles}}
         </span>
       </button>
 
@@ -283,18 +283,18 @@
       <span data-align="start">
         <input type="color" class="steward-color-swatch" data-steward-color-swatch
                value="{{if .Value}}{{.Value}}{{else}}#000000{{end}}"
-               aria-label="Pick {{.Label}}" tabindex="-1"
+               aria-label="Pick {{t .Label}}" tabindex="-1"
                {{if or .Disabled .ReadOnly}}disabled{{end}}/>
       </span>
       <input id="field-{{.Name}}" type="text" name="{{.Name}}" value="{{.Value}}"
-             class="font-mono" placeholder="{{if .Placeholder}}{{.Placeholder}}{{else}}#rrggbb{{end}}"
+             class="font-mono" placeholder="{{if .Placeholder}}{{t .Placeholder}}{{else}}#rrggbb{{end}}"
              autocomplete="off" autocapitalize="none" spellcheck="false"
              data-steward-color-text
              {{if .Errors}}aria-invalid="true"{{end}}
              {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}/>
       {{if and (not .Required) (not .Disabled) (not .ReadOnly)}}
       <span role="group" data-align="inline-end">
-        <button type="button" data-steward-color-clear aria-label="Clear {{.Label}}">
+        <button type="button" data-steward-color-clear aria-label="Clear {{t .Label}}">
           {{icon "x" "size-3"}}
         </button>
       </span>
@@ -305,7 +305,7 @@
     <div class="input-group">
       <span data-align="start" aria-hidden="true">{{.Symbol}}</span>
       <input id="field-{{.Name}}" type="number" step="0.01" name="{{.Name}}" value="{{.Value}}"
-             placeholder="{{.Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}/>
+             placeholder="{{t .Placeholder}}" {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}/>
     </div>
 
   {{else if or (eq .Kind "date") (eq .Kind "datetime")}}
@@ -333,10 +333,10 @@
               id="field-{{.Name}}" aria-haspopup="dialog" aria-expanded="false"
               {{if .Disabled}}disabled{{end}}>
         {{icon "calendar" "size-4"}}
-        <span data-steward-daterange-label>Any date</span>
+        <span data-steward-daterange-label>{{t "Any date"}}</span>
       </button>
       <button type="button" class="steward-daterange-clear" data-steward-daterange-clear
-              aria-label="Clear {{.Label}}" {{if and (not .Value) (not .RangeToValue)}}hidden{{end}}>
+              aria-label="Clear {{t .Label}}" {{if and (not .Value) (not .RangeToValue)}}hidden{{end}}>
         {{icon "x" "size-3"}}
       </button>
       <input type="hidden" name="{{.Name}}" value="{{.Value}}" data-steward-daterange-from/>
@@ -353,12 +353,12 @@
       name="{{.Name}}" value="{{.Value}}"
       {{with .MinAttr}}min="{{.}}"{{end}} {{with .MaxAttr}}max="{{.}}"{{end}}
       class="input {{if eq .Kind "color"}}w-16 p-1{{end}}"
-      placeholder="{{.Placeholder}}"
+      placeholder="{{t .Placeholder}}"
       {{if .Disabled}}disabled{{end}} {{if .ReadOnly}}readonly{{end}}
       {{if eq .Kind "password"}}autocomplete="new-password"{{end}}/>
   {{end}}
 
-  {{with .Help}}<p class="text-sm text-muted-foreground">{{.}}</p>{{end}}
+  {{with .Help}}<p class="text-sm text-muted-foreground">{{t .}}</p>{{end}}
   <p class="text-sm text-destructive" role="alert" data-steward-errors>
     {{- range .Errors}}{{.}} {{end -}}
   </p>

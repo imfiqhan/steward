@@ -119,6 +119,9 @@ func (r *renderer) funcs() template.FuncMap {
 			return r.a.url(parts...)
 		},
 		"icon": r.icon,
+		// t translates the panel's own text: {{t "Save changes"}}, or with
+		// fmt arguments, {{t "Showing %d of %d" .From .Total}}.
+		"t": func(msg string, args ...any) string { return r.a.T(msg, args...) },
 		// initial is the mark a rail falls back to when there is no icon: the
 		// first letter, upper-cased, by rune so a multi-byte one survives.
 		"initial": func(s string) string {
@@ -270,6 +273,7 @@ func (r *renderer) execute(w io.Writer, name string, page pageMeta, data any) er
 // render writes a page: content-only for HTMX fragment navigation (with an
 // inline <title> htmx picks up), the full layout otherwise.
 func (a *Panel) render(c *Context, name, title string, data any) error {
+	title = a.lookup(title)
 	page := a.pageMetaFor(c, title)
 
 	var content bytes.Buffer

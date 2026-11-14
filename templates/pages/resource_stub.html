@@ -4,9 +4,9 @@
     <section>
       <div class="grid place-items-center gap-2 py-12 text-center">
         {{icon "table"}}
-        <p class="font-medium">The {{.Data.Title}} grid is on its way</p>
+        <p class="font-medium">{{t "The %v grid is on its way" .Data.Title}}</p>
         <p class="text-sm text-muted-foreground">
-          This resource is registered as <span class="kbd">{{.Data.Slug}}</span>.
+          {{t "This resource is registered as"}} <span class="kbd">{{.Data.Slug}}</span>.
         </p>
       </div>
     </section>

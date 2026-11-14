@@ -373,7 +373,7 @@ func (h *hasManyForm[T, C]) validate(c *Context) (any, map[string][]string) {
 			}
 			field := fmt.Sprintf("%s[%s][%s]", h.relation, key, fd.path)
 			if fd.rules != "" {
-				target := rules.Field{DB: c.Panel.db, Ctx: c.Ctx(), Label: fd.label}
+				target := rules.Field{DB: c.Panel.db, Ctx: c.Ctx(), Label: fd.label, Translate: c.T}
 				if msgs := rules.Validate(target, fd.rules, raw); len(msgs) > 0 {
 					errs[field] = append(errs[field], msgs...)
 					continue
@@ -381,7 +381,7 @@ func (h *hasManyForm[T, C]) validate(c *Context) (any, map[string][]string) {
 			}
 			val, err := fd.decode(raw)
 			if err != nil {
-				errs[field] = append(errs[field], fd.label+": "+err.Error())
+				errs[field] = append(errs[field], c.T("%s: %s", fd.label, c.lookup(err.Error())))
 				continue
 			}
 			p.values[fd.path] = val

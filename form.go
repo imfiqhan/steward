@@ -825,16 +825,16 @@ func (fd *Field[T]) boundString(v any) string {
 //
 // The comparison runs on the decoded value rather than the submitted text, so a
 // date is compared as a date and a number as a number.
-func (fd *Field[T]) outOfRange(val any) string {
+func (fd *Field[T]) outOfRange(c *Context, val any) string {
 	if fd.minVal == nil && fd.maxVal == nil {
 		return ""
 	}
 	if t, ok := asTime(val); ok {
 		if lo, ok := asTime(fd.minVal); ok && t.Before(lo) {
-			return fd.label + " cannot be earlier than " + fd.boundString(fd.minVal) + "."
+			return c.T("%s cannot be earlier than %s.", fd.label, fd.boundString(fd.minVal))
 		}
 		if hi, ok := asTime(fd.maxVal); ok && t.After(hi) {
-			return fd.label + " cannot be later than " + fd.boundString(fd.maxVal) + "."
+			return c.T("%s cannot be later than %s.", fd.label, fd.boundString(fd.maxVal))
 		}
 		return ""
 	}
@@ -843,10 +843,10 @@ func (fd *Field[T]) outOfRange(val any) string {
 		return ""
 	}
 	if lo, ok := asNumber(fd.minVal); ok && n < lo {
-		return fmt.Sprintf("%s must be at least %v.", fd.label, fd.minVal)
+		return c.T("%s must be at least %v.", fd.label, fd.minVal)
 	}
 	if hi, ok := asNumber(fd.maxVal); ok && n > hi {
-		return fmt.Sprintf("%s may not be greater than %v.", fd.label, fd.maxVal)
+		return c.T("%s may not be greater than %v.", fd.label, fd.maxVal)
 	}
 	return ""
 }

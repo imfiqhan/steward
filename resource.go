@@ -232,6 +232,7 @@ func (t *typedResource[T]) compile(a *Panel) error {
 
 	var preloads []string
 	for _, col := range g.columns {
+		col.tr = a.lookup
 		if col.computed {
 			if col.label == "" {
 				col.label = col.path

@@ -244,12 +244,12 @@ func (e *embedForm[E]) decodeRow(c *Context, name, key string, row *E, errs map[
 			}
 		} else if !present {
 			if cf.required {
-				errs[full] = append(errs[full], cf.label+" is required.")
+				errs[full] = append(errs[full], c.T("%s is required.", cf.label))
 			}
 			continue
 		}
 		if cf.rules != "" {
-			target := rules.Field{DB: c.Panel.db, Ctx: c.Ctx(), Label: cf.label}
+			target := rules.Field{DB: c.Panel.db, Ctx: c.Ctx(), Label: cf.label, Translate: c.T}
 			if msgs := rules.Validate(target, cf.rules, raw); len(msgs) > 0 {
 				errs[full] = append(errs[full], msgs...)
 				continue
@@ -257,15 +257,15 @@ func (e *embedForm[E]) decodeRow(c *Context, name, key string, row *E, errs map[
 		}
 		val, err := cf.decode(raw)
 		if err != nil {
-			errs[full] = append(errs[full], cf.label+": "+err.Error())
+			errs[full] = append(errs[full], c.T("%s: %s", cf.label, c.lookup(err.Error())))
 			continue
 		}
-		if msg := cf.outOfRange(val); msg != "" {
+		if msg := cf.outOfRange(c, val); msg != "" {
 			errs[full] = append(errs[full], msg)
 			continue
 		}
 		if err := setField(row, cf.info, val); err != nil {
-			errs[full] = append(errs[full], cf.label+": "+err.Error())
+			errs[full] = append(errs[full], c.T("%s: %s", cf.label, c.lookup(err.Error())))
 		}
 	}
 }

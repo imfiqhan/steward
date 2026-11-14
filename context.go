@@ -100,6 +100,7 @@ func (c *Context) Flash(typ, msg string) {
 	if c.sess == nil {
 		return
 	}
+	msg = c.lookup(msg)
 	c.sess.Flashes = append(c.sess.Flashes, session.Flash{Type: typ, Message: msg})
 	c.Panel.saveSession(c)
 }
@@ -136,6 +137,9 @@ func (c *Context) logout() {
 
 // JSON writes v with the given status.
 func (c *Context) JSON(status int, v any) error {
+	if e, ok := v.(*Envelope); ok && c.Panel != nil {
+		c.Panel.translateEnvelope(e)
+	}
 	c.W.Header().Set("Content-Type", "application/json; charset=utf-8")
 	c.W.WriteHeader(status)
 	return json.NewEncoder(c.W).Encode(v)

@@ -1,7 +1,7 @@
 {{/* KPI stat card: pass (dict "Label" ... "Value" ... "Hint" ...) */}}
 <div class="card" data-size="sm">
   <section>
-    <p class="text-sm text-muted-foreground">{{.Label}}</p>
+    <p class="text-sm text-muted-foreground">{{t .Label}}</p>
     <p class="mt-1 text-3xl font-semibold">{{.Value}}</p>
     {{with .Hint}}<p class="mt-1 text-sm text-muted-foreground">{{.}}</p>{{end}}
   </section>

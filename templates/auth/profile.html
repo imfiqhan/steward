@@ -1,75 +1,75 @@
 <div class="p-6 grid grid-cols-1 gap-4 max-w-2xl">
   <div>
-    <p class="text-sm text-muted-foreground">Account</p>
-    <h2 class="text-2xl font-semibold">Profile</h2>
+    <p class="text-sm text-muted-foreground">{{t "Account"}}</p>
+    <h2 class="text-2xl font-semibold">{{t "Profile"}}</h2>
   </div>
   <form class="card" method="post" action="{{url "auth/profile"}}">
     <header>
-      <h2>Account details</h2>
+      <h2>{{t "Account details"}}</h2>
     </header>
     <section class="grid gap-6">
       <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
       <div class="grid gap-2">
-        <label class="label" for="profile-username">Username</label>
+        <label class="label" for="profile-username">{{t "Username"}}</label>
         <input class="input" id="profile-username" type="text" value="{{.Page.User.Username}}" disabled/>
-        <p class="text-sm text-muted-foreground">Usernames cannot be changed.</p>
+        <p class="text-sm text-muted-foreground">{{t "Usernames cannot be changed."}}</p>
       </div>
       <div class="grid gap-2">
-        <label class="label" for="profile-name">Name</label>
+        <label class="label" for="profile-name">{{t "Name"}}</label>
         <input class="input" id="profile-name" name="name" type="text"
                {{if .Data.Errors.name}}aria-invalid="true"{{end}}
                value="{{if .Data.Name}}{{.Data.Name}}{{else}}{{.Page.User.Name}}{{end}}" required/>
-        {{with .Data.Errors.name}}<p class="text-sm text-destructive" role="alert">{{.}}</p>{{end}}
+        {{with .Data.Errors.name}}<p class="text-sm text-destructive" role="alert">{{t .}}</p>{{end}}
       </div>
       <fieldset class="fieldset">
-        <legend>Change password</legend>
-        <p>Leave blank to keep your current password.</p>
-        <div role="group" aria-label="Password fields" class="grid gap-6">
+        <legend>{{t "Change password"}}</legend>
+        <p>{{t "Leave blank to keep your current password."}}</p>
+        <div role="group" aria-label="{{t "Password fields"}}" class="grid gap-6">
           <div class="grid gap-2">
-            <label class="label" for="profile-old-password">Current password</label>
+            <label class="label" for="profile-old-password">{{t "Current password"}}</label>
             <input class="input" id="profile-old-password" name="old_password" type="password"
                    {{if .Data.Errors.old_password}}aria-invalid="true"{{end}} autocomplete="current-password"/>
-            {{with .Data.Errors.old_password}}<p class="text-sm text-destructive" role="alert">{{.}}</p>{{end}}
+            {{with .Data.Errors.old_password}}<p class="text-sm text-destructive" role="alert">{{t .}}</p>{{end}}
           </div>
           <div class="grid gap-2">
-            <label class="label" for="profile-password">New password</label>
+            <label class="label" for="profile-password">{{t "New password"}}</label>
             <input class="input" id="profile-password" name="password" type="password"
                    {{if .Data.Errors.password}}aria-invalid="true"{{end}} autocomplete="new-password"/>
-            {{with .Data.Errors.password}}<p class="text-sm text-destructive" role="alert">{{.}}</p>{{end}}
+            {{with .Data.Errors.password}}<p class="text-sm text-destructive" role="alert">{{t .}}</p>{{end}}
           </div>
           <div class="grid gap-2">
-            <label class="label" for="profile-password-confirm">Confirm new password</label>
+            <label class="label" for="profile-password-confirm">{{t "Confirm new password"}}</label>
             <input class="input" id="profile-password-confirm" name="password_confirmation" type="password"
                    {{if .Data.Errors.password_confirmation}}aria-invalid="true"{{end}} autocomplete="new-password"/>
-            {{with .Data.Errors.password_confirmation}}<p class="text-sm text-destructive" role="alert">{{.}}</p>{{end}}
+            {{with .Data.Errors.password_confirmation}}<p class="text-sm text-destructive" role="alert">{{t .}}</p>{{end}}
           </div>
         </div>
       </fieldset>
     </section>
     <footer>
-      <button type="submit" class="btn ms-auto">Save changes</button>
+      <button type="submit" class="btn ms-auto">{{t "Save changes"}}</button>
     </footer>
   </form>
 
   {{with .Data.TwoFactor}}
   <div class="card">
     <header>
-      <h2>Two-factor authentication</h2>
+      <h2>{{t "Two-factor authentication"}}</h2>
       <p>
-        {{if .Enabled}}Your account is protected by an authenticator app.
-        {{else}}Add a second step to your sign-in using an authenticator app.{{end}}
+        {{if .Enabled}}{{t "Your account is protected by an authenticator app."}}
+        {{else}}{{t "Add a second step to your sign-in using an authenticator app."}}{{end}}
       </p>
     </header>
     <section class="grid gap-6">
       {{with .Error}}
-      <div class="alert" data-variant="destructive"><h2>{{.}}</h2></div>
+      <div class="alert" data-variant="destructive"><h2>{{t .}}</h2></div>
       {{end}}
 
       {{if .RecoveryCodes}}
       {{/* Freshly minted codes: shown exactly once, right after enrolling or regenerating. */}}
       <div class="alert" data-variant="warning">
-        <h2>Save your recovery codes now</h2>
-        <section>Each code works once, and they are not shown again.</section>
+        <h2>{{t "Save your recovery codes now"}}</h2>
+        <section>{{t "Each code works once, and they are not shown again."}}</section>
       </div>
       <ul class="grid grid-cols-2 gap-2 font-mono text-sm rounded-md border p-4">
         {{range .RecoveryCodes}}<li class="tabular-nums">{{.}}</li>{{end}}
@@ -77,39 +77,39 @@
 
       {{else if .Setup}}
       {{/* Mid-enrolment: QR plus the confirming code. */}}
-      <p class="text-sm">Scan this with your authenticator app, then enter the code it shows.</p>
+      <p class="text-sm">{{t "Scan this with your authenticator app, then enter the code it shows."}}</p>
       {{if .Setup.QR}}
       <div class="justify-self-center w-48 h-48 rounded-md border p-2 bg-white">{{.Setup.QR}}</div>
       {{end}}
       <div class="grid gap-2">
-        <label class="label" for="tfa-secret">Or enter this key manually</label>
+        <label class="label" for="tfa-secret">{{t "Or enter this key manually"}}</label>
         <input class="input font-mono text-sm" id="tfa-secret" type="text" value="{{.Setup.Secret}}" readonly
                onclick="this.select()"/>
       </div>
       <form method="post" action="{{url "auth/profile/2fa/confirm"}}" autocomplete="off" class="grid gap-4">
         <input type="hidden" name="_token" value="{{$.Page.CSRF}}"/>
         <div class="grid gap-2">
-          <label class="label" for="tfa-confirm">Six-digit code</label>
+          <label class="label" for="tfa-confirm">{{t "Six-digit code"}}</label>
           <input class="input text-center text-lg tracking-[0.3em] font-mono max-w-48" id="tfa-confirm" name="code"
                  type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000"
                  autocomplete="one-time-code" autofocus/>
         </div>
-        <button type="submit" class="btn justify-self-start">Turn on two-factor authentication</button>
+        <button type="submit" class="btn justify-self-start">{{t "Turn on two-factor authentication"}}</button>
       </form>
 
       {{else if .Enabled}}
       <p class="text-sm text-muted-foreground">
-        {{.RecoveryLeft}} recovery code{{if ne .RecoveryLeft 1}}s{{end}} remaining.
+        {{if eq .RecoveryLeft 1}}{{t "1 recovery code remaining."}}{{else}}{{t "%v recovery codes remaining." .RecoveryLeft}}{{end}}
       </p>
       <form method="post" action="{{url "auth/profile/2fa/codes"}}" autocomplete="off" class="grid gap-4">
         <input type="hidden" name="_token" value="{{$.Page.CSRF}}"/>
         <div class="grid gap-2">
-          <label class="label" for="tfa-regen-password">Current password</label>
+          <label class="label" for="tfa-regen-password">{{t "Current password"}}</label>
           <input class="input max-w-sm" id="tfa-regen-password" name="password" type="password"
                  autocomplete="current-password"/>
-          <p class="text-sm text-muted-foreground">Replacing the set invalidates every unused code.</p>
+          <p class="text-sm text-muted-foreground">{{t "Replacing the set invalidates every unused code."}}</p>
         </div>
-        <button type="submit" class="btn justify-self-start" data-variant="outline">Generate new recovery codes</button>
+        <button type="submit" class="btn justify-self-start" data-variant="outline">{{t "Generate new recovery codes"}}</button>
       </form>
       {{if not .Required}}
       {{/* Removing a second factor is worth a deliberate pause, so the submit
@@ -118,23 +118,23 @@
       <form method="post" action="{{url "auth/profile/2fa/disable"}}" autocomplete="off"
             class="grid gap-4 border-t pt-6"
             data-steward-confirm-submit
-            data-confirm-title="Turn off two-factor authentication?"
-            data-confirm-description="Your account will be protected by its password alone, and your recovery codes stop working."
-            data-confirm-action="Turn it off"
+            data-confirm-title="{{t "Turn off two-factor authentication?"}}"
+            data-confirm-description="{{t "Your account will be protected by its password alone, and your recovery codes stop working."}}"
+            data-confirm-action="{{t "Turn it off"}}"
             data-confirm-danger="1">
         <input type="hidden" name="_token" value="{{$.Page.CSRF}}"/>
         <div class="grid gap-2">
-          <label class="label" for="tfa-off-password">Current password</label>
+          <label class="label" for="tfa-off-password">{{t "Current password"}}</label>
           <input class="input max-w-sm" id="tfa-off-password" name="password" type="password"
                  autocomplete="current-password"/>
         </div>
         <button type="submit" class="btn justify-self-start" data-variant="destructive">
-          Turn off two-factor authentication
+          {{t "Turn off two-factor authentication"}}
         </button>
       </form>
       {{else}}
       <p class="text-sm text-muted-foreground border-t pt-6">
-        This panel requires two-factor authentication, so it cannot be turned off.
+        {{t "This panel requires two-factor authentication, so it cannot be turned off."}}
       </p>
       {{end}}
 
@@ -142,13 +142,13 @@
       {{/* Not enrolled and not mid-enrolment. */}}
       {{if .Required}}
       <div class="alert" data-variant="warning">
-        <h2>Enrolment is required</h2>
-        <section>You cannot use the rest of the panel until two-factor authentication is on.</section>
+        <h2>{{t "Enrolment is required"}}</h2>
+        <section>{{t "You cannot use the rest of the panel until two-factor authentication is on."}}</section>
       </div>
       {{end}}
       <form method="post" action="{{url "auth/profile/2fa/enable"}}">
         <input type="hidden" name="_token" value="{{$.Page.CSRF}}"/>
-        <button type="submit" class="btn">Set up two-factor authentication</button>
+        <button type="submit" class="btn">{{t "Set up two-factor authentication"}}</button>
       </form>
       {{end}}
     </section>

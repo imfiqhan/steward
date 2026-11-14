@@ -58,6 +58,8 @@ type DetailField[T any] struct {
 
 	present func(v any, m *T) template.HTML
 	info    *fieldInfo
+	// tr is the panel's translator, set at compile.
+	tr func(string) string
 
 	// storageRef resolves the value through Storage before presenting it, for
 	// helpers that put it straight into a src or an href.
@@ -126,7 +128,7 @@ func (df *DetailField[T]) mappedHTML(v any, _ *T) template.HTML {
 	case labeled:
 		return template.HTML(template.HTMLEscapeString(text))
 	}
-	return defaultCell(v)
+	return defaultCell(df.t, v)
 }
 
 // labelFor looks the value up in Using's map, by value and by its fmt form.
@@ -148,8 +150,16 @@ func (df *DetailField[T]) labelFor(v any) (string, bool) {
 func (df *DetailField[T]) Bool(labels ...string) *DetailField[T] {
 	df.boolLabels = labels
 	yes, no := boolWords(labels)
-	df.present = func(v any, _ *T) template.HTML { return statusHTML(truthy(v), yes, no) }
+	df.present = func(v any, _ *T) template.HTML { return statusHTML(truthy(v), df.t(yes), df.t(no)) }
 	return df
+}
+
+// t translates through the panel the field was compiled for.
+func (df *DetailField[T]) t(msg string) string {
+	if df.tr == nil {
+		return msg
+	}
+	return df.tr(msg)
 }
 
 // Image renders the value (URL or storage path) as an image; storage paths
@@ -198,7 +208,7 @@ func (df *DetailField[T]) Link() *DetailField[T] {
 		// another site and is left to navigate.
 		if previewableRef(raw, href) {
 			return template.HTML(anchor + ` <button type="button" class="btn steward-preview-open" data-variant="outline" data-size="sm" ` +
-				`data-steward-preview="` + template.HTMLEscapeString(href) + `">Preview</button>`)
+				`data-steward-preview="` + template.HTMLEscapeString(href) + `">` + template.HTMLEscapeString(df.t("Preview")) + `</button>`)
 		}
 		return template.HTML(anchor)
 	}
@@ -243,7 +253,7 @@ func (df *DetailField[T]) Filesize() *DetailField[T] {
 	df.present = func(v any, _ *T) template.HTML {
 		var n float64
 		if _, err := fmt.Sscan(fmt.Sprint(v), &n); err != nil {
-			return defaultCell(v)
+			return defaultCell(df.t, v)
 		}
 		units := []string{"B", "KB", "MB", "GB", "TB"}
 		i := 0
@@ -384,7 +394,7 @@ func (t *typedResource[T]) show(c *Context) error {
 			s := fmt.Sprint(val)
 			val = resolvedRef{raw: s, url: c.Panel.DiskURL(df.disk, s)}
 		}
-		html := defaultCell(val)
+		html := defaultCell(df.t, val)
 		if df.present != nil {
 			html = df.present(val, row)
 		}
@@ -473,6 +483,7 @@ func (t *typedResource[T]) compileDetail(a *Panel) {
 	t.detail = d
 	var preloads []string
 	for _, df := range d.fields {
+		df.tr = a.lookup
 		for _, colour := range df.badges {
 			if !badgeColors[colour] {
 				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(

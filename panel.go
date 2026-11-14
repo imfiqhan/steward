@@ -116,6 +116,15 @@ type Config struct {
 	// called.
 	DisableQueryProbe bool
 
+	// Locale is the language the panel's own text is shown in: "en" (the
+	// default) or "id". Labels and messages an application writes are its own;
+	// Panel.T and Context.T translate them through the same catalog.
+	Locale string
+
+	// Translations adds a locale or overrides entries of a shipped one, keyed
+	// by locale and then by the English text: {"id": {"Save changes": "Simpan"}}.
+	Translations map[string]map[string]string
+
 	// QueueWorkers runs that many queue workers inside the panel process, for
 	// jobs declared with RegisterJob. Zero leaves the queue to the `worker`
 	// command, which is where it belongs when the panel runs on several
@@ -497,6 +506,10 @@ func (a *Panel) build() error {
 	// reporting it here means a test asserting Verify catches it.
 	// The brand's mark is the only thing a collapsed sidebar shows for the
 	// panel itself, so a name that resolves to nothing leaves it blank.
+	if !a.knownLocale(a.locale()) {
+		a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+			"Config.Locale %q has no catalog%s", a.cfg.Locale, suggest.Block(a.cfg.Locale, a.localeNames())))
+	}
 	if a.cfg.BrandIcon != "" && !rend.hasIcon(a.cfg.BrandIcon) {
 		a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
 			"Config.BrandIcon %q not found%s",

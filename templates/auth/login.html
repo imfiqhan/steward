@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="en" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
+<html lang="{{.Page.Lang}}" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
 <head>
   {{template "layout/head.html" .}}
-  <title>Sign in — {{.Page.Brand}}</title>
+  <title>{{t "Sign in — %v" .Page.Brand}}</title>
 </head>
 <body>
   <div class="min-h-screen grid place-items-center p-4">
@@ -10,13 +10,13 @@
       <h1 class="text-center text-2xl font-semibold">{{.Page.Brand}}</h1>
       <div class="card">
         <header>
-          <h2>Sign in to your account</h2>
-          {{if .Data.PasswordLogin}}<p>Enter your username and password below.</p>{{end}}
+          <h2>{{t "Sign in to your account"}}</h2>
+          {{if .Data.PasswordLogin}}<p>{{t "Enter your username and password below."}}</p>{{end}}
         </header>
         <section>
           {{if .Data.Error}}
           <div class="alert mb-4" data-variant="destructive">
-            <h2>{{.Data.Error}}</h2>
+            <h2>{{t .Data.Error}}</h2>
           </div>
           {{end}}
           {{if .Data.Providers}}
@@ -24,7 +24,7 @@
             {{range .Data.Providers}}
             <a class="btn w-full" data-variant="outline" href="{{.URL}}" data-provider="{{.ID}}">
               {{if .Icon}}{{icon .Icon "size-4"}}{{end}}
-              <span>{{.Label}}</span>
+              <span>{{t .Label}}</span>
             </a>
             {{end}}
           </div>
@@ -32,40 +32,40 @@
           {{if .Data.Discovery}}
           <form action="{{url "auth/sso/discover"}}" method="post" class="grid gap-2 mt-4">
             <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
-            <label class="label" for="login-organization">Work email or organization</label>
+            <label class="label" for="login-organization">{{t "Work email or organization"}}</label>
             <input class="input" id="login-organization" name="organization" type="text"
-                   autocomplete="email" placeholder="you@company.com"/>
-            <button type="submit" class="btn w-full" data-variant="outline">Continue with single sign-on</button>
+                   autocomplete="email" placeholder="{{t "you@company.com"}}"/>
+            <button type="submit" class="btn w-full" data-variant="outline">{{t "Continue with single sign-on"}}</button>
           </form>
           {{end}}
           {{if and .Data.PasswordLogin (or .Data.Providers .Data.Discovery)}}
           <div class="flex items-center gap-3 my-6 text-sm text-muted-foreground" role="separator">
-            <hr class="flex-1"/><span>or</span><hr class="flex-1"/>
+            <hr class="flex-1"/><span>{{t "or"}}</span><hr class="flex-1"/>
           </div>
           {{end}}
           {{if .Data.PasswordLogin}}
           <form action="{{url "auth/login"}}" method="post" autocomplete="off" novalidate class="grid gap-6">
             <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
             <div class="grid gap-2">
-              <label class="label" for="login-username">Username</label>
-              <input class="input" id="login-username" name="username" type="text" placeholder="Your username"
+              <label class="label" for="login-username">{{t "Username"}}</label>
+              <input class="input" id="login-username" name="username" type="text" placeholder="{{t "Your username"}}"
                      value="{{.Data.Username}}" autocomplete="username" autofocus required/>
             </div>
             <div class="grid gap-2">
               <div class="flex items-center">
-                <label class="label" for="login-password">Password</label>
+                <label class="label" for="login-password">{{t "Password"}}</label>
                 {{if .Data.CanReset}}
-                <a href="{{url "auth/forgot"}}" class="ms-auto inline-block text-sm underline-offset-4 hover:underline">Forgot password?</a>
+                <a href="{{url "auth/forgot"}}" class="ms-auto inline-block text-sm underline-offset-4 hover:underline">{{t "Forgot password?"}}</a>
                 {{end}}
               </div>
               <input class="input" id="login-password" name="password" type="password"
                      autocomplete="current-password" required/>
             </div>
-            <button type="submit" class="btn w-full">Sign in</button>
+            <button type="submit" class="btn w-full">{{t "Sign in"}}</button>
           </form>
           {{end}}
           {{if .Data.Signup}}
-          <p class="mt-6 text-center text-sm text-muted-foreground">New to {{.Page.Brand}}? Continue with an account above to create your workspace.</p>
+          <p class="mt-6 text-center text-sm text-muted-foreground">{{t "New to %v? Continue with an account above to create your workspace." .Page.Brand}}</p>
           {{end}}
         </section>
       </div>

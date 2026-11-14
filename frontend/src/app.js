@@ -23,6 +23,24 @@ window.htmx = htmx;
     return meta ? meta.getAttribute("content") : "";
   };
 
+  /* ---- Translation ---------------------------------------------------------- */
+  /*
+   * tr returns the panel's translation of an English text, filling each %s
+   * with the next argument in order. The layout embeds the translations in
+   * #steward-i18n; without it, as on an English panel, the text is its own.
+   */
+  var i18n = (function () {
+    var el = document.getElementById("steward-i18n");
+    if (!el) return {};
+    try { return JSON.parse(el.textContent) || {}; } catch (err) { return {}; }
+  })();
+
+  function tr(text) {
+    var out = Object.prototype.hasOwnProperty.call(i18n, text) ? i18n[text] : text;
+    var args = Array.prototype.slice.call(arguments, 1);
+    return out.replace(/%s/g, function () { return args.length ? String(args.shift()) : "%s"; });
+  }
+
   /* ---- CSRF on every HTMX request ---------------------------------------- */
 
   document.addEventListener("htmx:configRequest", function (e) {
@@ -192,7 +210,7 @@ window.htmx = htmx;
     if (a.hasAttribute("data-steward-export-selected")) {
       var ids = exportSelectedIDs();
       if (ids.length === 0) {
-        toast("error", "Nothing selected.");
+        toast("error", tr("Nothing selected."));
         return;
       }
       url = url + "&ids=" + encodeURIComponent(ids.join(","));
@@ -219,7 +237,7 @@ window.htmx = htmx;
         return res.json().then(handleEnvelope);
       })
       .catch(function () {
-        toast("error", "Export failed — check your connection and retry.");
+        toast("error", tr("Export failed — check your connection and retry."));
       })
       .finally(function () {
         a.removeAttribute("aria-busy");
@@ -283,7 +301,7 @@ window.htmx = htmx;
         return env;
       });
     }).catch(function () {
-      toast("error", "Request failed — check your connection and retry.");
+      toast("error", tr("Request failed — check your connection and retry."));
     });
   }
 
@@ -390,12 +408,12 @@ window.htmx = htmx;
       var msg = opts.description ? opts.title + " " + opts.description : opts.title;
       return Promise.resolve(window.confirm(msg));
     }
-    document.getElementById("steward-confirm-title").textContent = opts.title || "Are you sure?";
+    document.getElementById("steward-confirm-title").textContent = opts.title || tr("Are you sure?");
     var desc = document.getElementById("steward-confirm-desc");
     desc.textContent = opts.description || "";
     desc.classList.toggle("hidden", !opts.description);
     var ok = dlg.querySelector("[data-steward-confirm-ok]");
-    ok.textContent = opts.action || "Confirm";
+    ok.textContent = opts.action || tr("Confirm");
     if (opts.danger) ok.setAttribute("data-variant", "destructive");
     else ok.removeAttribute("data-variant");
     return new Promise(function (resolve) {
@@ -414,9 +432,9 @@ window.htmx = htmx;
     var del = e.target.closest("[data-steward-delete]");
     if (del) {
       confirmDialog({
-        title: "Delete this record?",
-        description: "This cannot be undone.",
-        action: "Delete",
+        title: tr("Delete this record?"),
+        description: tr("This cannot be undone."),
+        action: tr("Delete"),
         danger: true
       }).then(function (yes) {
         if (yes) request("DELETE", del.getAttribute("data-url"));
@@ -428,9 +446,9 @@ window.htmx = htmx;
       var keys = selectedKeys();
       if (keys.length === 0) return;
       confirmDialog({
-        title: "Delete " + keys.length + " selected record(s)?",
-        description: "This cannot be undone.",
-        action: "Delete",
+        title: tr("Delete %s selected record(s)?", keys.length),
+        description: tr("This cannot be undone."),
+        action: tr("Delete"),
         danger: true
       }).then(function (yes) {
         if (yes) request("DELETE", batch.getAttribute("data-url") + "/" + keys.join(","));
@@ -466,7 +484,7 @@ window.htmx = htmx;
           body: body.toString(),
           credentials: "same-origin"
         }).then(function (resp) { return resp.json(); }).then(handleEnvelope).catch(function () {
-          toast("error", "Action failed — check your connection and retry.");
+          toast("error", tr("Action failed — check your connection and retry."));
         }).finally(function () { action.disabled = false; });
       });
     }
@@ -635,7 +653,7 @@ window.htmx = htmx;
       body: body.toString(),
       credentials: "same-origin"
     }).then(function (resp) { return resp.json(); }).then(handleEnvelope).catch(function () {
-      toast("error", "Reorder failed — reload and retry.");
+      toast("error", tr("Reorder failed — reload and retry."));
     });
   });
 
@@ -674,7 +692,7 @@ window.htmx = htmx;
       handleEnvelope(env);
     }).catch(function () {
       sw.checked = !sw.checked;
-      toast("error", "Save failed — check your connection and retry.");
+      toast("error", tr("Save failed — check your connection and retry."));
     }).finally(function () { sw.disabled = false; });
   });
 
@@ -709,7 +727,7 @@ window.htmx = htmx;
         cell.textContent = next;
         handleEnvelope(env);
       }).catch(function () {
-        toast("error", "Save failed — check your connection and retry.");
+        toast("error", tr("Save failed — check your connection and retry."));
       });
     }
     input.addEventListener("keydown", function (ev) {
@@ -793,9 +811,9 @@ window.htmx = htmx;
     e.preventDefault();
     e.stopImmediatePropagation();
     confirmDialog({
-      title: form.dataset.confirmTitle || "Are you sure?",
+      title: form.dataset.confirmTitle || tr("Are you sure?"),
       description: form.dataset.confirmDescription || "",
-      action: form.dataset.confirmAction || "Confirm",
+      action: form.dataset.confirmAction || tr("Confirm"),
       danger: form.dataset.confirmDanger === "1"
     }).then(function (yes) {
       if (!yes) return;
@@ -827,12 +845,12 @@ window.htmx = htmx;
     }).then(function (resp) { return resp.json(); }).then(function (env) {
       if (env && env.errors) {
         var unplaced = showFieldErrors(form, env.errors);
-        toast("error", unplaced.length ? unplaced.join(" ") : "Please fix the highlighted fields.");
+        toast("error", unplaced.length ? unplaced.join(" ") : tr("Please fix the highlighted fields."));
         return;
       }
       handleEnvelope(env);
     }).catch(function () {
-      toast("error", "Request failed — check your connection and retry.");
+      toast("error", tr("Request failed — check your connection and retry."));
     }).finally(function () {
       if (btn) btn.disabled = false;
     });
@@ -897,7 +915,7 @@ window.htmx = htmx;
     if (p.thumb) p.thumb.hidden = true;
     if (p.fileIcon) p.fileIcon.hidden = false;
     if (p.note) {
-      p.note.textContent = "This file is missing from storage.";
+      p.note.textContent = tr("This file is missing from storage.");
       p.note.hidden = false;
     }
   }
@@ -935,18 +953,18 @@ window.htmx = htmx;
       var out = null;
       try { out = JSON.parse(xhr.responseText); } catch (err) { /* reported below */ }
       if (!out || out.status !== true) {
-        toast("error", (out && out.data && out.data.message) || "Upload failed.");
+        toast("error", (out && out.data && out.data.message) || tr("Upload failed."));
         if (done) done(false);
         return;
       }
       if (done) { done(true, out); return; }
       showUpload(root, { path: out.path, url: out.url, name: file.name });
-      toast("success", "Uploaded.");
+      toast("success", tr("Uploaded."));
     });
     xhr.addEventListener("error", function () {
       delete root.dataset.busy;
       uploadProgress(root, null);
-      toast("error", "Upload failed — check your connection and retry.");
+      toast("error", tr("Upload failed — check your connection and retry."));
       if (done) done(false);
     });
     xhr.send(fd);
@@ -1029,7 +1047,7 @@ window.htmx = htmx;
     remove.dataset.variant = "ghost";
     remove.dataset.size = "icon-xs";
     remove.dataset.stewardUploadRemove = "";
-    remove.setAttribute("aria-label", "Remove " + (file.name || file.path));
+    remove.setAttribute("aria-label", tr("Remove %s", file.name || file.path));
     remove.innerHTML = '<svg class="lucide" xmlns="http://www.w3.org/2000/svg" width="24" ' +
       'height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
       'stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/>' +
@@ -1054,11 +1072,11 @@ window.htmx = htmx;
     var max = parseInt(root.dataset.maxFiles || "10", 10);
     var room = max - held;
     if (room <= 0) {
-      toast("error", "This field holds at most " + max + " files.");
+      toast("error", tr("This field holds at most %s files.", max));
       return;
     }
     if (files.length > room) {
-      toast("warning", "Only " + room + " more file(s) fit here; the rest were skipped.");
+      toast("warning", tr("Only %s more file(s) fit here; the rest were skipped.", room));
       files = files.slice(0, room);
     }
     uploadQueue(root, files);
@@ -1298,7 +1316,7 @@ window.htmx = htmx;
     remove.type = "button";
     remove.className = "steward-tag-remove";
     remove.dataset.stewardTagRemove = String(index);
-    remove.setAttribute("aria-label", "Remove " + value);
+    remove.setAttribute("aria-label", tr("Remove %s", value));
     remove.innerHTML = '<svg class="lucide" xmlns="http://www.w3.org/2000/svg" width="24" ' +
       'height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
       'stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/>' +
@@ -1401,23 +1419,23 @@ window.htmx = htmx;
   // rest of the panel draws from. state marks the tools that can report whether
   // they are on, which is what the pressed styling reads.
   var RICHTEXT_TOOLS = [
-    { cmd: "bold", icon: "bold", title: "Bold (⌘B)", state: true },
-    { cmd: "italic", icon: "italic", title: "Italic (⌘I)", state: true },
-    { cmd: "underline", icon: "underline", title: "Underline (⌘U)", state: true },
-    { cmd: "strikeThrough", icon: "strikethrough", title: "Strikethrough", state: true },
+    { cmd: "bold", icon: "bold", title: tr("Bold (⌘B)"), state: true },
+    { cmd: "italic", icon: "italic", title: tr("Italic (⌘I)"), state: true },
+    { cmd: "underline", icon: "underline", title: tr("Underline (⌘U)"), state: true },
+    { cmd: "strikeThrough", icon: "strikethrough", title: tr("Strikethrough"), state: true },
     { sep: true },
-    { cmd: "formatBlock", arg: "h2", icon: "heading-2", title: "Heading 2" },
-    { cmd: "formatBlock", arg: "h3", icon: "heading-3", title: "Heading 3" },
-    { cmd: "formatBlock", arg: "p", icon: "pilcrow", title: "Paragraph" },
+    { cmd: "formatBlock", arg: "h2", icon: "heading-2", title: tr("Heading 2") },
+    { cmd: "formatBlock", arg: "h3", icon: "heading-3", title: tr("Heading 3") },
+    { cmd: "formatBlock", arg: "p", icon: "pilcrow", title: tr("Paragraph") },
     { sep: true },
-    { cmd: "insertUnorderedList", icon: "list", title: "Bulleted list", state: true },
-    { cmd: "insertOrderedList", icon: "list-ordered", title: "Numbered list", state: true },
-    { cmd: "formatBlock", arg: "blockquote", icon: "text-quote", title: "Quote" },
+    { cmd: "insertUnorderedList", icon: "list", title: tr("Bulleted list"), state: true },
+    { cmd: "insertOrderedList", icon: "list-ordered", title: tr("Numbered list"), state: true },
+    { cmd: "formatBlock", arg: "blockquote", icon: "text-quote", title: tr("Quote") },
     { sep: true },
-    { cmd: "createLink", icon: "link", title: "Insert link" },
-    { cmd: "unlink", icon: "unlink", title: "Remove link" },
-    { cmd: "insertImage", icon: "image-plus", title: "Insert image" },
-    { cmd: "removeFormat", icon: "remove-formatting", title: "Clear formatting" }
+    { cmd: "createLink", icon: "link", title: tr("Insert link") },
+    { cmd: "unlink", icon: "unlink", title: tr("Remove link") },
+    { cmd: "insertImage", icon: "image-plus", title: tr("Insert image") },
+    { cmd: "removeFormat", icon: "remove-formatting", title: tr("Clear formatting") }
   ];
 
   // queryCommandState answers for inline commands only. A block command has to
@@ -1454,7 +1472,7 @@ window.htmx = htmx;
     var bar = document.createElement("div");
     bar.className = "steward-richtext-toolbar";
     bar.setAttribute("role", "toolbar");
-    bar.setAttribute("aria-label", "Formatting");
+    bar.setAttribute("aria-label", tr("Formatting"));
 
     var surface = document.createElement("div");
     surface.className = "steward-richtext-surface";
@@ -1495,7 +1513,7 @@ window.htmx = htmx;
         e.preventDefault();
         surface.focus();
         if (t.cmd === "createLink") {
-          var url = window.prompt("Link URL", "https://");
+          var url = window.prompt(tr("Link URL"), "https://");
           if (!url) return;
           document.execCommand("createLink", false, url);
         } else if (t.cmd === "insertImage") {
@@ -1558,11 +1576,11 @@ window.htmx = htmx;
           .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
           .then(function (res) {
             if (!res.ok || !res.body || !res.body.url) {
-              throw new Error((res.body && res.body.message) || "Upload failed.");
+              throw new Error((res.body && res.body.message) || tr("Upload failed."));
             }
             insertImage(res.body.url, file.name);
           })
-          .catch(function (err) { window.alert(err.message || "Upload failed."); })
+          .catch(function (err) { window.alert(err.message || tr("Upload failed.")); })
           .finally(function () { wrap.removeAttribute("data-busy"); });
       });
       document.body.appendChild(input);
@@ -1650,8 +1668,8 @@ window.htmx = htmx;
     view.className = "steward-markdown-preview prose-sm max-w-none";
     view.hidden = true;
 
-    var write = tabButton("Write", true);
-    var preview = tabButton("Preview", false);
+    var write = tabButton(tr("Write"), true);
+    var preview = tabButton(tr("Preview"), false);
     tabs.appendChild(write);
     tabs.appendChild(preview);
 
@@ -1692,7 +1710,7 @@ window.htmx = htmx;
         credentials: "same-origin"
       })
         .then(function (r) {
-          if (!r.ok) throw new Error("Preview failed.");
+          if (!r.ok) throw new Error(tr("Preview failed."));
           return r.text();
         })
         // The response is the server's sanitized HTML, the same string the
@@ -1867,10 +1885,10 @@ window.htmx = htmx;
     // no match. Saying so is what tells the reader to try again rather than
     // conclude the record does not exist.
     note.textContent = !commandPartial
-      ? "No matches."
+      ? tr("No matches.")
       : commandReason === "error"
-        ? "Some sections could not be searched — the panel's log says why."
-        : "Search timed out before every section answered.";
+        ? tr("Some sections could not be searched — the panel's log says why.")
+        : tr("Search timed out before every section answered.");
     note.hidden = visible || typed.trim() === "";
   }
 
@@ -2014,19 +2032,19 @@ window.htmx = htmx;
         img.remove();
         var note = document.createElement("p");
         note.className = "text-sm text-muted-foreground";
-        note.textContent = "This file could not be loaded.";
+        note.textContent = tr("This file could not be loaded.");
         body.appendChild(note);
       };
       body.appendChild(img);
     } else if (kind === "pdf") {
       var frame = document.createElement("iframe");
       frame.src = url;
-      frame.title = "Preview";
+      frame.title = tr("Preview");
       body.appendChild(frame);
     } else {
       var p = document.createElement("p");
       p.className = "text-sm text-muted-foreground";
-      p.textContent = "This file cannot be shown here. Open it in a new tab.";
+      p.textContent = tr("This file cannot be shown here. Open it in a new tab.");
       body.appendChild(p);
     }
     dlg.showModal();
@@ -2104,9 +2122,9 @@ window.htmx = htmx;
     writeClipboard(btn.getAttribute("data-steward-copy") || "")
       .then(function () {
         flashCopied(btn);
-        toast("success", "Copied to clipboard.");
+        toast("success", tr("Copied to clipboard."));
       })
-      .catch(function () { toast("error", "Could not copy to the clipboard."); });
+      .catch(function () { toast("error", tr("Could not copy to the clipboard.")); });
   });
 
   /* ---- Colour field ----------------------------------------------------------- */
@@ -2204,8 +2222,8 @@ window.htmx = htmx;
     var filter = document.createElement("input");
     filter.type = "search";
     filter.className = "input steward-iconpicker-filter";
-    filter.placeholder = "Search " + names.length + " icons…";
-    filter.setAttribute("aria-label", "Search icons");
+    filter.placeholder = tr("Search %s icons…", names.length);
+    filter.setAttribute("aria-label", tr("Search icons"));
 
     var grid = document.createElement("div");
     grid.className = "steward-iconpicker-grid";
@@ -2221,7 +2239,7 @@ window.htmx = htmx;
       var name = select.value;
       trigger.innerHTML =
         (name ? iconGlyph(sprite, name) : '<span class="steward-iconpicker-none">—</span>') +
-        '<span class="steward-iconpicker-name">' + (name || "No icon") + "</span>" +
+        '<span class="steward-iconpicker-name">' + (name || tr("No icon")) + "</span>" +
         '<span class="steward-iconpicker-caret" aria-hidden="true"></span>';
       // The server-rendered preview is only needed until the trigger exists.
       var preview = wrap.querySelector("[data-iconpicker-preview]");
@@ -2246,7 +2264,7 @@ window.htmx = htmx;
       var none = document.createElement("button");
       none.type = "button";
       none.className = "steward-iconpicker-item";
-      none.title = "No icon";
+      none.title = tr("No icon");
       none.innerHTML = '<span class="steward-iconpicker-none">—</span>';
       none.addEventListener("click", function () { choose(""); });
       if (!q) frag.appendChild(none);
@@ -2270,7 +2288,7 @@ window.htmx = htmx;
       grid.textContent = "";
       grid.appendChild(frag);
       status.textContent = shown === 0
-        ? "No icon matches “" + q + "”."
+        ? tr("No icon matches “%s”.", q)
         : shown + " of " + names.length;
     }
 
@@ -2391,8 +2409,8 @@ window.htmx = htmx;
     });
     listbox.replaceChildren(frag);
     listbox.dataset.empty = more
-      ? "Too many matches — keep typing."
-      : (opts.length === 0 ? "No matches." : "");
+      ? tr("Too many matches — keep typing.")
+      : (opts.length === 0 ? tr("No matches.") : "");
 
     // refresh() re-applies the stored selection, and for a multiple combobox
     // that empties the query box — which is right after picking a chip and
@@ -2924,7 +2942,7 @@ window.htmx = htmx;
     var cal = document.createElement("div");
     cal.className = "steward-cal";
     cal.setAttribute("role", "dialog");
-    cal.setAttribute("aria-label", "Choose a date");
+    cal.setAttribute("aria-label", tr("Choose a date"));
 
     var state = readInput(input);
     var view = new Date(state.date || new Date());
@@ -2937,19 +2955,19 @@ window.htmx = htmx;
 
       var head = document.createElement("div");
       head.className = "steward-cal-head";
-      var prev = navButton("‹", "Previous", function () { step(-1); });
+      var prev = navButton("‹", tr("Previous"), function () { step(-1); });
       var title = document.createElement("button");
       title.type = "button";
       title.className = "steward-cal-title";
       title.textContent = headingFor();
       // Stepping a month at a time is fine for next week and hopeless for three
       // years ago, so the heading zooms out: days to months to years.
-      title.setAttribute("aria-label", "Change " + (mode === "day" ? "month" : mode));
+      title.setAttribute("aria-label", tr("Change %s", tr(mode === "day" ? "month" : mode)));
       title.addEventListener("click", function () {
         mode = mode === "day" ? "month" : "year";
         render();
       });
-      var next = navButton("›", "Next", function () { step(1); });
+      var next = navButton("›", tr("Next"), function () { step(1); });
       head.append(prev, title, next);
       cal.appendChild(head);
 
@@ -3008,7 +3026,7 @@ window.htmx = htmx;
       var todayBtn = document.createElement("button");
       todayBtn.type = "button";
       todayBtn.className = "steward-cal-today";
-      todayBtn.textContent = "Today";
+      todayBtn.textContent = tr("Today");
       todayBtn.addEventListener("click", function () {
         var t = new Date();
         writeInput(input, t, input.type === "datetime-local"
@@ -3144,7 +3162,7 @@ window.htmx = htmx;
       var trigger = document.createElement("button");
       trigger.type = "button";
       trigger.className = "steward-datepicker-trigger";
-      trigger.setAttribute("aria-label", "Open the calendar");
+      trigger.setAttribute("aria-label", tr("Open the calendar"));
       trigger.setAttribute("aria-expanded", "false");
       trigger.innerHTML = '<svg class="size-4" xmlns="http://www.w3.org/2000/svg" width="24" ' +
         'height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
@@ -3181,7 +3199,7 @@ window.htmx = htmx;
         var text = document.createElement("span");
         text.className = "steward-datepicker-value";
         trigger.classList.add("steward-datepicker-compact");
-        trigger.setAttribute("aria-label", "Choose a date");
+        trigger.setAttribute("aria-label", tr("Choose a date"));
         trigger.appendChild(text);
         var paint = function () {
           text.textContent = input.value ? dayLabel(input.value.slice(0, 10)) : "Any date";

@@ -29,6 +29,17 @@ type Field struct {
 	// RecordID is the row being edited, substituted for {id} in a unique rule.
 	// Empty when creating.
 	RecordID string
+	// Translate formats a message from its English format string. Nil
+	// formats it as written.
+	Translate func(format string, args ...any) string
+}
+
+// msg formats a validation message through Translate.
+func (f Field) msg(format string, args ...any) string {
+	if f.Translate != nil {
+		return f.Translate(format, args...)
+	}
+	return fmt.Sprintf(format, args...)
 }
 
 // Validate checks a raw submitted value against a pipe-separated rule string
@@ -60,38 +71,38 @@ func applyRule(f Field, name, arg, value string) string {
 	switch name {
 	case "required":
 		if strings.TrimSpace(value) == "" {
-			return f.Label + " is required."
+			return f.msg("%s is required.", f.Label)
 		}
 	case "max":
 		n, _ := strconv.Atoi(arg)
 		if len([]rune(value)) > n {
-			return fmt.Sprintf("%s may not be longer than %d characters.", f.Label, n)
+			return f.msg("%s may not be longer than %d characters.", f.Label, n)
 		}
 	case "min":
 		n, _ := strconv.Atoi(arg)
 		if len([]rune(value)) < n {
-			return fmt.Sprintf("%s must be at least %d characters.", f.Label, n)
+			return f.msg("%s must be at least %d characters.", f.Label, n)
 		}
 	case "email":
 		if _, err := mail.ParseAddress(value); err != nil {
-			return f.Label + " must be a valid email address."
+			return f.msg("%s must be a valid email address.", f.Label)
 		}
 	case "url":
 		u, err := url.Parse(value)
 		if err != nil || u.Scheme == "" || u.Host == "" {
-			return f.Label + " must be a valid URL."
+			return f.msg("%s must be a valid URL.", f.Label)
 		}
 	case "integer":
 		if _, err := strconv.ParseInt(value, 10, 64); err != nil {
-			return f.Label + " must be a whole number."
+			return f.msg("%s must be a whole number.", f.Label)
 		}
 	case "numeric":
 		if _, err := strconv.ParseFloat(value, 64); err != nil {
-			return f.Label + " must be a number."
+			return f.msg("%s must be a number.", f.Label)
 		}
 	case "alpha_dash":
 		if !alphaDashRe.MatchString(value) {
-			return f.Label + " may only contain letters, numbers, dashes, and underscores."
+			return f.msg("%s may only contain letters, numbers, dashes, and underscores.", f.Label)
 		}
 	case "in":
 		allowed := strings.Split(arg, ",")
@@ -100,16 +111,16 @@ func applyRule(f Field, name, arg, value string) string {
 				return ""
 			}
 		}
-		return fmt.Sprintf("%s must be one of: %s.", f.Label, arg)
+		return f.msg("%s must be one of: %s.", f.Label, arg)
 	case "gte":
 		lim, _ := strconv.ParseFloat(arg, 64)
 		if v, err := strconv.ParseFloat(value, 64); err != nil || v < lim {
-			return fmt.Sprintf("%s must be at least %v.", f.Label, arg)
+			return f.msg("%s must be at least %v.", f.Label, arg)
 		}
 	case "lte":
 		lim, _ := strconv.ParseFloat(arg, 64)
 		if v, err := strconv.ParseFloat(value, 64); err != nil || v > lim {
-			return fmt.Sprintf("%s may not be greater than %v.", f.Label, arg)
+			return f.msg("%s may not be greater than %v.", f.Label, arg)
 		}
 	case "unique":
 		return uniqueRule(f, arg, value)
@@ -144,10 +155,10 @@ func uniqueRule(f Field, arg, value string) string {
 	}
 	var count int64
 	if err := q.Count(&count).Error; err != nil {
-		return "could not verify uniqueness of " + f.Label + "."
+		return f.msg("Could not verify that %s is unique.", f.Label)
 	}
 	if count > 0 {
-		return f.Label + " has already been taken."
+		return f.msg("%s has already been taken.", f.Label)
 	}
 	return ""
 }

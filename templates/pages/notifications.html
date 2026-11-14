@@ -2,24 +2,24 @@
      panel buries anything older within a day. */}}
 <div class="p-6 flex flex-col gap-4 min-h-0">
   <div class="flex flex-wrap items-center gap-2">
-    <h1 class="text-2xl font-semibold">Notifications</h1>
+    <h1 class="text-2xl font-semibold">{{t "Notifications"}}</h1>
     <span class="text-sm text-muted-foreground">
-      {{if .Data.UnreadOnly}}{{.Data.Total}} unread{{else}}{{.Data.Total}} in all{{if .Data.Unread}}, {{.Data.Unread}} unread{{end}}{{end}}
+      {{if .Data.UnreadOnly}}{{t "%v unread" .Data.Total}}{{else}}{{t "%v in all" .Data.Total}}{{if .Data.Unread}}, {{t "%v unread" .Data.Unread}}{{end}}{{end}}
     </span>
 
     <div class="ms-auto flex items-center gap-2">
       {{if .Data.UnreadOnly}}
       <a href="{{url "auth/notifications"}}" class="btn" data-variant="outline" data-size="sm"
-         hx-get="{{url "auth/notifications"}}" hx-target="#page-content" hx-push-url="true">Show all</a>
+         hx-get="{{url "auth/notifications"}}" hx-target="#page-content" hx-push-url="true">{{t "Show all"}}</a>
       {{else}}
       <a href="{{url "auth/notifications"}}?unread=1" class="btn" data-variant="outline" data-size="sm"
-         hx-get="{{url "auth/notifications"}}?unread=1" hx-target="#page-content" hx-push-url="true">Unread only</a>
+         hx-get="{{url "auth/notifications"}}?unread=1" hx-target="#page-content" hx-push-url="true">{{t "Unread only"}}</a>
       {{end}}
       {{if .Data.Unread}}
       <form method="post" action="{{url "auth/notifications"}}">
         <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
         <input type="hidden" name="do" value="read-all"/>
-        <button type="submit" class="btn" data-variant="outline" data-size="sm">Mark all read</button>
+        <button type="submit" class="btn" data-variant="outline" data-size="sm">{{t "Mark all read"}}</button>
       </form>
       {{end}}
     </div>
@@ -48,7 +48,7 @@
               <input type="hidden" name="do" value="read"/>
               <input type="hidden" name="id" value="{{.ID}}"/>
               <input type="hidden" name="back" value="{{$.Data.BackURL}}"/>
-              <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="Mark read">
+              <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "Mark read"}}">
                 {{icon "check" "size-4"}}
               </button>
             </form>
@@ -58,7 +58,7 @@
               <input type="hidden" name="do" value="delete"/>
               <input type="hidden" name="id" value="{{.ID}}"/>
               <input type="hidden" name="back" value="{{$.Data.BackURL}}"/>
-              <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="Delete">
+              <button type="submit" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "Delete"}}">
                 {{icon "trash-2" "size-4"}}
               </button>
             </form>
@@ -68,26 +68,26 @@
       </ul>
       {{else}}
       <p class="px-4 py-10 text-center text-sm text-muted-foreground">
-        {{if .Data.UnreadOnly}}Nothing unread.{{else}}Nothing yet.{{end}}
+        {{if .Data.UnreadOnly}}{{t "Nothing unread."}}{{else}}{{t "Nothing yet."}}{{end}}
       </p>
       {{end}}
     </section>
 
     {{if gt .Data.Pages 1}}
     <footer class="flex items-center justify-between gap-2">
-      <p class="text-sm text-muted-foreground">Page {{.Data.Page}} of {{.Data.Pages}}</p>
+      <p class="text-sm text-muted-foreground">{{t "Page %v of %v" .Data.Page .Data.Pages}}</p>
       <div class="flex items-center gap-1">
         {{if .Data.PrevURL}}
         <a href="{{.Data.PrevURL}}" class="btn" data-variant="outline" data-size="sm"
-           hx-get="{{.Data.PrevURL}}" hx-target="#page-content" hx-push-url="true">{{icon "chevron-left" "size-4"}} Newer</a>
+           hx-get="{{.Data.PrevURL}}" hx-target="#page-content" hx-push-url="true">{{icon "chevron-left" "size-4"}} {{t "Newer"}}</a>
         {{else}}
-        <span class="btn opacity-50 pointer-events-none" data-variant="outline" data-size="sm">{{icon "chevron-left" "size-4"}} Newer</span>
+        <span class="btn opacity-50 pointer-events-none" data-variant="outline" data-size="sm">{{icon "chevron-left" "size-4"}} {{t "Newer"}}</span>
         {{end}}
         {{if .Data.NextURL}}
         <a href="{{.Data.NextURL}}" class="btn" data-variant="outline" data-size="sm"
-           hx-get="{{.Data.NextURL}}" hx-target="#page-content" hx-push-url="true">Older {{icon "chevron-right" "size-4"}}</a>
+           hx-get="{{.Data.NextURL}}" hx-target="#page-content" hx-push-url="true">{{t "Older"}} {{icon "chevron-right" "size-4"}}</a>
         {{else}}
-        <span class="btn opacity-50 pointer-events-none" data-variant="outline" data-size="sm">Older {{icon "chevron-right" "size-4"}}</span>
+        <span class="btn opacity-50 pointer-events-none" data-variant="outline" data-size="sm">{{t "Older"}} {{icon "chevron-right" "size-4"}}</span>
         {{end}}
       </div>
     </footer>

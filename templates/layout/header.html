@@ -1,14 +1,14 @@
 <header class="shrink-0 flex h-14 items-center gap-2 border-b px-4">
-  <button type="button" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="Toggle sidebar"
+  <button type="button" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "Toggle sidebar"}}"
           onclick="document.getElementById('sidebar')?.toggle()">
     {{icon "panel-left"}}
   </button>
   {{/* A shortcut nobody is told about is a shortcut nobody uses, so the palette
        gets a visible trigger showing the keys that open it. */}}
   <button type="button" class="steward-command-trigger" data-steward-command
-          aria-label="Search pages" aria-keyshortcuts="Meta+K Control+K">
+          aria-label="{{t "Search pages"}}" aria-keyshortcuts="Meta+K Control+K">
     {{icon "search" "size-4"}}
-    <span class="steward-command-trigger-label">Search…</span>
+    <span class="steward-command-trigger-label">{{t "Search…"}}</span>
     <kbd class="kbd"><span data-steward-cmdkey>Ctrl</span> K</kbd>
   </button>
   <div class="ms-auto flex items-center gap-1">
@@ -19,7 +19,7 @@
               aria-expanded="false" class="btn" data-variant="outline" data-size="sm"
               aria-label="Workspace: {{if $cur}}{{$cur.Name}}{{else}}All workspaces{{end}}">
         {{icon "building-2"}}
-        <span class="max-w-32 truncate">{{if $cur}}{{$cur.Name}}{{else}}All workspaces{{end}}</span>
+        <span class="max-w-32 truncate">{{if $cur}}{{$cur.Name}}{{else}}{{t "All workspaces"}}{{end}}</span>
         {{icon "chevrons-up-down" "size-3.5 opacity-60"}}
       </button>
       <div id="steward-tenant-popover" data-popover aria-hidden="true" class="min-w-56" data-align="end">
@@ -29,11 +29,11 @@
           <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
           <div role="menu" id="steward-tenant-menu" aria-labelledby="steward-tenant-heading">
             <div role="group" aria-labelledby="steward-tenant-heading">
-              <div role="heading" id="steward-tenant-heading">Workspaces</div>
+              <div role="heading" id="steward-tenant-heading">{{t "Workspaces"}}</div>
               {{if .Page.PlatformAdmin}}
               <button type="submit" name="tenant" value="0" role="menuitemradio" tabindex="-1"
                       aria-checked="{{if $cur}}false{{else}}true{{end}}">
-                <span class="flex-1 truncate text-start">All workspaces</span>
+                <span class="flex-1 truncate text-start">{{t "All workspaces"}}</span>
                 {{if not $cur}}{{icon "check" "ms-auto"}}{{end}}
               </button>
               {{end}}
@@ -54,7 +54,7 @@
     <span class="text-sm text-muted-foreground px-2">{{.Page.Tenant.Name}}</span>
     {{end}}
     <button type="button" class="btn" data-variant="ghost" data-size="icon-sm"
-            data-steward-theme-toggle aria-label="Toggle color scheme">
+            data-steward-theme-toggle aria-label="{{t "Toggle color scheme"}}">
       <span class="steward-theme-light">{{icon "moon"}}</span>
       <span class="steward-theme-dark">{{icon "sun"}}</span>
     </button>
@@ -64,7 +64,7 @@
     <div id="notification-menu-wrap" class="dropdown-menu">
       <button type="button" id="notification-trigger" aria-haspopup="menu" aria-controls="notification-menu"
               aria-expanded="false" class="btn steward-notification-trigger" data-variant="ghost" data-size="icon-sm"
-              aria-label="Notifications">
+              aria-label="{{t "Notifications"}}">
         {{icon "bell"}}
         <span id="notification-badge" hx-get="{{url "_notifications/badge"}}"
               hx-trigger="load, every 60s" hx-swap="innerHTML"></span>
@@ -72,7 +72,7 @@
       <div id="notification-popover" data-popover aria-hidden="true" class="w-80 max-w-[calc(100vw-2rem)]" data-align="end">
         <div role="menu" id="notification-menu" aria-labelledby="notification-trigger"
              hx-get="{{url "_notifications"}}" hx-trigger="click once from:#notification-trigger" hx-swap="innerHTML">
-          <p class="steward-notification-empty">Loading…</p>
+          <p class="steward-notification-empty">{{t "Loading…"}}</p>
         </div>
       </div>
     </div>
@@ -90,12 +90,12 @@
             <div role="heading" id="user-menu-account">{{.Page.User.Username}}</div>
             <a role="menuitem" id="user-menu-profile" tabindex="-1" href="{{url "auth/profile"}}"
                hx-get="{{url "auth/profile"}}" hx-target="#page-content" hx-push-url="true">
-              Profile
+              {{t "Profile"}}
             </a>
             {{if .Page.ManageWorkspace}}
             <a role="menuitem" id="user-menu-workspace" tabindex="-1" href="{{url "auth/workspace"}}"
                hx-get="{{url "auth/workspace"}}" hx-target="#page-content" hx-push-url="true">
-              Workspace settings
+              {{t "Workspace settings"}}
             </a>
             {{end}}
           </div>
@@ -104,7 +104,7 @@
                a menu's children must be items, groups, or separators. */}}
           <form method="post" action="{{url "auth/logout"}}" role="none">
             <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
-            <button type="submit" role="menuitem" id="user-menu-logout" tabindex="-1">Sign out</button>
+            <button type="submit" role="menuitem" id="user-menu-logout" tabindex="-1">{{t "Sign out"}}</button>
           </form>
         </div>
       </div>

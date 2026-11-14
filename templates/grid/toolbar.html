@@ -3,7 +3,7 @@
   <form method="get" action="{{.Data.BaseURL}}" class="grow max-w-sm"
         hx-get="{{.Data.BaseURL}}" hx-target="#page-content" hx-push-url="true">
     <input type="text" class="input" name="{{.Data.SearchParam}}" value="{{.Data.Search}}"
-           placeholder="Search… (field:value, >n, %contains%)" aria-label="Quick search"/>
+           placeholder="{{t "Search… (field:value, >n, %contains%)"}}" aria-label="{{t "Quick search"}}"/>
   </form>
   {{end}}
   <div class="ms-auto flex items-center gap-2">
@@ -11,33 +11,33 @@
     <button type="button" class="btn hidden" data-variant="{{if .Danger}}destructive{{else}}outline{{end}}"
             data-steward-action data-batch data-url="{{.URL}}"
             {{with .Confirm}}data-confirm="{{.}}"{{end}}>
-      {{if .Icon}}{{icon .Icon}}{{end}} {{.Label}}
+      {{if .Icon}}{{icon .Icon}}{{end}} {{t .Label}}
     </button>
     {{end}}
     {{if and .Data.Features.selector .Data.Features.delete}}
     <button type="button" class="btn hidden" data-variant="destructive" data-steward-batch-delete
             data-url="{{.Data.DeleteURLBase}}">
-      {{icon "trash"}} Delete selected (<span data-steward-selected-count>0</span>)
+      {{icon "trash"}} {{t "Delete selected"}} (<span data-steward-selected-count>0</span>)
     </button>
     {{end}}
     {{range .Data.ToolActions}}
     <button type="button" class="btn" data-variant="{{if .Danger}}destructive{{else}}outline{{end}}"
             data-steward-action data-url="{{.URL}}"
             {{with .Confirm}}data-confirm="{{.}}"{{end}}>
-      {{if .Icon}}{{icon .Icon}}{{end}} {{.Label}}
+      {{if .Icon}}{{icon .Icon}}{{end}} {{t .Label}}
     </button>
     {{end}}
     {{if .Data.Features.filter}}
     <button type="button" class="btn" data-variant="outline" data-steward-toggle="#grid-filters"
             aria-expanded="{{if .Data.ActiveFilters}}true{{else}}false{{end}}" aria-controls="grid-filters">
-      {{icon "filter"}} Filters
+      {{icon "filter"}} {{t "Filters"}}
       {{if .Data.ActiveFilters}}<span class="badge" data-variant="secondary">{{.Data.ActiveFilters}}</span>{{end}}
     </button>
     {{end}}
     {{if .Data.Features.colpick}}
     <div id="grid-colpick" class="popover">
       <button type="button" id="grid-colpick-trigger" aria-expanded="false" aria-controls="grid-colpick-popover"
-              class="btn" data-variant="outline" data-size="icon" aria-label="Choose columns">
+              class="btn" data-variant="outline" data-size="icon" aria-label="{{t "Choose columns"}}">
         {{icon "columns"}}
       </button>
       <div id="grid-colpick-popover" data-popover aria-hidden="true" data-align="end" class="w-56 p-2 max-h-80 overflow-y-auto">
@@ -46,7 +46,7 @@
             {{if not $col.Hidden}}
             <label class="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent">
               <input class="input" type="checkbox" value="{{$i}}" checked/>
-              <span>{{$col.Label}}</span>
+              <span>{{t $col.Label}}</span>
             </label>
             {{end}}
           {{end}}

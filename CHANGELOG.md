@@ -17,6 +17,15 @@ running panel to a new version.
 
 ### Added
 
+- **Localization.** `Config.Locale: "id"` shows the panel's own text in
+  Indonesian — templates, envelopes, flashes, validation messages, the client
+  script's toasts and dialogs, and the `lang` attribute the date picker reads.
+  The English sentence is the key, so a missing entry falls back to English and
+  an English panel is unchanged. `Config.Translations` overrides entries, adds
+  a locale, and translates an app's own labels; `Context.T` and `Panel.T`
+  translate messages an app builds. A test fails when shown text has no
+  Indonesian entry.
+
 - **Sorting by a to-one relation column.** `Column("Author.Name").Sortable()`
   and `DefaultSort("Author.Name", …)` now work for belongs-to and has-one
   paths, ordering by a correlated subquery so the row set is never multiplied.

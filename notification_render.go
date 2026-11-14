@@ -60,7 +60,7 @@ func (a *Panel) notificationList(c *Context) error {
 			Body:  it.Body,
 			URL:   it.URL,
 			Icon:  it.Icon,
-			When:  relativeTime(it.CreatedAt),
+			When:  relativeTime(a.T, it.CreatedAt),
 			Read:  it.Read(),
 		})
 	}
@@ -144,20 +144,20 @@ func (a *Panel) renderFragment(c *Context, name string, data any) error {
 
 // relativeTime is a short "how long ago", which is what a notification list
 // wants; anything older than a week reads as a date.
-func relativeTime(t time.Time) string {
+func relativeTime(tr func(string, ...any) string, t time.Time) string {
 	if t.IsZero() {
 		return ""
 	}
 	d := time.Since(t)
 	switch {
 	case d < time.Minute:
-		return "just now"
+		return tr("just now")
 	case d < time.Hour:
-		return strconv.Itoa(int(d.Minutes())) + "m ago"
+		return tr("%dm ago", int(d.Minutes()))
 	case d < 24*time.Hour:
-		return strconv.Itoa(int(d.Hours())) + "h ago"
+		return tr("%dh ago", int(d.Hours()))
 	case d < 7*24*time.Hour:
-		return strconv.Itoa(int(d.Hours()/24)) + "d ago"
+		return tr("%dd ago", int(d.Hours()/24))
 	default:
 		return t.Format("2 Jan 2006")
 	}
@@ -230,7 +230,7 @@ func (a *Panel) notificationsPage(c *Context) error {
 		it := &items[i]
 		vm.Items = append(vm.Items, notificationVM{
 			ID: it.ID, Title: it.Title, Body: it.Body, URL: it.URL, Icon: it.Icon,
-			When: relativeTime(it.CreatedAt), Read: it.Read(),
+			When: relativeTime(a.T, it.CreatedAt), Read: it.Read(),
 		})
 	}
 	base := a.url("auth/notifications")

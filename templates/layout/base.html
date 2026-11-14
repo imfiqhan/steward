@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
+<html lang="{{.Page.Lang}}" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
 <head>
   {{template "layout/head.html" .}}
   <title>{{.Page.Title}} — {{.Page.Brand}}</title>
@@ -17,7 +17,7 @@
       {{.Data.Content}}
     </div>
     <footer class="shrink-0 border-t px-6 py-3 text-center text-xs text-muted-foreground">
-      Powered by Steward
+      {{t "Powered by Steward"}}
     </footer>
   </main>
   <div id="toaster" class="toaster"></div>
@@ -28,26 +28,26 @@
        keyboard; app.js only opens it and follows the chosen entry. */}}
   {{/* Opened from any thumbnail or stored file; the body is filled in script,
        since what it holds depends on the file's type. */}}
-  <dialog id="steward-preview" class="steward-preview" aria-label="Preview">
+  <dialog id="steward-preview" class="steward-preview" aria-label="{{t "Preview"}}">
     <div class="steward-preview-body" data-steward-preview-body></div>
     <div class="steward-preview-bar">
-      <a class="btn" data-variant="outline" data-size="sm" data-steward-preview-download target="_blank" rel="noopener">Open in a new tab</a>
-      <button type="button" class="btn" data-variant="outline" data-size="sm" data-steward-preview-close>Close</button>
+      <a class="btn" data-variant="outline" data-size="sm" data-steward-preview-download target="_blank" rel="noopener">{{t "Open in a new tab"}}</a>
+      <button type="button" class="btn" data-variant="outline" data-size="sm" data-steward-preview-close>{{t "Close"}}</button>
     </div>
   </dialog>
 
-  <dialog id="steward-command" class="command-dialog" aria-label="Command palette">
+  <dialog id="steward-command" class="command-dialog" aria-label="{{t "Command palette"}}">
     <div class="command">
       <header>
-        <input type="text" placeholder="Search pages and records…" autocomplete="off"
-               autocorrect="off" spellcheck="false" aria-label="Search pages and records"/>
+        <input type="text" placeholder="{{t "Search pages and records…"}}" autocomplete="off"
+               autocorrect="off" spellcheck="false" aria-label="{{t "Search pages and records"}}"/>
       </header>
       <div role="menu">
         {{/* Results fetched as the reader types land here, above the static
              navigation, because a record they are looking for beats a page they
              could reach anyway. */}}
         <div data-steward-command-results data-sprite="{{asset "dist/lucide-sprite.svg"}}" hidden></div>
-        <p class="steward-command-empty" data-steward-command-empty hidden>No matches.</p>
+        <p class="steward-command-empty" data-steward-command-empty hidden>{{t "No matches."}}</p>
         {{range .Page.MenuSections}}
         <div role="group" {{if .Title}}aria-label="{{.Title}}"{{end}}>
           {{with .Title}}<h3 role="heading" aria-level="3">{{.}}</h3>{{end}}
@@ -75,13 +75,13 @@
           aria-labelledby="steward-confirm-title" aria-describedby="steward-confirm-desc">
     <div>
       <header>
-        <h2 id="steward-confirm-title">Are you sure?</h2>
+        <h2 id="steward-confirm-title">{{t "Are you sure?"}}</h2>
         <p id="steward-confirm-desc"></p>
       </header>
       <footer>
         <button type="button" class="btn" data-variant="outline"
-                onclick="this.closest('dialog').close()">Cancel</button>
-        <button type="button" class="btn" data-steward-confirm-ok>Confirm</button>
+                onclick="this.closest('dialog').close()">{{t "Cancel"}}</button>
+        <button type="button" class="btn" data-steward-confirm-ok>{{t "Confirm"}}</button>
       </footer>
     </div>
   </dialog>

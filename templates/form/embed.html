@@ -8,9 +8,9 @@
     {{template "form/hasmany.html" .EmbedRows}}
   {{else}}
   <fieldset class="steward-fieldset">
-    <legend>{{.Label}}</legend>
+    <legend>{{t .Label}}</legend>
     {{template "form/groups.html" .EmbedRow.Groups}}
   </fieldset>
   {{end}}
-  {{with .Help}}<p class="text-sm text-muted-foreground mt-2">{{.}}</p>{{end}}
+  {{with .Help}}<p class="text-sm text-muted-foreground mt-2">{{t .}}</p>{{end}}
 </div>

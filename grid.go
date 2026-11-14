@@ -247,6 +247,10 @@ type Column[T any] struct {
 	// boolLabels is what Bool was given, kept so Verify can check the count.
 	boolLabels []string
 
+	// tr is the panel's translator, set at compile, for text a cell renderer
+	// writes itself.
+	tr func(string) string
+
 	info *fieldInfo // resolved at compile
 }
 
@@ -425,8 +429,16 @@ func (c *Column[T]) Badge(colors map[any]BadgeColor) *Column[T] {
 func (c *Column[T]) Bool(labels ...string) *Column[T] {
 	c.boolLabels = labels
 	yes, no := boolWords(labels)
-	c.present = func(v any, _ *T) template.HTML { return statusHTML(truthy(v), yes, no) }
+	c.present = func(v any, _ *T) template.HTML { return statusHTML(truthy(v), c.t(yes), c.t(no)) }
 	return c
+}
+
+// t translates through the panel the column was compiled for.
+func (c *Column[T]) t(msg string) string {
+	if c.tr == nil {
+		return msg
+	}
+	return c.tr(msg)
 }
 
 // boolWords resolves Bool's optional labels, falling back to English. A wrong
@@ -560,9 +572,9 @@ func (c *Column[T]) Copyable() *Column[T] {
 		// takes the click away from whatever is already inside it.
 		return template.HTML(fmt.Sprintf(
 			`<span class="steward-copy-cell">%s<button type="button" class="steward-copy" `+
-				`data-steward-copy="%s" aria-label="Copy %s">%s</button></span>`,
+				`data-steward-copy="%s" aria-label="%s">%s</button></span>`,
 			inner, template.HTMLEscapeString(raw),
-			template.HTMLEscapeString(c.label), copyGlyph))
+			template.HTMLEscapeString(fmt.Sprintf(c.t("Copy %s"), c.t(c.label))), copyGlyph))
 	}
 	return c
 }

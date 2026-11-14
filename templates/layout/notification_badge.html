@@ -2,5 +2,5 @@
      indexed count rather than a list render. */}}
 {{if .Data.Unread}}
 <span class="steward-notification-count" aria-hidden="true">{{if gt .Data.Unread 99}}99+{{else}}{{.Data.Unread}}{{end}}</span>
-<span class="sr-only">{{.Data.Unread}} unread</span>
+<span class="sr-only">{{t "%v unread" .Data.Unread}}</span>
 {{end}}

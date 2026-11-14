@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="en" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
+<html lang="{{.Page.Lang}}" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
 <head>
   {{template "layout/head.html" .}}
-  <title>Create your workspace — {{.Page.Brand}}</title>
+  <title>{{t "Create your workspace — %v" .Page.Brand}}</title>
 </head>
 <body>
   <div class="min-h-screen grid place-items-center p-4">
@@ -10,24 +10,24 @@
       <h1 class="text-center text-2xl font-semibold">{{.Page.Brand}}</h1>
       <div class="card">
         <header>
-          <h2>Create your workspace</h2>
-          <p>Signed in as {{.Data.Who}}. You will own this workspace and can invite your team.</p>
+          <h2>{{t "Create your workspace"}}</h2>
+          <p>{{t "Signed in as %v. You will own this workspace and can invite your team." .Data.Who}}</p>
         </header>
         <section>
           {{if .Data.Error}}
-          <div class="alert mb-4" data-variant="destructive"><h2>{{.Data.Error}}</h2></div>
+          <div class="alert mb-4" data-variant="destructive"><h2>{{t .Data.Error}}</h2></div>
           {{end}}
           <form action="{{url "auth/signup"}}" method="post" novalidate class="grid gap-6">
             <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
             <div class="grid gap-2">
-              <label class="label" for="signup-workspace">Workspace name</label>
+              <label class="label" for="signup-workspace">{{t "Workspace name"}}</label>
               <input class="input" id="signup-workspace" name="workspace" type="text" maxlength="100"
                      value="{{.Data.WorkspaceName}}" autofocus required/>
-              <p class="text-sm text-muted-foreground">Usually your organisation or team. You can rename it later.</p>
+              <p class="text-sm text-muted-foreground">{{t "Usually your organisation or team. You can rename it later."}}</p>
             </div>
-            <button type="submit" class="btn w-full">Create workspace</button>
+            <button type="submit" class="btn w-full">{{t "Create workspace"}}</button>
           </form>
-          <p class="mt-4 text-center text-sm"><a class="underline-offset-4 hover:underline" href="{{url "auth/login"}}">Cancel</a></p>
+          <p class="mt-4 text-center text-sm"><a class="underline-offset-4 hover:underline" href="{{url "auth/login"}}">{{t "Cancel"}}</a></p>
         </section>
       </div>
     </div>

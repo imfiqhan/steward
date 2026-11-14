@@ -1,7 +1,7 @@
 <div class="p-6 grid grid-cols-1 gap-4">
   <div>
-    <p class="text-sm text-muted-foreground">Overview</p>
-    <h2 class="text-2xl font-semibold">Dashboard</h2>
+    <p class="text-sm text-muted-foreground">{{t "Overview"}}</p>
+    <h2 class="text-2xl font-semibold">{{t "Dashboard"}}</h2>
   </div>
   <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     {{/* User is nil on any unauthenticated render — reachable when a panel
@@ -14,14 +14,12 @@
   </div>
   <div class="card">
     <header>
-      <h2>Welcome to Steward</h2>
+      <h2>{{t "Welcome to Steward"}}</h2>
     </header>
     <section>
       <p class="text-muted-foreground">
-        This panel is served by the Steward framework. Register resources with
-        <code class="kbd">steward.Register[Model](app)</code> and they appear in the sidebar;
-        grids, forms, and detail views are generated from your model and refined
-        through the fluent builders.
+        {{t "This panel is served by the Steward framework. Register resources with"}}
+        <code class="kbd">steward.Register[Model](app)</code> {{t "and they appear in the sidebar; grids, forms, and detail views are generated from your model and refined through the fluent builders."}}
       </p>
     </section>
   </div>

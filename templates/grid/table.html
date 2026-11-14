@@ -6,23 +6,23 @@
     <button type="button" class="btn" data-size="sm" data-variant="{{if .Danger}}destructive{{else}}ghost{{end}}"
             data-steward-action data-url="{{.URL}}" data-ids="{{$key}}"
             {{with .Confirm}}data-confirm="{{.}}"{{end}}>
-      {{if .Icon}}{{icon .Icon}}{{end}} {{.Label}}
+      {{if .Icon}}{{icon .Icon}}{{end}} {{t .Label}}
     </button>
     {{end}}
     {{if $d.Features.view}}
-    <a class="btn" data-variant="ghost" data-size="icon-sm" aria-label="View" href="{{$d.BaseURL}}/{{$key}}"
+    <a class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "View"}}" href="{{$d.BaseURL}}/{{$key}}"
        hx-get="{{$d.BaseURL}}/{{$key}}" hx-target="#page-content" hx-push-url="true">
       {{icon "eye"}}
     </a>
     {{end}}
     {{if $d.Features.edit}}
-    <a class="btn" data-variant="ghost" data-size="icon-sm" aria-label="Edit" href="{{$d.BaseURL}}/{{$key}}/edit"
+    <a class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "Edit"}}" href="{{$d.BaseURL}}/{{$key}}/edit"
        hx-get="{{$d.BaseURL}}/{{$key}}/edit" hx-target="#page-content" hx-push-url="true">
       {{icon "pencil"}}
     </a>
     {{end}}
     {{if $d.Features.delete}}
-    <button type="button" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="Delete"
+    <button type="button" class="btn" data-variant="ghost" data-size="icon-sm" aria-label="{{t "Delete"}}"
             data-steward-delete data-url="{{$d.DeleteURLBase}}/{{$key}}">
       <span class="text-destructive">{{icon "trash"}}</span>
     </button>
@@ -38,7 +38,7 @@
   <div id="{{$id}}" class="dropdown-menu" data-steward-menu>
     <button type="button" id="{{$id}}-trigger" aria-haspopup="menu" aria-controls="{{$id}}-menu"
             aria-expanded="false" class="btn" data-variant="ghost" data-size="icon-sm"
-            aria-label="Actions">
+            aria-label="{{t "Actions"}}">
       {{icon "ellipsis"}}
     </button>
     {{/* Items carry tabindex="-1" because the component keeps focus on the
@@ -50,13 +50,13 @@
         {{if $d.Features.view}}
         <a role="menuitem" id="{{$id}}-view" tabindex="-1" href="{{$d.BaseURL}}/{{$key}}"
            hx-get="{{$d.BaseURL}}/{{$key}}" hx-target="#page-content" hx-push-url="true">
-          {{icon "eye"}} View
+          {{icon "eye"}} {{t "View"}}
         </a>
         {{end}}
         {{if $d.Features.edit}}
         <a role="menuitem" id="{{$id}}-edit" tabindex="-1" href="{{$d.BaseURL}}/{{$key}}/edit"
            hx-get="{{$d.BaseURL}}/{{$key}}/edit" hx-target="#page-content" hx-push-url="true">
-          {{icon "pencil"}} Edit
+          {{icon "pencil"}} {{t "Edit"}}
         </a>
         {{end}}
         {{range $i, $a := $d.RowActions}}
@@ -64,14 +64,14 @@
                 {{if $a.Danger}}data-variant="destructive"{{end}}
                 data-steward-action data-url="{{$a.URL}}" data-ids="{{$key}}"
                 {{with $a.Confirm}}data-confirm="{{.}}"{{end}}>
-          {{if $a.Icon}}{{icon $a.Icon}}{{end}} {{$a.Label}}
+          {{if $a.Icon}}{{icon $a.Icon}}{{end}} {{t $a.Label}}
         </button>
         {{end}}
         {{if $d.Features.delete}}
         <hr role="separator"/>
         <button type="button" role="menuitem" id="{{$id}}-delete" tabindex="-1" data-variant="destructive"
                 data-steward-delete data-url="{{$d.DeleteURLBase}}/{{$key}}">
-          {{icon "trash"}} Delete
+          {{icon "trash"}} {{t "Delete"}}
         </button>
         {{end}}
       </div>
@@ -83,13 +83,13 @@
   {{if .Col.Sortable}}
     <a href="{{.Col.SortURL}}" class="inline-flex items-center gap-1 hover:text-foreground"
        hx-get="{{.Col.SortURL}}" hx-target="#page-content" hx-push-url="true">
-      {{.Col.Label}}
+      {{t .Col.Label}}
       {{if eq .Col.SortState "asc"}}{{icon "chevron-up"}}{{else if eq .Col.SortState "desc"}}{{icon "chevron-down"}}{{end}}
     </a>
   {{else}}
-    {{.Col.Label}}
+    {{t .Col.Label}}
   {{end}}
-  {{if .Col.Help}}<span data-tooltip="{{.Col.Help}}" data-side="top">{{icon "info-circle"}}</span>{{end}}
+  {{if .Col.Help}}<span data-tooltip="{{t .Col.Help}}" data-side="top">{{icon "info-circle"}}</span>{{end}}
 {{end}}
 {{/* flex-auto rather than flex-1: the basis stays the content's height, so a
      short table is still what sizes the card. */}}
@@ -100,12 +100,12 @@
       <tr>
         {{if .Data.Features.selector}}
         <th class="w-[1%]" rowspan="2"{{if .Data.Pinned}} data-steward-pin="sel"{{end}}>
-          <input class="input" type="checkbox" data-steward-check-all aria-label="Select all rows"/>
+          <input class="input" type="checkbox" data-steward-check-all aria-label="{{t "Select all rows"}}"/>
         </th>
         {{end}}
         {{range .Data.HeaderTop}}
           {{if .Group}}
-          <th colspan="{{.Colspan}}" class="text-center">{{.Label}}</th>
+          <th colspan="{{.Colspan}}" class="text-center">{{t .Label}}</th>
           {{else if not .Col.Hidden}}
           <th rowspan="2" data-col="{{.ColIdx}}"{{if .Col.Pinned}} data-steward-pin="{{.ColIdx}}"{{end}} {{if .Col.Width}}style="width:{{.Col.Width}}px"{{end}}>
             {{template "grid/_th" .}}
@@ -125,7 +125,7 @@
       <tr>
         {{if .Data.Features.selector}}
         <th class="w-[1%]"{{if .Data.Pinned}} data-steward-pin="sel"{{end}}>
-          <input class="input" type="checkbox" data-steward-check-all aria-label="Select all rows"/>
+          <input class="input" type="checkbox" data-steward-check-all aria-label="{{t "Select all rows"}}"/>
         </th>
         {{end}}
         {{range $i, $col := .Data.Columns}}
@@ -145,8 +145,8 @@
         <td colspan="100">
           <div class="grid place-items-center gap-2 py-12 text-center">
             {{icon "database"}}
-            <p class="font-medium">Nothing here yet</p>
-            <p class="text-sm text-muted-foreground">No records match the current view.</p>
+            <p class="font-medium">{{t "Nothing here yet"}}</p>
+            <p class="text-sm text-muted-foreground">{{t "No records match the current view."}}</p>
           </div>
         </td>
       </tr>
@@ -155,7 +155,7 @@
       <tr data-key="{{.Key}}" data-depth="{{.Depth}}" {{if $.Data.ReorderURL}}draggable="true" class="steward-draggable"{{end}}>
         {{if $.Data.Features.selector}}
         <td{{if $.Data.Pinned}} data-steward-pin="sel"{{end}}>
-          <input class="input" type="checkbox" data-steward-row-check value="{{.Key}}" aria-label="Select row"/>
+          <input class="input" type="checkbox" data-steward-row-check value="{{.Key}}" aria-label="{{t "Select row"}}"/>
         </td>
         {{end}}
         {{range $i, $cell := .Cells}}

@@ -116,7 +116,7 @@ func (t *typedResource[T]) dispatchAction(c *Context) error {
 		return c.Envelope(Error(err.Error()).Code(http.StatusBadRequest))
 	}
 	if env == nil {
-		env = Success(action.label + " done.").Refresh()
+		env = Success(c.T("%s done.", action.label)).Refresh()
 	}
 	return c.Envelope(env)
 }

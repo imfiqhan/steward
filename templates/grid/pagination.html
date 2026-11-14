@@ -1,7 +1,7 @@
 {{if .Data.Features.pagination}}
 <footer class="flex flex-wrap items-center gap-3">
   <p class="text-sm text-muted-foreground">
-    {{if .Data.Rows}}Showing {{.Data.From}}–{{.Data.To}} of {{.Data.Total}}{{if .Data.TotalCapped}}+{{end}}{{else}}No entries{{end}}
+    {{if .Data.Rows}}{{t "Showing %v–%v of %v" .Data.From .Data.To .Data.Total}}{{if .Data.TotalCapped}}+{{end}}{{else}}{{t "No entries"}}{{end}}
   </p>
   {{$per := .Data.PerPage}}
   <form method="get" action="{{.Data.BaseURL}}"
@@ -12,16 +12,16 @@
     <div id="{{.Data.Slug}}-perpage" class="select" data-steward-submit>
       <button type="button" class="btn" data-variant="outline"
               aria-haspopup="listbox" aria-expanded="false"
-              aria-controls="{{.Data.Slug}}-perpage-listbox" aria-label="Rows per page">
-        <span>{{$per}} / page</span>
+              aria-controls="{{.Data.Slug}}-perpage-listbox" aria-label="{{t "Rows per page"}}">
+        <span>{{t "%v / page" $per}}</span>
         {{icon "chevron-down"}}
       </button>
       {{/* the footer sits at the page bottom, so open upward */}}
       <div data-popover data-side="top" aria-hidden="true">
         <div role="listbox" id="{{.Data.Slug}}-perpage-listbox" aria-orientation="vertical"
-             aria-label="Rows per page">
+             aria-label="{{t "Rows per page"}}">
           {{range .Data.PerPageOptions}}
-          <div role="option" data-value="{{.}}" {{if eq . $per}}aria-selected="true"{{end}}>{{.}} / page</div>
+          <div role="option" data-value="{{.}}" {{if eq . $per}}aria-selected="true"{{end}}>{{t "%v / page" .}}</div>
           {{end}}
         </div>
       </div>
@@ -29,7 +29,7 @@
     </div>
   </form>
   {{if gt .Data.Pages 1}}
-  <nav role="navigation" aria-label="pagination" class="ms-auto">
+  <nav role="navigation" aria-label="{{t "pagination"}}" class="ms-auto">
     <ul class="flex flex-row items-center gap-1">
       {{range .Data.Pagination}}
       <li>
@@ -37,14 +37,14 @@
           {{if .Disabled}}
           <span class="btn opacity-50 pointer-events-none" data-variant="ghost" data-size="icon" aria-hidden="true">{{icon "chevron-left"}}</span>
           {{else}}
-          <a href="{{.URL}}" class="btn" data-variant="ghost" data-size="icon" aria-label="Previous page"
+          <a href="{{.URL}}" class="btn" data-variant="ghost" data-size="icon" aria-label="{{t "Previous page"}}"
              hx-get="{{.URL}}" hx-target="#page-content" hx-push-url="true">{{icon "chevron-left"}}</a>
           {{end}}
         {{else if eq .Label "next"}}
           {{if .Disabled}}
           <span class="btn opacity-50 pointer-events-none" data-variant="ghost" data-size="icon" aria-hidden="true">{{icon "chevron-right"}}</span>
           {{else}}
-          <a href="{{.URL}}" class="btn" data-variant="ghost" data-size="icon" aria-label="Next page"
+          <a href="{{.URL}}" class="btn" data-variant="ghost" data-size="icon" aria-label="{{t "Next page"}}"
              hx-get="{{.URL}}" hx-target="#page-content" hx-push-url="true">{{icon "chevron-right"}}</a>
           {{end}}
         {{else if eq .Label "gap"}}
@@ -56,7 +56,7 @@
                and lets a longer label grow. */}}
           <a href="{{.URL}}" class="btn min-w-9 px-2" data-variant="{{if .Active}}outline{{else}}ghost{{end}}"
              {{if .Active}}aria-current="page"{{end}}
-             hx-get="{{.URL}}" hx-target="#page-content" hx-push-url="true">{{.Label}}</a>
+             hx-get="{{.URL}}" hx-target="#page-content" hx-push-url="true">{{t .Label}}</a>
         {{end}}
       </li>
       {{end}}

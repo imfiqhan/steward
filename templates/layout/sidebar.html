@@ -1,5 +1,5 @@
 <aside id="sidebar" class="sidebar" data-side="left">
-  <nav id="sidebar-menu" aria-label="Sidebar navigation">
+  <nav id="sidebar-menu" aria-label="{{t "Sidebar navigation"}}">
     <header>
       {{/* The mark is what the rail keeps when the labels go, so it is always
            rendered: the configured icon, or the brand's first letter. */}}
@@ -17,7 +17,7 @@
            would space consecutive entries six times further apart than the
            group's own list does. MenuSections batches the ungrouped runs. */}}
       {{range .Page.MenuSections}}
-      <div role="group" {{if .Title}}aria-labelledby="menu-group-{{.Title}}"{{end}}>
+      <div role="group" {{if .Title}}aria-labelledby="menu-group-{{t .Title}}"{{end}}>
         {{with .Title}}<h3 id="menu-group-{{.}}">{{.}}</h3>{{end}}
         <ul>
           {{range .Items}}
@@ -30,7 +30,7 @@
                hx-get="{{.URI}}" hx-target="#page-content" hx-push-url="true"
                hx-swap="innerHTML scroll:#page-content:top">
               {{if .Icon}}{{icon .Icon}}{{else}}<span class="steward-menu-mark" aria-hidden="true">{{initial .Title}}</span>{{end}}
-              <span class="steward-menu-label">{{.Title}}</span>
+              <span class="steward-menu-label">{{t .Title}}</span>
             </a>
           </li>
           {{end}}

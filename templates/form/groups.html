@@ -1,7 +1,7 @@
 {{range .}}
   {{if .Title}}
   <fieldset class="steward-fieldset">
-    <legend>{{.Title}}</legend>
+    <legend>{{t .Title}}</legend>
     <div class="steward-form-grid">
       {{range .Fields}}{{template "form/field.html" .}}{{end}}
     </div>

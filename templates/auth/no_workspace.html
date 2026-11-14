@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="en" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
+<html lang="{{.Page.Lang}}" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
 <head>
   {{template "layout/head.html" .}}
-  <title>No workspace — {{.Page.Brand}}</title>
+  <title>{{t "No workspace — %v" .Page.Brand}}</title>
 </head>
 <body>
   <div class="min-h-screen grid place-items-center p-4">
@@ -10,11 +10,11 @@
       <h1 class="text-center text-2xl font-semibold">{{.Page.Brand}}</h1>
       <div class="card">
         <header>
-          <h2>You are not in a workspace yet</h2>
+          <h2>{{t "You are not in a workspace yet"}}</h2>
           {{if .Data.Signup}}
-          <p>Create one to get started, or open an invitation link from your team.</p>
+          <p>{{t "Create one to get started, or open an invitation link from your team."}}</p>
           {{else}}
-          <p>Ask an administrator of your organisation to invite you, then open the link they send.</p>
+          <p>{{t "Ask an administrator of your organisation to invite you, then open the link they send."}}</p>
           {{end}}
         </header>
         <section class="grid gap-4">
@@ -22,16 +22,16 @@
           <form action="{{url "auth/signup"}}" method="post" novalidate class="grid gap-4">
             <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
             <div class="grid gap-2">
-              <label class="label" for="nows-workspace">Workspace name</label>
+              <label class="label" for="nows-workspace">{{t "Workspace name"}}</label>
               <input class="input" id="nows-workspace" name="workspace" type="text" maxlength="100"
                      value="{{.Data.WorkspaceName}}" required/>
             </div>
-            <button type="submit" class="btn w-full">Create workspace</button>
+            <button type="submit" class="btn w-full">{{t "Create workspace"}}</button>
           </form>
           {{end}}
           <form action="{{url "auth/logout"}}" method="post">
             <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
-            <button type="submit" class="btn w-full" data-variant="{{if .Data.Signup}}ghost{{else}}outline{{end}}">Sign out</button>
+            <button type="submit" class="btn w-full" data-variant="{{if .Data.Signup}}ghost{{else}}outline{{end}}">{{t "Sign out"}}</button>
           </form>
         </section>
       </div>

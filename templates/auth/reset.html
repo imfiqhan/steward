@@ -1,38 +1,38 @@
 <!doctype html>
-<html lang="en" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
+<html lang="{{.Page.Lang}}" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
 <head>
   {{template "layout/head.html" .}}
-  <title>Reset password — {{.Page.Brand}}</title>
+  <title>{{t "Reset password — %v" .Page.Brand}}</title>
 </head>
 <body>
   <div class="min-h-screen grid place-items-center p-4">
     <div class="w-full max-w-sm">
       <div class="card">
         <header>
-          <h2>Choose a new password</h2>
+          <h2>{{t "Choose a new password"}}</h2>
         </header>
         <section>
           {{if .Data.Invalid}}
           <div class="alert" data-variant="destructive">
-            <h2>This reset link is invalid or has expired.</h2>
+            <h2>{{t "This reset link is invalid or has expired."}}</h2>
           </div>
-          <p class="mt-4 text-center text-sm"><a class="underline-offset-4 hover:underline" href="{{url "auth/forgot"}}">Request new link</a></p>
+          <p class="mt-4 text-center text-sm"><a class="underline-offset-4 hover:underline" href="{{url "auth/forgot"}}">{{t "Request new link"}}</a></p>
           {{else}}
           {{with .Data.Error}}
-          <div class="alert mb-4" data-variant="destructive"><h2>{{.}}</h2></div>
+          <div class="alert mb-4" data-variant="destructive"><h2>{{t .}}</h2></div>
           {{end}}
           <form action="{{url "auth/reset"}}" method="post" novalidate class="grid gap-6">
             <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
             <input type="hidden" name="token" value="{{.Data.Token}}"/>
             <div class="grid gap-2">
-              <label class="label" for="reset-password">New password</label>
+              <label class="label" for="reset-password">{{t "New password"}}</label>
               <input class="input" id="reset-password" name="password" type="password" autocomplete="new-password" autofocus required/>
             </div>
             <div class="grid gap-2">
-              <label class="label" for="reset-confirm">Confirm password</label>
+              <label class="label" for="reset-confirm">{{t "Confirm password"}}</label>
               <input class="input" id="reset-confirm" name="password_confirmation" type="password" autocomplete="new-password" required/>
             </div>
-            <button type="submit" class="btn w-full">Reset password</button>
+            <button type="submit" class="btn w-full">{{t "Reset password"}}</button>
           </form>
           {{end}}
         </section>

@@ -761,7 +761,7 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	if bad := t.expandListFields(c); len(bad) > 0 {
 		errs := map[string][]string{}
 		for _, label := range bad {
-			errs[label] = []string{label + " was submitted in a form this field cannot read."}
+			errs[label] = []string{c.T("%s was submitted in a form this field cannot read.", label)}
 		}
 		return c.Envelope(ValidationErrors(errs))
 	}
@@ -823,7 +823,7 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 		}
 		if !present {
 			if creating && fd.required {
-				errs[fd.path] = append(errs[fd.path], fd.label+" is required.")
+				errs[fd.path] = append(errs[fd.path], c.T("%s is required.", fd.label))
 			}
 			continue
 		}
@@ -839,7 +839,7 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 			spec += "|" + fd.updateRules
 		}
 		if spec != "" {
-			target := rules.Field{DB: c.Panel.db, Ctx: c.Ctx(), Label: fd.label, RecordID: id}
+			target := rules.Field{DB: c.Panel.db, Ctx: c.Ctx(), Label: fd.label, RecordID: id, Translate: c.T}
 			if msgs := rules.Validate(target, spec, raw); len(msgs) > 0 {
 				errs[fd.path] = append(errs[fd.path], msgs...)
 				continue
@@ -854,10 +854,10 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 			val, err = fd.decode(raw)
 		}
 		if err != nil {
-			errs[fd.path] = append(errs[fd.path], fd.label+": "+err.Error())
+			errs[fd.path] = append(errs[fd.path], c.T("%s: %s", fd.label, c.lookup(err.Error())))
 			continue
 		}
-		if msg := fd.outOfRange(val); msg != "" {
+		if msg := fd.outOfRange(c, val); msg != "" {
 			errs[fd.path] = append(errs[fd.path], msg)
 			continue
 		}
@@ -952,7 +952,7 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 
 	// A grid's quick-create row stays on the list and reloads it.
 	if creating && c.R.FormValue("_quick") == "1" {
-		done := t.res.m.title + " created."
+		done := c.T("%s created.", t.res.m.title)
 		if savedErr != nil {
 			return c.Envelope(Warning(done).Detail(savedErr.Error()).Refresh())
 		}
@@ -961,17 +961,17 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	// Inline single-field edits stay on the page: toast only, no redirect.
 	if c.R.FormValue("_inline") == "1" {
 		if savedErr != nil {
-			return c.Envelope(Warning("Saved. " + savedErr.Error()))
+			return c.Envelope(Warning(c.T("Saved. %s", savedErr.Error())))
 		}
 		return c.Envelope(Success("Saved."))
 	}
-	verb := "updated"
+	format := "%s updated."
 	if creating {
-		verb = "created"
+		format = "%s created."
 	}
 	// The envelope's toast carries this; a flash as well would show the same
 	// sentence twice, once as a banner on the page redirected to.
-	done := t.res.m.title + " " + verb + "."
+	done := c.T(format, t.res.m.title)
 	if savedErr != nil {
 		return c.Envelope(Warning(done).Detail(savedErr.Error()).Redirect(c.URL(t.res.m.slug)))
 	}
@@ -1240,7 +1240,7 @@ func (t *typedResource[T]) uploadFile(c *Context) error {
 	}
 	defer func() { _ = file.Close() }()
 	if header.Size > maxSize {
-		return c.Envelope(Error(fmt.Sprintf("File exceeds the %d MB limit.", maxSize>>20)).Code(http.StatusRequestEntityTooLarge))
+		return c.Envelope(Error(c.T("File exceeds the %d MB limit.", maxSize>>20)).Code(http.StatusRequestEntityTooLarge))
 	}
 
 	ext := strings.ToLower(path.Ext(header.Filename))
@@ -1252,7 +1252,7 @@ func (t *typedResource[T]) uploadFile(c *Context) error {
 		return c.Envelope(Error("That file type cannot be uploaded.").Code(http.StatusUnsupportedMediaType))
 	}
 	if !acceptAllows(target.accept, ext) {
-		return c.Envelope(Error("Only " + acceptLabel(target.accept) + " can be uploaded here.").
+		return c.Envelope(Error(c.T("Only %s can be uploaded here.", acceptLabel(target.accept))).
 			Code(http.StatusUnsupportedMediaType))
 	}
 	tok, err := session.NewToken()

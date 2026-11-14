@@ -667,7 +667,7 @@ func (t *typedResource[T]) renderCell(col *Column[T], row *T) template.HTML {
 	if col.present != nil {
 		return col.present(val, row)
 	}
-	return defaultCell(val)
+	return defaultCell(col.t, val)
 }
 
 // renderInlineCell emits live-edit controls that PUT the single field to the
@@ -691,15 +691,15 @@ func (t *typedResource[T]) renderInlineCell(col *Column[T], row *T, val any) tem
 		}
 		esc := template.HTMLEscapeString(s)
 		return template.HTML(fmt.Sprintf(
-			`<span class="steward-editable" tabindex="0" role="button" data-steward-editable data-url="%s" data-field="%s" title="Click to edit">%s</span>`,
-			url, field, esc))
+			`<span class="steward-editable" tabindex="0" role="button" data-steward-editable data-url="%s" data-field="%s" title="%s">%s</span>`,
+			url, field, template.HTMLEscapeString(col.t("Click to edit")), esc))
 	default:
-		return defaultCell(val)
+		return defaultCell(col.t, val)
 	}
 }
 
 // defaultCell formats a raw value for display.
-func defaultCell(v any) template.HTML {
+func defaultCell(tr func(string) string, v any) template.HTML {
 	switch x := v.(type) {
 	case nil:
 		return `<span class="text-muted-foreground">—</span>`
@@ -714,7 +714,7 @@ func defaultCell(v any) template.HTML {
 		}
 		return template.HTML(template.HTMLEscapeString(x.Format("2006-01-02 15:04")))
 	case bool:
-		return statusHTML(x, "Yes", "No")
+		return statusHTML(x, tr("Yes"), tr("No"))
 	default:
 		s := fmt.Sprint(v)
 		if s == "" {
@@ -893,11 +893,11 @@ func (t *typedResource[T]) destroy(c *Context) error {
 			c.Panel.log.Error("steward: deleted hook", "err", err)
 		}
 	}
-	noun := "record"
+	msg := c.T("Deleted record.")
 	if len(ids) > 1 {
-		noun = fmt.Sprintf("%d records", len(ids))
+		msg = c.T("Deleted %d records.", len(ids))
 	}
-	return c.Envelope(Success("Deleted " + noun + ".").Refresh())
+	return c.Envelope(Success(msg).Refresh())
 }
 
 // exportCSV streams the current view (all pages, current page, or a

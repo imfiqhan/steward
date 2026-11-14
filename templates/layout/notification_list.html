@@ -3,12 +3,12 @@
      out of band and the two never disagree. */}}
 <div role="group" aria-labelledby="notification-heading">
   <div class="flex items-center justify-between gap-2">
-    <div role="heading" id="notification-heading">Notifications</div>
+    <div role="heading" id="notification-heading">{{t "Notifications"}}</div>
     {{if .Data.Unread}}
     <button type="button" role="menuitem" tabindex="-1" class="steward-notification-readall"
             hx-post="{{url "_notifications/read"}}" hx-target="#notification-menu" hx-swap="innerHTML"
             hx-headers='{"X-CSRF-Token": "{{.Page.CSRF}}"}'>
-      Mark all read
+      {{t "Mark all read"}}
     </button>
     {{end}}
   </div>
@@ -38,7 +38,7 @@
     <span class="steward-notification-when">{{.When}}</span>
   </span>
   {{if not .Read}}
-  <button type="button" class="steward-notification-check" aria-label="Mark read"
+  <button type="button" class="steward-notification-check" aria-label="{{t "Mark read"}}"
           hx-post="{{url "_notifications"}}/{{.ID}}/read" hx-target="#notification-menu" hx-swap="innerHTML"
           hx-headers='{"X-CSRF-Token": "{{$.Page.CSRF}}"}'>
     {{icon "check" "size-4"}}
@@ -48,19 +48,19 @@
 {{end}}
 {{end}}
 {{else}}
-<p class="steward-notification-empty">Nothing yet.</p>
+<p class="steward-notification-empty">{{t "Nothing yet."}}</p>
 {{end}}
 
 <hr role="separator"/>
 {{/* The bell holds fifteen; the archive holds the rest. */}}
 <a role="menuitem" tabindex="-1" class="steward-notification-all" href="{{url "auth/notifications"}}"
    hx-get="{{url "auth/notifications"}}" hx-target="#page-content" hx-push-url="true">
-  See all notifications
+  {{t "See all notifications"}}
 </a>
 
 <span id="notification-badge" hx-swap-oob="innerHTML">
   {{if .Data.Unread}}
   <span class="steward-notification-count" aria-hidden="true">{{if gt .Data.Unread 99}}99+{{else}}{{.Data.Unread}}{{end}}</span>
-  <span class="sr-only">{{.Data.Unread}} unread</span>
+  <span class="sr-only">{{t "%v unread" .Data.Unread}}</span>
   {{end}}
 </span>

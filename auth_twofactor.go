@@ -329,7 +329,7 @@ func (a *Panel) twoFactorChallengeSubmit(c *Context) error {
 		if left == 0 {
 			c.Flash("warning", "That was your last recovery code — generate a new set from your profile.")
 		} else {
-			c.Flash("warning", fmt.Sprintf("Signed in with a recovery code. %d left.", left))
+			c.Flash("warning", c.T("Signed in with a recovery code. %d left.", left))
 		}
 		return c.Redirect(a.url("/"))
 

@@ -5,7 +5,7 @@
       {{range .Groups}}
         {{if .Title}}
         <fieldset class="steward-fieldset">
-          <legend>{{.Title}}</legend>
+          <legend>{{t .Title}}</legend>
           <div class="steward-form-grid">
             {{range .Fields}}{{template "form/field.html" .}}{{end}}
           </div>
@@ -18,14 +18,14 @@
       {{end}}
     </div>
     <button type="button" class="btn shrink-0" data-variant="ghost" data-size="icon-sm"
-            data-steward-nested-remove aria-label="Remove row">
+            data-steward-nested-remove aria-label="{{t "Remove row"}}">
       <span class="text-destructive">{{icon "trash"}}</span>
     </button>
   </div>
 </div>
 {{end}}
 <fieldset class="fieldset" data-steward-nested="{{.Name}}">
-  <legend>{{.Label}}</legend>
+  <legend>{{t .Label}}</legend>
   <div class="grid gap-3" data-steward-nested-rows>
     {{range .Rows}}{{template "form/_nestedrow" .}}{{end}}
   </div>
@@ -34,7 +34,7 @@
   </template>
   <div>
     <button type="button" class="btn" data-variant="outline" data-size="sm" data-steward-nested-add>
-      {{icon "plus"}} Add {{.Label}}
+      {{icon "plus"}} {{t "Add"}} {{t .Label}}
     </button>
   </div>
 </fieldset>

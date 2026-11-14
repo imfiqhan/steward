@@ -196,6 +196,9 @@ cover it, and an HTML DSL in Go would be more surface for less flexibility.
 - [x] `Searcher` interface with an in-memory full-text implementation
 - [x] Template overlay (override any view by dropping a file), every Lucide
       icon embedded as one sprite, dark mode, `no_ui` build tag
+- [x] Localization (`Config.Locale`) — English and Indonesian shipped, every
+      text looked up by its English sentence, app labels translatable through
+      `Config.Translations`
 - [x] Node-free asset pipeline — esbuild Go API + Tailwind standalone binary
 - [x] Mount under Gin (`contrib/ginsteward`) or any `http.Handler` router
 

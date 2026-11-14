@@ -6,7 +6,7 @@
   {{if .Err}}
   <div class="card" data-size="sm">
     <section>
-      <p class="text-sm text-muted-foreground">{{.Title}}</p>
+      <p class="text-sm text-muted-foreground">{{t .Title}}</p>
       <p class="mt-1 text-sm text-destructive">{{.Err}}</p>
     </section>
   </div>
@@ -41,7 +41,7 @@
              with the assets being served, and telling them to run a Makefile
              they may not have is advice that cannot work. */}}
         <p class="text-sm text-muted-foreground" data-steward-chart-note>
-          Chart runtime not loaded.
+          {{t "Chart runtime not loaded."}}
         </p>
         <script type="application/json" data-steward-chart-data>{{.Payload}}</script>
       </div>
@@ -52,7 +52,7 @@
     <section class="flex items-start gap-3">
       {{with .Icon}}<span class="steward-metric-icon">{{icon . "size-5"}}</span>{{end}}
       <div class="min-w-0">
-      <p class="text-sm text-muted-foreground">{{.Title}}</p>
+      <p class="text-sm text-muted-foreground">{{t .Title}}</p>
       <p class="mt-1 text-3xl font-semibold">{{.Value}}</p>
       {{with .Hint}}<p class="mt-1 text-sm text-muted-foreground">{{.}}</p>{{end}}
       </div>

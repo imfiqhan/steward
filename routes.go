@@ -21,6 +21,7 @@ func (a *Panel) h(fn handlerFunc) http.HandlerFunc {
 
 // renderError writes the error page (or envelope) without failing further.
 func (a *Panel) renderError(c *Context, code int, title string, err error) {
+	title = a.lookup(title)
 	if c.WantsJSON() {
 		_ = c.JSON(code, Error(title))
 		return

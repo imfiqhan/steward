@@ -7,17 +7,17 @@
     <div class="ms-auto flex items-center gap-2">
       <a href="{{.Data.ListURL}}" class="btn" data-variant="outline"
          hx-get="{{.Data.ListURL}}" hx-target="#page-content" hx-push-url="true">
-        {{icon "list"}} List
+        {{icon "list"}} {{t "List"}}
       </a>
       {{if .Data.CanEdit}}
       <a href="{{.Data.EditURL}}" class="btn"
          hx-get="{{.Data.EditURL}}" hx-target="#page-content" hx-push-url="true">
-        {{icon "pencil"}} Edit
+        {{icon "pencil"}} {{t "Edit"}}
       </a>
       {{end}}
       {{if .Data.CanDelete}}
       <button type="button" class="btn" data-variant="destructive" data-steward-delete data-url="{{.Data.DeleteURL}}">
-        {{icon "trash"}} Delete
+        {{icon "trash"}} {{t "Delete"}}
       </button>
       {{end}}
     </div>
@@ -31,7 +31,7 @@
       <dl class="steward-detail">
         {{range .Data.Rows}}
         <div class="steward-detail-row{{if .Block}} steward-detail-row-block{{end}}">
-          <dt>{{.Label}}</dt>
+          <dt>{{t .Label}}</dt>
           <dd>
             {{.HTML}}
             {{with .Copy}}
@@ -49,11 +49,11 @@
   {{range .Data.Relations}}
   <div class="card" data-size="sm">
     <header>
-      <h2>{{.Title}}</h2>
+      <h2>{{t .Title}}</h2>
       {{if .More}}
       <div class="card-action">
         <a href="{{.More}}" class="btn" data-variant="ghost" data-size="sm"
-           hx-get="{{.More}}" hx-target="#page-content" hx-push-url="true">View all</a>
+           hx-get="{{.More}}" hx-target="#page-content" hx-push-url="true">{{t "View all"}}</a>
       </div>
       {{end}}
     </header>
@@ -62,7 +62,7 @@
         <table class="table">
           <thead><tr>{{range .Columns}}<th>{{.}}</th>{{end}}</tr></thead>
           <tbody>
-            {{if not .Rows}}<tr><td colspan="100" class="text-muted-foreground">No related records.</td></tr>{{end}}
+            {{if not .Rows}}<tr><td colspan="100" class="text-muted-foreground">{{t "No related records."}}</td></tr>{{end}}
             {{range .Rows}}<tr>{{range .}}<td>{{.}}</td>{{end}}</tr>{{end}}
           </tbody>
         </table>

@@ -126,7 +126,7 @@ func (a *Panel) maybeQueueExport(c *Context, slug string, st *gridState) (*queue
 	a.wakeExports()
 	return &queuedExport{
 		Job: &job,
-		Message: fmt.Sprintf("Preparing %s rows in the background — you will be notified when the file is ready.",
+		Message: c.T("Preparing %s rows in the background — you will be notified when the file is ready.",
 			formatThousands(n)),
 	}, nil
 }
@@ -263,13 +263,14 @@ func (a *Panel) runExport(ctx context.Context, job *ExportJob) error {
 	}
 
 	if a.notificationsEnabled() {
-		title := job.Slug + " export ready"
+		name := job.Slug
 		if m := res.meta(); m != nil && m.title != "" {
-			title = m.title + " export ready"
+			name = a.T(m.title)
 		}
+		title := a.T("%s export ready", name)
 		n := Notification{
 			Title: title,
-			Body:  fmt.Sprintf("%s rows, %s.", formatThousands(rows), formatBytes(int64(buf.Len()))),
+			Body:  a.T("%s rows, %s.", formatThousands(rows), formatBytes(int64(buf.Len()))),
 			URL:   a.url("_exports", strconv.FormatUint(uint64(job.ID), 10), "download"),
 			Icon:  "download",
 			Type:  "export.ready",
@@ -296,7 +297,7 @@ func (a *Panel) failExport(ctx context.Context, job *ExportJob, cause error) {
 	}
 	if a.notificationsEnabled() {
 		_ = a.Notify(ctx, job.UserID, Notification{
-			Title: "Export failed",
+			Title: a.T("Export failed"),
 			Body:  msg,
 			Icon:  "circle-alert",
 			Type:  "export.failed",

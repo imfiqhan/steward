@@ -53,10 +53,14 @@ type pageMeta struct {
 	// Notifications reports whether the bell is mounted, so the header can
 	// leave the control out entirely when the feature is off.
 	Notifications bool
-	CSRF          string
-	Theme         string
-	Dev           bool
-	User          *User
+	// Lang is the html element's lang attribute; I18n the client script's
+	// translations as JSON, empty when the panel speaks English.
+	Lang  string
+	I18n  template.JS
+	CSRF  string
+	Theme string
+	Dev   bool
+	User  *User
 	// Menu is the raw tree. MenuSections is the same entries batched for
 	// rendering; the shipped sidebar uses the latter, and Menu stays so an
 	// overridden sidebar template keeps working.
@@ -97,6 +101,8 @@ func (a *Panel) pageMetaFor(c *Context, title string) pageMeta {
 		StyleCSS:      a.cfg.Style.stylesheet(),
 		ThemeCSS:      template.CSS(a.cfg.ThemeCSS),
 		Notifications: a.notificationsEnabled(),
+		Lang:          a.htmlLang(),
+		I18n:          a.clientCatalogJS(),
 		CSRF:          c.CSRF(),
 		Theme:         themeFrom(c.R),
 		Dev:           a.cfg.Dev,

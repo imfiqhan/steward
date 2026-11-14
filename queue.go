@@ -441,7 +441,7 @@ func (a *Panel) registerJobsResource() {
 		if n == 0 {
 			return Error("Nothing was queued again: a running job cannot be retried."), nil
 		}
-		return Success(fmt.Sprintf("%d queued again.", n)).Refresh(), nil
+		return Success(c.T("%d queued again.", n)).Refresh(), nil
 	}
 	statusColours := map[any]BadgeColor{
 		JobPending: BadgeSecondary, JobRunning: BadgeBlue, JobDone: BadgeGreen, JobFailed: BadgeRed,

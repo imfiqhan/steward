@@ -1,7 +1,7 @@
 <div class="p-6 grid grid-cols-1 gap-4 {{.Data.Width}}">
   <div>
-    <p class="text-sm text-muted-foreground">{{if .Data.Creating}}Create{{else}}Edit{{end}}</p>
-    <h2 class="text-2xl font-semibold">{{if .Data.Creating}}New {{end}}{{.Data.Title}}</h2>
+    <p class="text-sm text-muted-foreground">{{if .Data.Creating}}{{t "Create"}}{{else}}{{t "Edit"}}{{end}}</p>
+    <h2 class="text-2xl font-semibold">{{if .Data.Creating}}{{t "New"}} {{end}}{{.Data.Title}}</h2>
   </div>
   <form class="card" data-steward-form action="{{.Data.Action}}" data-method="{{.Data.Method}}" method="post" novalidate>
     <section class="grid gap-6">
@@ -15,7 +15,7 @@
           {{range $i, $t := .}}
           <button type="button" role="tab" id="{{$t.ID}}-tab" aria-controls="{{$t.ID}}"
                   aria-selected="{{if eq $i 0}}true{{else}}false{{end}}"
-                  tabindex="{{if eq $i 0}}0{{else}}-1{{end}}">{{$t.Title}}<span class="steward-tab-error" aria-hidden="true"></span></button>
+                  tabindex="{{if eq $i 0}}0{{else}}-1{{end}}">{{t $t.Title}}<span class="steward-tab-error" aria-hidden="true"></span></button>
           {{end}}
         </nav>
         {{range $i, $t := .}}
@@ -32,9 +32,9 @@
     </section>
     <footer class="flex items-center">
       <a class="btn" data-variant="ghost" href="{{.Data.CancelURL}}"
-         hx-get="{{.Data.CancelURL}}" hx-target="#page-content" hx-push-url="true">Cancel</a>
+         hx-get="{{.Data.CancelURL}}" hx-target="#page-content" hx-push-url="true">{{t "Cancel"}}</a>
       <button type="submit" class="btn ms-auto" data-steward-submit>
-        {{if .Data.Creating}}Create{{else}}Save changes{{end}}
+        {{if .Data.Creating}}{{t "Create"}}{{else}}{{t "Save changes"}}{{end}}
       </button>
     </footer>
   </form>

@@ -1,33 +1,33 @@
 <!doctype html>
-<html lang="en" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
+<html lang="{{.Page.Lang}}" class="{{if eq .Page.Theme "dark"}}dark{{end}}">
 <head>
   {{template "layout/head.html" .}}
-  <title>Forgot password — {{.Page.Brand}}</title>
+  <title>{{t "Forgot password — %v" .Page.Brand}}</title>
 </head>
 <body>
   <div class="min-h-screen grid place-items-center p-4">
     <div class="w-full max-w-sm">
       <div class="card">
         <header>
-          <h2>Forgot your password?</h2>
-          <p>Enter the email on your account and we'll send a reset link.</p>
+          <h2>{{t "Forgot your password?"}}</h2>
+          <p>{{t "Enter the email on your account and we'll send a reset link."}}</p>
         </header>
         <section>
           {{if .Data.Sent}}
           <div class="alert border-green-200 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-950 dark:text-green-50">
-            <h2>If an account exists for that address, a reset link is on its way.</h2>
+            <h2>{{t "If an account exists for that address, a reset link is on its way."}}</h2>
           </div>
-          <p class="mt-4 text-center text-sm"><a class="underline-offset-4 hover:underline" href="{{url "auth/login"}}">Back to sign in</a></p>
+          <p class="mt-4 text-center text-sm"><a class="underline-offset-4 hover:underline" href="{{url "auth/login"}}">{{t "Back to sign in"}}</a></p>
           {{else}}
           <form action="{{url "auth/forgot"}}" method="post" novalidate class="grid gap-6">
             <input type="hidden" name="_token" value="{{.Page.CSRF}}"/>
             <div class="grid gap-2">
-              <label class="label" for="forgot-email">Email address</label>
-              <input class="input" id="forgot-email" name="email" type="email" placeholder="you@example.com" autofocus required/>
+              <label class="label" for="forgot-email">{{t "Email address"}}</label>
+              <input class="input" id="forgot-email" name="email" type="email" placeholder="{{t "you@example.com"}}" autofocus required/>
             </div>
-            <button type="submit" class="btn w-full">Send reset link</button>
+            <button type="submit" class="btn w-full">{{t "Send reset link"}}</button>
           </form>
-          <p class="mt-4 text-center text-sm"><a class="underline-offset-4 hover:underline" href="{{url "auth/login"}}">Back to sign in</a></p>
+          <p class="mt-4 text-center text-sm"><a class="underline-offset-4 hover:underline" href="{{url "auth/login"}}">{{t "Back to sign in"}}</a></p>
           {{end}}
         </section>
       </div>
