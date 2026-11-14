@@ -103,7 +103,8 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
 - [x] Drag-and-drop row reordering (`Grid.Reorderable`)
 - [x] Row actions pinned to the trailing edge, so they stay reachable once a
       wide grid scrolls sideways
-- [ ] Fixed (pinned) columns generally
+- [x] Pinned leading columns (`Column.Pin()`), with the row selector pinned
+      beside them
 - [ ] Quick-create row
 - [x] Quick search backed by a `Searcher` (`Resource.Searchable`), falling back
       to SQL `LIKE` without one

@@ -32,6 +32,11 @@ running panel to a new version.
   Fieldsets, spans and `HasMany` work inside a tab. Tabs inside tabs, and tabs
   in a repeater row, fail `Verify()`.
 
+- **Pinned columns.** `Column.Pin()` keeps a column at the leading edge while
+  a wide grid scrolls sideways; the row selector pins with it, and a divider
+  appears once something has scrolled beneath. Pinned columns must be the first
+  declared and outside any `GroupColumns`, which `Verify()` checks.
+
 ### Fixed
 
 - **Permissions written per operation reach the endpoints that operation

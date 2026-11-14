@@ -99,7 +99,7 @@
       {{if .Data.HeaderTop}}
       <tr>
         {{if .Data.Features.selector}}
-        <th class="w-[1%]" rowspan="2">
+        <th class="w-[1%]" rowspan="2"{{if .Data.Pinned}} data-steward-pin="sel"{{end}}>
           <input class="input" type="checkbox" data-steward-check-all aria-label="Select all rows"/>
         </th>
         {{end}}
@@ -107,7 +107,7 @@
           {{if .Group}}
           <th colspan="{{.Colspan}}" class="text-center">{{.Label}}</th>
           {{else if not .Col.Hidden}}
-          <th rowspan="2" data-col="{{.ColIdx}}" {{if .Col.Width}}style="width:{{.Col.Width}}px"{{end}}>
+          <th rowspan="2" data-col="{{.ColIdx}}"{{if .Col.Pinned}} data-steward-pin="{{.ColIdx}}"{{end}} {{if .Col.Width}}style="width:{{.Col.Width}}px"{{end}}>
             {{template "grid/_th" .}}
           </th>
           {{end}}
@@ -124,13 +124,13 @@
       {{else}}
       <tr>
         {{if .Data.Features.selector}}
-        <th class="w-[1%]">
+        <th class="w-[1%]"{{if .Data.Pinned}} data-steward-pin="sel"{{end}}>
           <input class="input" type="checkbox" data-steward-check-all aria-label="Select all rows"/>
         </th>
         {{end}}
         {{range $i, $col := .Data.Columns}}
           {{if not $col.Hidden}}
-          <th data-col="{{$i}}" {{if $col.Width}}style="width:{{$col.Width}}px"{{end}}>
+          <th data-col="{{$i}}"{{if $col.Pinned}} data-steward-pin="{{$i}}"{{end}} {{if $col.Width}}style="width:{{$col.Width}}px"{{end}}>
             {{template "grid/_th" (dict "Col" $col)}}
           </th>
           {{end}}
@@ -154,12 +154,12 @@
       {{range .Data.Rows}}
       <tr data-key="{{.Key}}" data-depth="{{.Depth}}" {{if $.Data.ReorderURL}}draggable="true" class="steward-draggable"{{end}}>
         {{if $.Data.Features.selector}}
-        <td>
+        <td{{if $.Data.Pinned}} data-steward-pin="sel"{{end}}>
           <input class="input" type="checkbox" data-steward-row-check value="{{.Key}}" aria-label="Select row"/>
         </td>
         {{end}}
         {{range $i, $cell := .Cells}}
-          {{with index $.Data.Columns $i}}{{if not .Hidden}}<td data-col="{{$i}}">{{$cell}}</td>{{end}}{{end}}
+          {{with index $.Data.Columns $i}}{{if not .Hidden}}<td data-col="{{$i}}"{{if .Pinned}} data-steward-pin="{{$i}}"{{end}}>{{$cell}}</td>{{end}}{{end}}
         {{end}}
         {{if $.Data.Features.actions}}
         {{/* Pinned to the trailing edge: with enough columns the table scrolls,

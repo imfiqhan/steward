@@ -408,6 +408,28 @@ func (t *typedResource[T]) compile(a *Panel) error {
 		hg.start, hg.span = indexes[0], len(indexes)
 	}
 
+	// Pinned columns stick at offsets measured left to right, which only means
+	// something for a leading run, and a grouped header has two rows to align.
+	leading := true
+	for _, col := range g.columns {
+		if !col.pinned {
+			leading = false
+			continue
+		}
+		if !leading {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"%s: column %q is pinned but follows an unpinned column; pinned columns must be declared first%s",
+				t.res.m.slug, col.path, at(col.declaredAt)))
+		}
+		for _, hg := range g.headerGroups {
+			if slices.Contains(hg.paths, col.path) {
+				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+					"%s: column %q is pinned and inside header group %q; a pinned column cannot be grouped%s",
+					t.res.m.slug, col.path, hg.label, at(col.declaredAt)))
+			}
+		}
+	}
+
 	// Form.
 	fm := newForm(t.res)
 	if t.res.formFn != nil {

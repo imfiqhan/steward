@@ -205,6 +205,7 @@ type Column[T any] struct {
 
 	sortable bool
 	hidden   bool
+	pinned   bool
 	width    int
 	help     string
 	inline   inlineKind
@@ -241,6 +242,12 @@ func (c *Column[T]) Editable() *Column[T] { c.inline = inlineText; return c }
 
 // Sortable makes the header clickable.
 func (c *Column[T]) Sortable() *Column[T] { c.sortable = true; return c }
+
+// Pin keeps the column at the leading edge while the table scrolls sideways,
+// the way the row actions stay at the trailing one. Pinned columns must be the
+// first ones declared, in a run, and outside any GroupColumns; Verify reports
+// one that is not. The row selector, when shown, is pinned with them.
+func (c *Column[T]) Pin() *Column[T] { c.pinned = true; return c }
 
 // Hide renders the column hidden (still exported).
 func (c *Column[T]) Hide() *Column[T] { c.hidden = true; return c }

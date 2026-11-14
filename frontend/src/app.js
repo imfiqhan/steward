@@ -2465,9 +2465,42 @@ window.htmx = htmx;
     // pixel of slack because fractional layout widths rarely land on zero.
     var trailing = el.scrollWidth - el.clientWidth - Math.abs(el.scrollLeft);
     el.dataset.hscroll = trailing > 1 ? "1" : "0";
+    // The leading divider, for pinned columns, once anything has scrolled
+    // beneath them.
+    el.dataset.hscrollStart = Math.abs(el.scrollLeft) > 1 ? "1" : "0";
+  }
+
+  /*
+   * Pinned leading columns. Each sticks at the summed width of the pinned
+   * cells before it, read from the first header row; a column hidden by the
+   * picker takes no room. The last visible one carries the divider.
+   */
+  function syncPinned(table) {
+    var row = table.querySelector("thead > tr");
+    if (!row) return;
+    table.querySelectorAll("[data-steward-pin-last]").forEach(function (el) {
+      el.removeAttribute("data-steward-pin-last");
+    });
+    var offset = 0;
+    var last = null;
+    var cells = row.children;
+    for (var i = 0; i < cells.length; i++) {
+      var th = cells[i];
+      var key = th.getAttribute("data-steward-pin");
+      if (key === null) break;
+      if (th.classList.contains("hidden") || th.offsetWidth === 0) continue;
+      var col = table.querySelectorAll('[data-steward-pin="' + CSS.escape(key) + '"]');
+      for (var k = 0; k < col.length; k++) col[k].style.insetInlineStart = offset + "px";
+      offset += th.getBoundingClientRect().width;
+      last = col;
+    }
+    if (last) {
+      for (var n = 0; n < last.length; n++) last[n].setAttribute("data-steward-pin-last", "");
+    }
   }
 
   function initHScroll() {
+    document.querySelectorAll("[data-steward-grid]").forEach(syncPinned);
     document.querySelectorAll("[data-steward-hscroll]").forEach(function (el) {
       syncHScroll(el);
       if (el.dataset.hscrollBound === "1") return;

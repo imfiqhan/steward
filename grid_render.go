@@ -280,6 +280,7 @@ type gridColVM struct {
 	SortURL   string
 	SortState string // "", "asc", "desc"
 	Hidden    bool
+	Pinned    bool
 	Width     int
 }
 
@@ -401,8 +402,10 @@ type gridVM struct {
 	BatchActions []actionVM
 	ToolActions  []actionVM
 	ReorderURL   string
-	HeaderTop    []headTopVM // non-empty → two-row grouped header
-	HeaderSub    []headSubVM
+	// Pinned is set when any column is pinned; the row selector pins with it.
+	Pinned    bool
+	HeaderTop []headTopVM // non-empty → two-row grouped header
+	HeaderSub []headSubVM
 }
 
 // headTopVM is one first-row header cell: a group label spanning columns,
@@ -474,7 +477,10 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 	}
 
 	for _, col := range g.columns {
-		cv := gridColVM{Label: col.label, Help: col.help, Hidden: col.hidden, Width: col.width, Sortable: col.sortable && !col.computed}
+		cv := gridColVM{Label: col.label, Help: col.help, Hidden: col.hidden, Pinned: col.pinned, Width: col.width, Sortable: col.sortable && !col.computed}
+		if col.pinned {
+			vm.Pinned = true
+		}
 		if cv.Sortable {
 			next := col.path
 			if st.sort != nil && st.sort.Path == col.path {

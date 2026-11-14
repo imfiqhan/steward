@@ -894,6 +894,34 @@ tr.steward-dragging { opacity: 0.5; }
   z-index: 3;
 }
 
+/* ---- Grid: pinned leading columns ---------------------------------------- */
+
+/* Column.Pin. Each cell's inset is measured in script, since it is the summed
+   width of the pinned cells before it and widths come from the content. Until
+   then a sticky cell with no inset sits where it would anyway. */
+.table [data-steward-pin] {
+  position: sticky;
+  z-index: 1;
+  background-color: var(--color-card);
+}
+.table tbody tr:hover [data-steward-pin] {
+  background-color: color-mix(in oklab, var(--color-muted) 50%, var(--color-card));
+}
+/* A shadow rather than a border: under border-collapse the table draws the
+   border, and it stays where the cell started instead of moving with it. */
+.table-container[data-hscroll-start="1"] [data-steward-pin-last] {
+  box-shadow: inset -1px 0 0 var(--color-border);
+}
+.table-container[data-hscroll-start="1"] thead th[data-steward-pin-last] {
+  box-shadow: inset 0 -1px 0 var(--color-border), inset -1px 0 0 var(--color-border);
+}
+[dir="rtl"] .table-container[data-hscroll-start="1"] [data-steward-pin-last] {
+  box-shadow: inset 1px 0 0 var(--color-border);
+}
+[dir="rtl"] .table-container[data-hscroll-start="1"] thead th[data-steward-pin-last] {
+  box-shadow: inset 0 -1px 0 var(--color-border), inset 1px 0 0 var(--color-border);
+}
+
 /* ---- Grid: pinned header row --------------------------------------------- */
 
 /* The container's height comes from the layout: the grid page sizes itself to
@@ -931,6 +959,7 @@ tr.steward-dragging { opacity: 0.5; }
 
 /* Sticky on both axes, so the corner has to clear the header row it sits in as
    well as the actions column below it. */
+.table[data-steward-grid] thead th[data-steward-pin],
 .table[data-steward-grid] thead th.steward-col-actions {
   z-index: 5;
 }
