@@ -141,6 +141,8 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
 
 - [x] Field renderers (badge, bool, image, link, `HTML`, custom `As`)
 - [x] Embedded relation grids (`steward.RelationGrid[T,C]`)
+- [x] Record history (`Resource.History`) — who changed which field from what
+      to what, on the detail page
 
 ### Dashboard & widgets
 

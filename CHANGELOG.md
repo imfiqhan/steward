@@ -8,6 +8,7 @@ running panel to a new version.
 
 ### Upgrading
 
+- Migration `0011` creates `steward_record_history`.
 - A grid over a model with `gorm.DeletedAt` now shows a **Trash** button. Set
   `Grid.DisableTrash()` to keep the previous toolbar. Synced permissions'
   delete rows also grant `_restore` and `_force_delete`.
@@ -19,6 +20,12 @@ running panel to a new version.
 - The Permissions list is now a tree over `ParentID`, ordered by `Order`.
 
 ### Added
+
+- **Record history.** `Resource.History()` records every create, edit
+  (inline ones included), delete, restore and permanent delete made through the
+  panel — the account, the time, and each changed field's value before and
+  after, with passwords masked — and the detail page shows the latest entries.
+  `Panel.History` reads it, `Panel.PruneHistory` trims it.
 
 - **Trash for soft-deleted records.** A grid over a model with
   `gorm.DeletedAt` gains a Trash view: the deleted rows, with Restore and

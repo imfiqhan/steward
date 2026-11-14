@@ -591,6 +591,7 @@ func (a *Panel) coreTables() migrations.Tables {
 		InvitationModel:     &TenantInvitation{},
 		PermissionModel:     &Permission{},
 		JobModel:            &QueuedJob{},
+		HistoryModel:        &RecordChange{},
 		AddTenantColumns:    addTenantColumns,
 		DropTenantColumns:   dropTenantColumns,
 		SeedFn:              seedDefaults,

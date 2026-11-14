@@ -124,3 +124,30 @@ func TestTranslationsOverrideAndEnglishDefault(t *testing.T) {
 		t.Errorf("an unknown locale should fail Verify, got %v", err)
 	}
 }
+
+// A copyable detail field renders its button inside {{with .Copy}}, where the
+// row's own fields are out of reach.
+func TestDetailCopyButtonLabel(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&i18nRow{}); err != nil {
+		t.Fatal(err)
+	}
+	db.Create(&i18nRow{Title: "Satu"})
+	app, err := steward.New(steward.Config{Locale: "id", Prefix: "/admin", DB: db,
+		SecretKey: []byte("detail-copy-secret-key-00000"), AuthExcept: []string{"/i18n_rows*"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[i18nRow](app).Detail(func(d *steward.Detail[i18nRow]) {
+		d.Field("Title").Copyable()
+	})
+	if err := buildPanel(t, app); err != nil {
+		t.Fatal(err)
+	}
+	srv := serve(t, app)
+	t.Cleanup(srv.Close)
+	page := getBody(t, srv.URL+"/admin/i18n_rows/1")
+	if !strings.Contains(page, `aria-label="Salin Judul"`) {
+		t.Error("the copy button should name its field, translated")
+	}
+}

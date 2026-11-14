@@ -345,11 +345,14 @@ type detailVM struct {
 	Key       string
 	Rows      []detailRowVM
 	Relations []detailRelVM
-	EditURL   string
-	ListURL   string
-	DeleteURL string
-	CanEdit   bool
-	CanDelete bool
+	// History is the record's latest changes, when the resource keeps them.
+	History    []historyVM
+	HasHistory bool
+	EditURL    string
+	ListURL    string
+	DeleteURL  string
+	CanEdit    bool
+	CanDelete  bool
 }
 
 func (t *typedResource[T]) show(c *Context) error {
@@ -426,7 +429,9 @@ func (t *typedResource[T]) show(c *Context) error {
 		}
 		vm.Relations = append(vm.Relations, *relVM)
 	}
-	return c.Panel.render(c, "detail/page.html", m.title+" #"+id, vm)
+	vm.HasHistory = t.historyOn()
+	vm.History = t.historyVMs(c, id)
+	return c.Panel.render(c, "detail/page.html", c.lookup(m.title)+" #"+id, vm)
 }
 
 // renderRelation renders this resource's grid columns for an embedded

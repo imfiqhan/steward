@@ -1,8 +1,8 @@
 <div class="p-6 grid grid-cols-1 gap-4">
   <div class="flex flex-wrap items-center gap-2">
     <div>
-      <p class="text-sm text-muted-foreground">{{.Data.Title}}</p>
-      <h2 class="text-2xl font-semibold">{{.Data.Title}} #{{.Data.Key}}</h2>
+      <p class="text-sm text-muted-foreground">{{t .Data.Title}}</p>
+      <h2 class="text-2xl font-semibold">{{t .Data.Title}} #{{.Data.Key}}</h2>
     </div>
     <div class="ms-auto flex items-center gap-2">
       <a href="{{.Data.ListURL}}" class="btn" data-variant="outline"
@@ -31,12 +31,13 @@
       <dl class="steward-detail">
         {{range .Data.Rows}}
         <div class="steward-detail-row{{if .Block}} steward-detail-row-block{{end}}">
-          <dt>{{t .Label}}</dt>
+          {{$label := t .Label}}
+          <dt>{{$label}}</dt>
           <dd>
             {{.HTML}}
             {{with .Copy}}
             <button type="button" class="steward-copy" data-steward-copy="{{.}}"
-                    aria-label="Copy {{$.Data.Title}} value">
+                    aria-label="{{t "Copy %s" $label}}">
               {{icon "copy" "size-3"}}
             </button>
             {{end}}
@@ -67,6 +68,39 @@
           </tbody>
         </table>
       </div>
+    </section>
+  </div>
+  {{end}}
+  {{if .Data.HasHistory}}
+  {{/* Newest first; each entry names who, when, and each field's before and
+       after. A delete, restore or permanent delete has no fields. */}}
+  <div class="card" data-size="sm" data-steward-history>
+    <header><h2>{{t "History"}}</h2></header>
+    <section>
+      {{if not .Data.History}}
+      <p class="text-sm text-muted-foreground">{{t "No changes recorded yet."}}</p>
+      {{else}}
+      <ol class="steward-history">
+        {{range .Data.History}}
+        <li>
+          <p class="text-sm">
+            <span class="font-medium">{{.Action}}</span>
+            <span class="text-muted-foreground">· {{if .User}}{{.User}}{{else}}{{t "system"}}{{end}} · <time>{{.When}}</time></span>
+          </p>
+          {{if .Changes}}
+          <dl class="steward-history-changes">
+            {{range .Changes}}
+            <div>
+              <dt>{{t .Label}}</dt>
+              <dd><del>{{.Before}}</del> <span aria-hidden="true">→</span> <ins>{{.After}}</ins></dd>
+            </div>
+            {{end}}
+          </dl>
+          {{end}}
+        </li>
+        {{end}}
+      </ol>
+      {{end}}
     </section>
   </div>
   {{end}}

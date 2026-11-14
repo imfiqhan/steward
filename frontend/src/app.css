@@ -411,6 +411,32 @@ tr.steward-dragging { opacity: 0.5; }
 
 /* ---- Detail page --------------------------------------------------------- */
 
+/* Record history: one entry per change, newest first. A field's old value is
+   struck through and muted, so the eye lands on what it is now. */
+.steward-history {
+  display: grid;
+  gap: 1rem;
+}
+.steward-history > li + li {
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.steward-history-changes {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+.steward-history-changes > div {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) 1fr;
+  gap: 0.75rem;
+}
+.steward-history-changes dt { color: var(--muted-foreground); }
+.steward-history-changes dd { min-width: 0; overflow-wrap: anywhere; }
+.steward-history-changes del { color: var(--muted-foreground); }
+.steward-history-changes ins { text-decoration: none; }
+
 .steward-detail-row {
   display: grid;
   gap: 0.25rem 1.5rem;

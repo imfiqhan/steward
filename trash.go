@@ -110,6 +110,7 @@ func (t *typedResource[T]) restoreRows(c *Context) error {
 	for i := range rows {
 		t.indexRow(c.Ctx(), &rows[i])
 	}
+	t.recordChanges(c, keys, ChangeRestored)
 	msg := c.T("Restored record.")
 	if len(keys) != 1 {
 		msg = c.T("Restored %d records.", len(keys))
@@ -138,6 +139,7 @@ func (t *typedResource[T]) forceDeleteRows(c *Context) error {
 			c.Panel.log.Error("steward: deleted hook", "err", err)
 		}
 	}
+	t.recordChanges(c, keys, ChangeForceDeleted)
 	msg := c.T("Deleted record permanently.")
 	if len(keys) != 1 {
 		msg = c.T("Deleted %d records permanently.", len(keys))

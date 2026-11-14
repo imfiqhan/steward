@@ -43,6 +43,8 @@ type Tables struct {
 	InvitationModel any
 	// JobModel is the job queue's table, created by 0010.
 	JobModel any
+	// HistoryModel is the record history table, created by 0011.
+	HistoryModel any
 	// PermissionModel gains its sync columns (Source, CodeKey, Overridden)
 	// in 0009.
 	PermissionModel any
@@ -212,6 +214,15 @@ func Core(t Tables) []migrate.Migration {
 			},
 			Down: func(tx *gorm.DB) error {
 				return tx.Migrator().DropTable(t.JobModel)
+			},
+		},
+		{
+			Name: "0011_create_record_history",
+			Up: func(tx *gorm.DB) error {
+				return tx.Migrator().AutoMigrate(t.HistoryModel)
+			},
+			Down: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable(t.HistoryModel)
 			},
 		},
 	}

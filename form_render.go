@@ -910,23 +910,32 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 	}
 
 	var err error
+	var changed []string
 	if creating {
 		submitted := make([]string, 0, len(writes))
 		for _, w := range writes {
 			submitted = append(submitted, w.fd.path)
 		}
 		err = createKeeping(c.Ctx(), t.repo, t.ft, m, submitted)
+		changed = submitted
 	} else {
 		// After the hook, not before: a Saving hook that sets a field the form
 		// never submitted was writing nothing at all, because the column list
 		// came from the form alone.
-		dirty := t.changedColumns(m, before)
-		if len(dirty) > 0 {
-			err = t.repo.Update(c.Ctx(), m, dirty)
+		changed = t.changedColumns(m, before)
+		if len(changed) > 0 {
+			err = t.repo.Update(c.Ctx(), m, changed)
 		}
 	}
 	if err != nil {
 		return err
+	}
+	if t.historyOn() {
+		action := ChangeUpdated
+		if creating {
+			action = ChangeCreated
+		}
+		t.recordChange(c, t.rowKey(m), action, t.fieldChanges(changed, before, m))
 	}
 	// After the write, not from a Saved hook: a hook belongs to this form, and
 	// the index has to reflect the record however it was written.

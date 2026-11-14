@@ -937,6 +937,7 @@ func (t *typedResource[T]) destroy(c *Context) error {
 		return err
 	}
 	t.unindexRows(c.Ctx(), ids)
+	t.recordChanges(c, ids, ChangeDeleted)
 	if t.form.deletedFn != nil {
 		if err := t.form.deletedFn(c, ids); err != nil {
 			c.Panel.log.Error("steward: deleted hook", "err", err)
