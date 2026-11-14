@@ -484,7 +484,7 @@ func (t *typedResource[T]) compile(a *Panel) error {
 			fd.label = fd.info.Label
 		}
 		if fd.kind == FieldBelongsTo {
-			t.resolveBelongsTo(a, fd)
+			resolveBelongsTo(a, t.res.m.slug, t.ft, fd)
 		}
 	}
 	for _, n := range fm.nested {
@@ -572,20 +572,23 @@ func (t *typedResource[T]) compileQuickCreate(a *Panel) {
 
 // resolveBelongsTo fills the relation's table/pk/title columns for option
 // loading, verifying the relation and title field exist.
-func (t *typedResource[T]) resolveBelongsTo(a *Panel, fd *Field[T]) {
-	rel, ok := t.ft.model.Relationships.Relations[fd.relName]
+//
+// ft is the field table of the model the form edits: the resource's own, or a
+// HasMany child's for a field inside a repeater row.
+func resolveBelongsTo[X any](a *Panel, slug string, ft *fieldTable, fd *Field[X]) {
+	rel, ok := ft.model.Relationships.Relations[fd.relName]
 	if !ok || rel.FieldSchema == nil {
 		a.verifyErrs = append(a.verifyErrs,
 			fmt.Errorf("%s: form field %q: unknown relation %q%s%s",
-				t.res.m.slug, fd.path, fd.relName, at(fd.declaredAt),
-				suggest.Block(fd.relName, relationNames(t.ft))))
+				slug, fd.path, fd.relName, at(fd.declaredAt),
+				suggest.Block(fd.relName, relationNames(ft))))
 		return
 	}
 	titleField := rel.FieldSchema.LookUpField(fd.relTitle)
 	if titleField == nil {
 		a.verifyErrs = append(a.verifyErrs,
 			fmt.Errorf("%s: form field %q: relation %s has no field %q%s%s",
-				t.res.m.slug, fd.path, fd.relName, fd.relTitle, at(fd.declaredAt),
+				slug, fd.path, fd.relName, fd.relTitle, at(fd.declaredAt),
 				suggest.Block(fd.relTitle, schemaFieldNames(rel.FieldSchema))))
 		return
 	}

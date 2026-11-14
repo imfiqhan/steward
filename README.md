@@ -123,7 +123,8 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
 - [x] Fieldset and divider layout
 - [x] Dirty-field-only updates; 422 inline errors in both HTML and JSON
 - [ ] Embeds (JSON-column nested forms)
-- [ ] File/Image/BelongsTo fields inside hasMany rows
+- [x] File/Image/BelongsTo fields inside hasMany rows, through the parent's
+      own `_upload` and `_options` endpoints
 - [x] Per-request conditional fields (`Field.Show`) — hidden fields are refused
       on submit and omitted from `_schema`, not merely hidden
 - [x] `Icon` picker field over the full Lucide set (~1,600), collapsed by

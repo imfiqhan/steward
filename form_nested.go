@@ -52,6 +52,9 @@ type nestedForm[T any] interface {
 	fieldName() string
 	// tabName is the form tab the repeater was declared in, "" for none.
 	tabName() string
+	// childSpec resolves a row field by its path, for the upload and options
+	// endpoints.
+	childSpec(path string) (fieldSpec, bool)
 	compile(a *Panel, parent *typedResource[T]) error
 	buildVM(c *Context, parent *T) (nestedVM, error)
 	validate(c *Context) (payload any, errs map[string][]string)
@@ -95,17 +98,32 @@ type hasManyForm[T, C any] struct {
 	repo      *GormRepository[C]
 	db        bool // compiled successfully
 	tab       string
+	// slug is the parent resource's, for the endpoint URLs a row field posts to.
+	slug string
 }
 
 func (h *hasManyForm[T, C]) fieldName() string { return h.relation }
 
 func (h *hasManyForm[T, C]) tabName() string { return h.tab }
 
+func (h *hasManyForm[T, C]) childSpec(path string) (fieldSpec, bool) {
+	for _, fd := range h.childForm.fields {
+		if fd.path == path && !fd.divider && !fd.ignored && fd.info != nil {
+			return fd.spec(), true
+		}
+	}
+	return fieldSpec{}, false
+}
+
+// endpointName is how the upload and options endpoints address a row field.
+func (h *hasManyForm[T, C]) endpointName(fd *Field[C]) string { return h.relation + "." + fd.path }
+
 func (h *hasManyForm[T, C]) compile(a *Panel, parent *typedResource[T]) error {
 	if h.label == "" {
 		h.label = splitCamel(h.relation)
 	}
 	h.parentPK = parent.ft.pk
+	h.slug = parent.res.m.slug
 	if len(h.childForm.tabs) > 0 {
 		a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
 			"resource %q: HasMany %q: a repeater row cannot hold tabs", parent.res.m.slug, h.relation))
@@ -136,14 +154,6 @@ func (h *hasManyForm[T, C]) compile(a *Panel, parent *typedResource[T]) error {
 
 	for _, fd := range h.childForm.fields {
 		if fd.divider || fd.virtual {
-			continue
-		}
-		switch fd.kind {
-		case FieldFile, FieldImage, FieldBelongsTo:
-			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-				"resource %q: HasMany %q field %q: %s fields are not supported inside nested rows yet",
-				parent.res.m.slug, h.relation, fd.path, kindNames[fd.kind]))
-			fd.ignored = true
 			continue
 		}
 		// Accepting a setting and dropping it at render is the failure that
@@ -178,6 +188,9 @@ func (h *hasManyForm[T, C]) compile(a *Panel, parent *typedResource[T]) error {
 		if fd.label == "" {
 			fd.label = info.Label
 		}
+		if fd.kind == FieldBelongsTo {
+			resolveBelongsTo(a, parent.res.m.slug, ft, fd)
+		}
 	}
 
 	repo, err := NewGormRepository[C](a.db)
@@ -189,8 +202,10 @@ func (h *hasManyForm[T, C]) compile(a *Panel, parent *typedResource[T]) error {
 	return nil
 }
 
-// childFieldVM renders one child field with a bracketed input name.
-func (h *hasManyForm[T, C]) childFieldVM(c *Context, fd *Field[C], row *C, key string) formFieldVM {
+// childFieldVM renders one child field with a bracketed input name. parentID
+// is the record the form edits, "" on create; an upload posts it so the
+// endpoint can check the caller may update that record.
+func (h *hasManyForm[T, C]) childFieldVM(c *Context, fd *Field[C], row *C, key, parentID string) formFieldVM {
 	fv := formFieldVM{
 		Kind:        kindNames[fd.kind],
 		Name:        fmt.Sprintf("%s[%s][%s]", h.relation, key, fd.path),
@@ -219,11 +234,36 @@ func (h *hasManyForm[T, C]) childFieldVM(c *Context, fd *Field[C], row *C, key s
 		for val, label := range opts {
 			fv.Options = append(fv.Options, optionVM{Value: val, Label: label, Selected: val == fv.Value})
 		}
+	case FieldBelongsTo:
+		fv.Options = belongsToOptions(c, fd.spec(), fv.Value)
+		fv.Search = true
+		fv.OptionsURL = optionsURL(c, h.slug, h.endpointName(fd))
+	case FieldFile, FieldImage:
+		fv.UploadURL = uploadURL(c, h.slug, h.endpointName(fd), parentID)
+		if fv.Value != "" {
+			fv.PreviewURL = c.Panel.DiskURL(fd.disk, fv.Value)
+			fv.FileName = displayFileName(fv.Value)
+		}
+		fv.MaxSizeLabel = sizeLabel(fd.maxSize)
+		fv.AcceptLabel = acceptLabel(fd.accept)
+	case FieldFiles, FieldImages:
+		fv.UploadURL = uploadURL(c, h.slug, h.endpointName(fd), parentID)
+		fv.MaxSizeLabel = sizeLabel(fd.maxSize)
+		fv.AcceptLabel = acceptLabel(fd.accept)
+		fv.MaxFiles = fd.maxFiles
+		if fv.MaxFiles <= 0 {
+			fv.MaxFiles = defaultMaxFiles
+		}
+		for _, p := range decodeStringList(fv.Value) {
+			fv.Files = append(fv.Files, uploadedVM{
+				Path: p, URL: c.Panel.DiskURL(fd.disk, p), Name: displayFileName(p),
+			})
+		}
 	}
 	return fv
 }
 
-func (h *hasManyForm[T, C]) rowVM(c *Context, row *C, key string) nestedRowVM {
+func (h *hasManyForm[T, C]) rowVM(c *Context, row *C, key, parentID string) nestedRowVM {
 	rv := nestedRowVM{Key: key}
 	for _, fd := range h.childForm.fields {
 		if fd.divider {
@@ -233,22 +273,24 @@ func (h *hasManyForm[T, C]) rowVM(c *Context, row *C, key string) nestedRowVM {
 		if fd.ignored || fd.info == nil {
 			continue
 		}
-		rv.appendField(h.childFieldVM(c, fd, row, key), fd.fieldset)
+		rv.appendField(h.childFieldVM(c, fd, row, key, parentID), fd.fieldset)
 	}
 	return rv
 }
 
 func (h *hasManyForm[T, C]) buildVM(c *Context, parent *T) (nestedVM, error) {
-	vm := nestedVM{Name: h.relation, Label: h.label, Template: h.rowVM(c, nil, "__KEY__")}
-	if !h.db || parent == nil {
-		return vm, nil
+	parentID := ""
+	if parent != nil {
+		if pk, ok := h.parentPK.value(reflect.ValueOf(parent)); ok {
+			parentID = fmt.Sprint(pk)
+		}
 	}
-	pk, ok := h.parentPK.value(reflect.ValueOf(parent))
-	if !ok {
+	vm := nestedVM{Name: h.relation, Label: h.label, Template: h.rowVM(c, nil, "__KEY__", parentID)}
+	if !h.db || parentID == "" {
 		return vm, nil
 	}
 	children, _, err := h.repo.List(c.Ctx(), &ListQuery{
-		Conds: []Cond{{Path: h.fkPath, Op: OpEq, Val: fmt.Sprint(pk)}},
+		Conds: []Cond{{Path: h.fkPath, Op: OpEq, Val: parentID}},
 		Sorts: []Sort{{Path: h.childFT.pk.Path}},
 		Page:  1, PerPage: 500,
 	})
@@ -257,7 +299,7 @@ func (h *hasManyForm[T, C]) buildVM(c *Context, parent *T) (nestedVM, error) {
 	}
 	for i := range children {
 		key := fmt.Sprint(mustValue(h.childFT.pk, &children[i]))
-		vm.Rows = append(vm.Rows, h.rowVM(c, &children[i], key))
+		vm.Rows = append(vm.Rows, h.rowVM(c, &children[i], key, parentID))
 	}
 	return vm, nil
 }
@@ -409,6 +451,7 @@ func (h *hasManyForm[T, C]) persist(c *Context, parent *T, payload any) error {
 			// is trivial — recorded anyway, so a caller reads one map rather
 			// than deciding per row which kind it is looking at.
 			c.recordNestedID(h.relation, p.key, p.key)
+			held := h.heldUploads(child)
 			var dirty []string
 			for path, val := range p.values {
 				if info, ok := h.childFT.byPath[path]; ok {
@@ -424,9 +467,41 @@ func (h *hasManyForm[T, C]) persist(c *Context, parent *T, payload any) error {
 			if err := h.repo.Update(c.Ctx(), child, dirty); err != nil {
 				return err
 			}
+			h.dropReplacedUploads(c, child, held)
 		}
 	}
 	return nil
+}
+
+// heldUploads records what a row's upload fields hold before an update.
+func (h *hasManyForm[T, C]) heldUploads(child *C) map[*Field[C]][]string {
+	held := map[*Field[C]][]string{}
+	for _, fd := range h.childForm.fields {
+		if fd.info != nil && !fd.ignored && isUploadKind(fd.kind) {
+			held[fd] = decodeStringList(fd.valueString(child))
+		}
+	}
+	return held
+}
+
+// dropReplacedUploads removes the files a row's upload fields stopped holding,
+// as the parent form does for its own fields.
+func (h *hasManyForm[T, C]) dropReplacedUploads(c *Context, child *C, held map[*Field[C]][]string) {
+	for fd, before := range held {
+		after := map[string]bool{}
+		for _, p := range decodeStringList(fd.valueString(child)) {
+			after[p] = true
+		}
+		for _, p := range before {
+			if p == "" || after[p] {
+				continue
+			}
+			if err := c.Panel.diskOf(fd.disk).Storage.Delete(c.Ctx(), p); err != nil {
+				c.Panel.log.Warn("steward: removing a replaced upload",
+					"field", h.endpointName(fd), "path", p, "err", err)
+			}
+		}
+	}
 }
 
 // childKey reads a child's primary key as the string a reference would use.

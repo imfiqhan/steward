@@ -392,7 +392,7 @@ func (t *typedResource[T]) fieldVM(c *Context, fd *Field[T], row *T, creating bo
 	case FieldBelongsTo:
 		// Always fetched: the target is a table, and how big it is now says
 		// nothing about how big it will be.
-		fv.Options = t.belongsToOptions(c, fd, fv.Value)
+		fv.Options = belongsToOptions(c, fd.spec(), fv.Value)
 		fv.Search = true
 		fv.OptionsURL = optionsURL(c, m.slug, fd.path)
 	case FieldFile, FieldImage:
@@ -457,7 +457,7 @@ func optionsURL(c *Context, slug, field string) string {
 // belongsToOptions loads one page of related rows, and the selected row with
 // them — the control reads its own label off the option, so a selection missing
 // from the list would show as an id.
-func (t *typedResource[T]) belongsToOptions(c *Context, fd *Field[T], selected string) []optionVM {
+func belongsToOptions(c *Context, fd fieldSpec, selected string) []optionVM {
 	if fd.relTable == "" {
 		return nil
 	}
@@ -498,6 +498,51 @@ func (t *typedResource[T]) belongsToOptions(c *Context, fd *Field[T], selected s
 		}
 	}
 	return opts
+}
+
+// fieldSpec is what the upload and options endpoints need from a field, without
+// the model type: the same endpoints serve the resource's own fields and those
+// inside a HasMany row, whose Field is typed by the child model.
+type fieldSpec struct {
+	path    string
+	kind    FieldKind
+	maxSize int64
+	accept  string
+	dir     string
+	disk    string
+	// relTable, relPKCol and relTitleCol locate a BelongsTo's options.
+	relTable    string
+	relPKCol    string
+	relTitleCol string
+}
+
+func (fd *Field[T]) spec() fieldSpec {
+	return fieldSpec{
+		path: fd.path, kind: fd.kind, maxSize: fd.maxSize, accept: fd.accept,
+		dir: fd.dir, disk: fd.disk,
+		relTable: fd.relTable, relPKCol: fd.relPKCol, relTitleCol: fd.relTitleCol,
+	}
+}
+
+// endpointField resolves the field an upload or options request names: a path
+// of the resource's own form, or "Relation.Path" for a field inside a HasMany
+// row.
+func (t *typedResource[T]) endpointField(name string) (fieldSpec, bool) {
+	for _, fd := range t.form.fields {
+		if fd.path == name && !fd.divider {
+			return fd.spec(), true
+		}
+	}
+	relation, child, ok := strings.Cut(name, ".")
+	if !ok {
+		return fieldSpec{}, false
+	}
+	for _, n := range t.form.nested {
+		if n.fieldName() == relation {
+			return n.childSpec(child)
+		}
+	}
+	return fieldSpec{}, false
 }
 
 // ---- handlers ---------------------------------------------------------------
@@ -1010,31 +1055,18 @@ func (t *typedResource[T]) optionsJSON(c *Context) error {
 		return c.JSON(http.StatusNotFound, Error("unknown filter"))
 	}
 	name := c.R.URL.Query().Get("field")
+	// A BelongsTo inside a HasMany row is addressed as "Relation.Path".
+	if strings.Contains(name, ".") {
+		if spec, ok := t.endpointField(name); ok && spec.kind == FieldBelongsTo && spec.relTable != "" {
+			return belongsToSearch(c, spec)
+		}
+	}
 	for _, fd := range t.form.fields {
 		if fd.path != name {
 			continue
 		}
 		if fd.kind == FieldBelongsTo && fd.relTable != "" {
-			q := strings.TrimSpace(c.R.URL.Query().Get("q"))
-			db := c.Panel.db.WithContext(c.Ctx()).Table(fd.relTable).
-				Select(fd.relPKCol + ", " + fd.relTitleCol).Limit(50)
-			if q != "" {
-				db = db.Where(fd.relTitleCol+" LIKE ?", "%"+q+"%")
-			}
-			rows, err := db.Rows()
-			if err != nil {
-				return err
-			}
-			defer func() { _ = rows.Close() }()
-			var opts []map[string]string
-			for rows.Next() {
-				var id, title string
-				if err := rows.Scan(&id, &title); err != nil {
-					continue
-				}
-				opts = append(opts, map[string]string{"value": id, "label": title})
-			}
-			return c.JSON(http.StatusOK, map[string]any{"options": opts})
+			return belongsToSearch(c, fd.spec())
 		}
 		if fd.kind == FieldMultiSelect || fd.kind == FieldSelect {
 			list, more := searchOptions(fd.choices(c), c.R.URL.Query().Get("q"))
@@ -1047,6 +1079,31 @@ func (t *typedResource[T]) optionsJSON(c *Context) error {
 		return c.JSON(http.StatusOK, map[string]any{"options": fd.choices(c)})
 	}
 	return c.JSON(http.StatusNotFound, Error("unknown field"))
+}
+
+// belongsToSearch answers a BelongsTo combobox's search: up to fifty related
+// rows whose title contains q.
+func belongsToSearch(c *Context, fd fieldSpec) error {
+	q := strings.TrimSpace(c.R.URL.Query().Get("q"))
+	db := c.Panel.db.WithContext(c.Ctx()).Table(fd.relTable).
+		Select(fd.relPKCol + ", " + fd.relTitleCol).Limit(50)
+	if q != "" {
+		db = db.Where(fd.relTitleCol+" LIKE ?", "%"+q+"%")
+	}
+	rows, err := db.Rows()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+	var opts []map[string]string
+	for rows.Next() {
+		var id, title string
+		if err := rows.Scan(&id, &title); err != nil {
+			continue
+		}
+		opts = append(opts, map[string]string{"value": id, "label": title})
+	}
+	return c.JSON(http.StatusOK, map[string]any{"options": opts})
 }
 
 // optionSearchLimit bounds one page of a combobox's suggestions. The list is
@@ -1138,17 +1195,10 @@ func (t *typedResource[T]) uploadFile(c *Context) error {
 	} else if !t.canCreate(c) {
 		return t.denyPolicy(c)
 	}
-	name := c.R.URL.Query().Get("field")
-	var target *Field[T]
-	for _, fd := range t.form.fields {
-		// A Richtext field is not an upload field, but its editor puts images
-		// in the body, and they go to the same place under the same limits.
-		if fd.path == name && (isUploadKind(fd.kind) || fd.kind == FieldRichtext) {
-			target = fd
-			break
-		}
-	}
-	if target == nil {
+	// A Richtext field is not an upload field, but its editor puts images in
+	// the body, and they go to the same place under the same limits.
+	target, ok := t.endpointField(c.R.URL.Query().Get("field"))
+	if !ok || (!isUploadKind(target.kind) && target.kind != FieldRichtext) {
 		return c.JSON(http.StatusNotFound, Error("unknown upload field"))
 	}
 	maxSize := target.maxSize

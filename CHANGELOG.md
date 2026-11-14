@@ -43,6 +43,12 @@ running panel to a new version.
   rejects a path the form lacks, a multi-line kind, and a row that leaves out a
   field required on create.
 
+- **Uploads and BelongsTo inside repeater rows.** `File`, `Image`, `Files`,
+  `Images` and `BelongsTo` are accepted in a `HasMany` row instead of failing
+  `Verify()`. They use the parent's `_upload` and `_options` endpoints,
+  addressed as `Relation.Path`, under the parent's permissions and policy; a
+  replaced file in a saved row is removed from storage.
+
 ### Fixed
 
 - **The pinned actions column shows its divider.** It was a border, which a
