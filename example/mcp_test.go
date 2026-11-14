@@ -457,3 +457,27 @@ func TestMCPStdioStaysInItsWorkspace(t *testing.T) {
 		t.Errorf("alice's MCP session in acme listed:\n%s", out)
 	}
 }
+
+// A command's -h is the catalog's description of it, not the flag package's
+// list of untyped strings.
+func TestDataCommandHelp(t *testing.T) {
+	fx := newMCPFixture(t)
+	want, err := fx.cli(t, "", "tools", "posts:create")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, flag := range []string{"-h", "--help"} {
+		got, err := fx.cli(t, "", "posts:create", flag)
+		if err != nil {
+			t.Fatalf("posts:create %s: %v", flag, err)
+		}
+		if got != want {
+			t.Errorf("posts:create %s printed:\n%s\nwant what tools posts:create prints:\n%s", flag, got, want)
+		}
+	}
+	for _, line := range []string{"--Title string (required)", "--Status draft|published", "--Live boolean", "-user string"} {
+		if !strings.Contains(want, line) {
+			t.Errorf("the help lacks %q", line)
+		}
+	}
+}

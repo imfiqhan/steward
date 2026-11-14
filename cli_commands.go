@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -54,21 +55,7 @@ func runToolsCommand(a *Panel, args []string, out io.Writer) error {
 		if !ok {
 			return fmt.Errorf("unknown command %q%s", name, suggest.Block(name, a.commandNames()))
 		}
-		_, _ = fmt.Fprintf(out, "%s — %s\n\n", c.Name, c.Description)
-		if len(c.Params) == 0 {
-			_, _ = fmt.Fprintln(out, "  (no arguments)")
-		}
-		for _, p := range c.Params {
-			req := ""
-			if p.Required {
-				req = " (required)"
-			}
-			typ := p.Type
-			if len(p.Enum) > 0 {
-				typ = strings.Join(p.Enum, "|")
-			}
-			_, _ = fmt.Fprintf(out, "  --%s %s%s\n      %s\n", p.Name, typ, req, p.Description)
-		}
+		writeCommandHelp(out, c)
 		return nil
 	}
 	width := 0
@@ -81,10 +68,40 @@ func runToolsCommand(a *Panel, args []string, out io.Writer) error {
 	return nil
 }
 
+// writeCommandHelp describes one command and its arguments: what both
+// `tools <command>` and `<command> -h` print.
+func writeCommandHelp(out io.Writer, c *command) {
+	_, _ = fmt.Fprintf(out, "%s — %s\n\n", c.Name, c.Description)
+	_, _ = fmt.Fprintln(out, "  -user string\n      account to act as (default $STEWARD_MCP_USER)")
+	_, _ = fmt.Fprintln(out, "  -tenant string\n      workspace slug, under tenancy (default $STEWARD_MCP_TENANT)")
+	for _, p := range c.Params {
+		req := ""
+		if p.Required {
+			req = " (required)"
+		}
+		typ := p.Type
+		if len(p.Enum) > 0 {
+			typ = strings.Join(p.Enum, "|")
+		}
+		_, _ = fmt.Fprintf(out, "  --%s %s%s\n      %s\n", p.Name, typ, req, p.Description)
+	}
+}
+
+// helpFlags are the spellings the flag package treats as a request for help.
+var helpFlags = []string{"-h", "-help", "--h", "--help"}
+
 // runDataCommand answers one catalog command from the command line: its
 // arguments as flags, its answer as JSON on out. A refusal or a validation
 // failure is returned as the error, which CLI prints and exits 1 on.
 func runDataCommand(ctx context.Context, a *Panel, c *command, args []string, out io.Writer) error {
+	// The flag package's own usage would list every argument as a string, with
+	// no required marks or choices; the catalog knows better.
+	for _, arg := range args {
+		if slices.Contains(helpFlags, arg) {
+			writeCommandHelp(out, c)
+			return nil
+		}
+	}
 	fs := flag.NewFlagSet(c.Name, flag.ContinueOnError)
 	user, tenant := principalFlags(fs)
 	byName := map[string]param{}
