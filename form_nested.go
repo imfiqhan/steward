@@ -29,6 +29,7 @@ func HasMany[T any, C any](f *Form[T], relation string, fkPath string, fn func(*
 		relation:  relation,
 		fkPath:    fkPath,
 		childForm: child,
+		tab:       f.tab,
 	}
 	f.nested = append(f.nested, h)
 	return &Nested{label: &h.label}
@@ -49,6 +50,8 @@ func (n *Nested) Label(s string) *Nested {
 // hasManyForm.
 type nestedForm[T any] interface {
 	fieldName() string
+	// tabName is the form tab the repeater was declared in, "" for none.
+	tabName() string
 	compile(a *Panel, parent *typedResource[T]) error
 	buildVM(c *Context, parent *T) (nestedVM, error)
 	validate(c *Context) (payload any, errs map[string][]string)
@@ -91,15 +94,22 @@ type hasManyForm[T, C any] struct {
 	fkInfo    *fieldInfo
 	repo      *GormRepository[C]
 	db        bool // compiled successfully
+	tab       string
 }
 
 func (h *hasManyForm[T, C]) fieldName() string { return h.relation }
+
+func (h *hasManyForm[T, C]) tabName() string { return h.tab }
 
 func (h *hasManyForm[T, C]) compile(a *Panel, parent *typedResource[T]) error {
 	if h.label == "" {
 		h.label = splitCamel(h.relation)
 	}
 	h.parentPK = parent.ft.pk
+	if len(h.childForm.tabs) > 0 {
+		a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+			"resource %q: HasMany %q: a repeater row cannot hold tabs", parent.res.m.slug, h.relation))
+	}
 
 	// The relation must exist on T as a has-many.
 	rel, ok := parent.ft.model.Relationships.Relations[h.relation]

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -118,5 +119,186 @@ func TestFormWidth(t *testing.T) {
 		if !strings.Contains(page, want) {
 			t.Errorf("width %q did not render %s", w, want)
 		}
+	}
+}
+
+type tabRow struct {
+	ID                   uint `gorm:"primaryKey"`
+	Title, Body, Meta    string
+	Secret, Extra, Notes string
+}
+
+func newTabServer(t *testing.T, form func(*steward.Form[tabRow])) (*httptest.Server, error) {
+	t.Helper()
+	db := testDB(t)
+	if err := db.AutoMigrate(&tabRow{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&tabRow{Title: "a"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("tab-layout-test-secret-key"),
+		AuthExcept: []string{"/tab_rows*"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[tabRow](app).Form(form)
+	if err := buildPanel(t, app); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Verify(); err != nil {
+		return nil, err
+	}
+	srv := serve(t, app)
+	t.Cleanup(srv.Close)
+	return srv, nil
+}
+
+func TestFormTabsRenderInDeclaredOrder(t *testing.T) {
+	srv, err := newTabServer(t, func(f *steward.Form[tabRow]) {
+		f.Text("Title")
+		f.Tab("Content", func(f *steward.Form[tabRow]) {
+			f.Textarea("Body")
+		})
+		f.Tab("SEO", func(f *steward.Form[tabRow]) {
+			f.Fieldset("Search", func(f *steward.Form[tabRow]) {
+				f.Text("Meta")
+			})
+		})
+		// A second call adds to the tab already declared.
+		f.Tab("Content", func(f *steward.Form[tabRow]) {
+			f.Text("Notes")
+		})
+		// Every field in this tab is hidden, so the tab is dropped.
+		f.Tab("Hidden", func(f *steward.Form[tabRow]) {
+			f.Text("Secret").Show(func(*steward.Context) bool { return false })
+		})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := getBody(t, srv.URL+"/admin/tab_rows/1/edit")
+
+	strip := strings.Index(page, `role="tablist"`)
+	if strip < 0 {
+		t.Fatal("no tab strip on a form with tabs")
+	}
+	if i := strings.Index(page, `data-steward-field="Title"`); i < 0 || i > strip {
+		t.Error("a field outside every tab should render above the strip")
+	}
+	content := strings.Index(page, `id="steward-form-tab-0"`)
+	seo := strings.Index(page, `id="steward-form-tab-1"`)
+	if content < 0 || seo < 0 || content > seo {
+		t.Fatalf("tab panels missing or out of order: %d %d", content, seo)
+	}
+	for _, f := range []string{"Body", "Notes"} {
+		if i := strings.Index(page, `data-steward-field="`+f+`"`); i < content || i > seo {
+			t.Errorf("%s should render in the Content panel", f)
+		}
+	}
+	if i := strings.Index(page, `data-steward-field="Meta"`); i < seo {
+		t.Error("Meta should render in the SEO panel")
+	}
+	if !strings.Contains(page[seo:], "<legend>Search</legend>") {
+		t.Error("a fieldset inside a tab lost its legend")
+	}
+	panel := page[seo:]
+	if !strings.Contains(panel[:strings.Index(panel, ">")], " hidden") {
+		t.Error("a panel other than the first should start hidden")
+	}
+	if strings.Contains(page, ">Hidden<") || strings.Contains(page, "steward-form-tab-3") {
+		t.Error("a tab whose fields are all hidden should not render")
+	}
+}
+
+func TestFormTabsSubmitTogether(t *testing.T) {
+	srv, err := newTabServer(t, func(f *steward.Form[tabRow]) {
+		f.Text("Title")
+		f.Tab("One", func(f *steward.Form[tabRow]) { f.Text("Body") })
+		f.Tab("Two", func(f *steward.Form[tabRow]) { f.Text("Meta").Rules("required") })
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, body := putRow2(t, srv, "/admin/tab_rows/1/edit", "/admin/tab_rows/1",
+		map[string]string{"Title": "t", "Body": "b", "Meta": ""})
+	if code != http.StatusUnprocessableEntity || !strings.Contains(body, `"Meta"`) {
+		t.Errorf("a required field on the second tab should fail: %d %s", code, body)
+	}
+	code, body = putRow2(t, srv, "/admin/tab_rows/1/edit", "/admin/tab_rows/1",
+		map[string]string{"Title": "t", "Body": "b", "Meta": "m"})
+	if code != http.StatusOK {
+		t.Fatalf("save = %d %s", code, body)
+	}
+	got := getBody(t, srv.URL+"/admin/tab_rows/1/edit")
+	if !strings.Contains(got, `value="b"`) || !strings.Contains(got, `value="m"`) {
+		t.Errorf("fields on both tabs should save: %s", got)
+	}
+}
+
+func TestFormTabsDoNotNest(t *testing.T) {
+	_, err := newTabServer(t, func(f *steward.Form[tabRow]) {
+		f.Tab("Outer", func(f *steward.Form[tabRow]) {
+			f.Tab("Inner", func(f *steward.Form[tabRow]) { f.Text("Body") })
+		})
+	})
+	if err == nil || !strings.Contains(err.Error(), "tabs do not nest") {
+		t.Errorf("a tab inside a tab should fail Verify, got %v", err)
+	}
+}
+
+type tabParent struct {
+	ID    uint `gorm:"primaryKey"`
+	Title string
+	Lines []tabLine `gorm:"foreignKey:ParentID"`
+}
+
+type tabLine struct {
+	ID       uint `gorm:"primaryKey"`
+	ParentID uint
+	Text     string
+}
+
+func TestFormTabsHoldRepeaters(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&tabParent{}, &tabLine{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&tabParent{Title: "p"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{
+		Prefix: "/admin",
+		DB:     db, SecretKey: []byte("tab-repeater-test-secret-key"),
+		AuthExcept: []string{"/tab_parents*"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[tabParent](app).Form(func(f *steward.Form[tabParent]) {
+		f.Tab("Main", func(f *steward.Form[tabParent]) { f.Text("Title") })
+		f.Tab("Lines", func(f *steward.Form[tabParent]) {
+			steward.HasMany(f, "Lines", "ParentID", func(cf *steward.Form[tabLine]) {
+				cf.Text("Text")
+			})
+		})
+	})
+	if err := buildPanel(t, app); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Verify(); err != nil {
+		t.Fatal(err)
+	}
+	srv := serve(t, app)
+	t.Cleanup(srv.Close)
+
+	page := getBody(t, srv.URL+"/admin/tab_parents/1/edit")
+	second := strings.Index(page, `id="steward-form-tab-1"`)
+	repeater := strings.Index(page, `data-steward-nested="Lines"`)
+	if second < 0 || repeater < second {
+		t.Errorf("the repeater should render in the Lines panel: panel at %d, repeater at %d", second, repeater)
 	}
 }

@@ -374,6 +374,25 @@ tr.steward-dragging { opacity: 0.5; }
   color: var(--foreground);
 }
 
+/* Form tabs. The strip scrolls rather than wraps, so a form with many tabs
+   keeps one row; a tab holding a field in error shows its dot. The dot is an
+   element rather than ::after, which the style packs already use on a tab. */
+.steward-form-tabs > [role='tablist'] {
+  max-width: 100%;
+  overflow-x: auto;
+  justify-content: flex-start;
+}
+.steward-form-tabs > [role='tablist'] > [role='tab'] { flex: 0 0 auto; }
+.steward-form-tabs > [role='tabpanel'] { padding-top: 1rem; }
+.steward-tab-error {
+  display: none;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: var(--destructive);
+}
+.steward-form-tabs [role='tab'][data-invalid] > .steward-tab-error { display: inline-block; }
+
 /* ---- Detail page --------------------------------------------------------- */
 
 .steward-detail-row {

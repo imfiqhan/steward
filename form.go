@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -67,6 +68,15 @@ type Form[T any] struct {
 	nested []nestedForm[T]
 	width  FormWidth
 
+	// tab is the tab fields are being declared into, while a Tab callback
+	// runs; tabs lists every tab title in declaration order.
+	tab  string
+	tabs []string
+	// tabDepth counts Tab calls in progress, so a tab declared inside another
+	// is reported rather than silently flattened.
+	tabDepth     int
+	nestedTabErr bool
+
 	submittedFn func(c *Context) error
 	savingFn    func(c *Context, m *T) error
 	savedFn     func(c *Context, m *T, created bool) error
@@ -77,7 +87,7 @@ type Form[T any] struct {
 func newForm[T any](res *Resource[T]) *Form[T] { return &Form[T]{res: res} }
 
 func (f *Form[T]) add(kind FieldKind, path string, label ...string) *Field[T] {
-	fd := &Field[T]{form: f, kind: kind, path: path, declaredAt: callerSite()}
+	fd := &Field[T]{form: f, kind: kind, path: path, tab: f.tab, declaredAt: callerSite()}
 	if len(label) > 0 {
 		fd.label = label[0]
 	}
@@ -344,7 +354,37 @@ func (f *Form[T]) Width(w FormWidth) *Form[T] { f.width = w; return f }
 
 // Divider inserts a horizontal rule between fields.
 func (f *Form[T]) Divider() {
-	f.fields = append(f.fields, &Field[T]{form: f, kind: FieldDisplay, divider: true, ignored: true})
+	f.fields = append(f.fields, &Field[T]{form: f, kind: FieldDisplay, divider: true, ignored: true, tab: f.tab})
+}
+
+// Tab puts the fields declared inside fn on a tab of their own. Tabs render
+// in the order they are first declared; calling Tab again with a title already
+// used adds to that tab. Fields declared outside any tab render above the tab
+// strip, and Fieldset and HasMany work inside a tab as they do outside one.
+//
+//	f.Tab("Content", func(f *steward.Form[Post]) {
+//	    f.Text("Title")
+//	    f.Markdown("Body")
+//	})
+//	f.Tab("SEO", func(f *steward.Form[Post]) {
+//	    f.Text("MetaTitle")
+//	})
+//
+// Every tab submits together. A field that fails validation in a tab that is
+// not showing marks that tab, and the first such tab is opened.
+func (f *Form[T]) Tab(title string, fn func(*Form[T])) {
+	if f.tabDepth > 0 {
+		f.nestedTabErr = true
+	}
+	prev := f.tab
+	f.tab = title
+	f.tabDepth++
+	if !slices.Contains(f.tabs, title) {
+		f.tabs = append(f.tabs, title)
+	}
+	fn(f)
+	f.tabDepth--
+	f.tab = prev
 }
 
 // Fieldset groups the fields declared inside fn under a legend.
@@ -398,6 +438,7 @@ type Field[T any] struct {
 	rangeTo  string
 	rangeOf  string
 	fieldset string
+	tab      string
 	divider  bool
 
 	rules       string

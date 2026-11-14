@@ -416,6 +416,10 @@ func (t *typedResource[T]) compile(a *Panel) error {
 		t.defaultFormFields(fm)
 	}
 	t.form = fm
+	if fm.nestedTabErr {
+		a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+			"%s: a form Tab is declared inside another Tab; tabs do not nest", t.res.m.slug))
+	}
 	for _, fd := range fm.fields {
 		if fd.divider {
 			continue

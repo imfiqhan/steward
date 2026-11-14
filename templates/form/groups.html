@@ -1,0 +1,14 @@
+{{range .}}
+  {{if .Title}}
+  <fieldset class="steward-fieldset">
+    <legend>{{.Title}}</legend>
+    <div class="steward-form-grid">
+      {{range .Fields}}{{template "form/field.html" .}}{{end}}
+    </div>
+  </fieldset>
+  {{else}}
+  <div class="steward-form-grid">
+    {{range .Fields}}{{template "form/field.html" .}}{{end}}
+  </div>
+  {{end}}
+{{end}}

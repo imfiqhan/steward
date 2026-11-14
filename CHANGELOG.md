@@ -26,6 +26,12 @@ running panel to a new version.
   the menu sync: code rows are rewritten, an edit in the UI pins one, and
   hand-made rows are never touched. Roles are not granted anything.
 
+- **Tabbed forms.** `Form.Tab("SEO", func(f) { … })` puts fields on a tab of
+  their own; fields outside every tab render above the strip. All tabs submit
+  together, and a failed field on a hidden tab marks that tab and opens it.
+  Fieldsets, spans and `HasMany` work inside a tab. Tabs inside tabs, and tabs
+  in a repeater row, fail `Verify()`.
+
 ### Fixed
 
 - **Permissions written per operation reach the endpoints that operation

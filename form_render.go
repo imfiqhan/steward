@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -104,15 +105,65 @@ type iconChoiceVM struct {
 }
 
 type formVM struct {
-	Title     string
-	Action    string
-	Method    string // POST | PUT
-	Creating  bool
-	Groups    []formGroupVM
-	Nested    []nestedVM
+	Title    string
+	Action   string
+	Method   string // POST | PUT
+	Creating bool
+	Groups   []formGroupVM
+	Nested   []nestedVM
+	// Tabs hold what was declared inside Form.Tab; Groups and Nested above
+	// are what was declared outside any tab, and render above the strip.
+	Tabs      []formTabVM
 	CancelURL string
 	// Width is the class capping the form on a large screen.
 	Width string
+}
+
+// formTabVM is one tab of a form: its own groups and repeaters. ID names the
+// panel for the tab's aria-controls.
+type formTabVM struct {
+	Title  string
+	ID     string
+	Groups []formGroupVM
+	Nested []nestedVM
+}
+
+// tabFor returns the tab a field declared under title renders in, or nil for
+// a field declared outside every tab.
+func (vm *formVM) tabFor(title string) *formTabVM {
+	if title == "" {
+		return nil
+	}
+	for i := range vm.Tabs {
+		if vm.Tabs[i].Title == title {
+			return &vm.Tabs[i]
+		}
+	}
+	return nil
+}
+
+// place appends a field to its tab, or to the untabbed groups.
+func (vm *formVM) place(tab string, fv formFieldVM, fieldset string) {
+	t := vm.tabFor(tab)
+	if t == nil {
+		vm.appendField(fv, fieldset)
+		return
+	}
+	g := &formVM{Groups: t.Groups}
+	g.appendField(fv, fieldset)
+	t.Groups = g.Groups
+}
+
+// dropEmptyTabs removes tabs left with nothing to show, which happens when a
+// Show predicate hides every field in one.
+func (vm *formVM) dropEmptyTabs() {
+	kept := vm.Tabs[:0]
+	for _, t := range vm.Tabs {
+		if len(t.Groups) > 0 || len(t.Nested) > 0 {
+			kept = append(kept, t)
+		}
+	}
+	vm.Tabs = kept
 }
 
 // formGroupVM is a run of fields sharing a fieldset. An untitled group is the
@@ -193,9 +244,12 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 		rowID = t.rowKey(row)
 		vm.Action, vm.Method = c.URL(m.slug, rowID), "PUT"
 	}
+	for i, title := range t.form.tabs {
+		vm.Tabs = append(vm.Tabs, formTabVM{Title: title, ID: "steward-form-tab-" + strconv.Itoa(i)})
+	}
 	for _, fd := range t.form.fields {
 		if fd.divider {
-			vm.appendField(formFieldVM{Divider: true}, fd.fieldset)
+			vm.place(fd.tab, formFieldVM{Divider: true}, fd.fieldset)
 			continue
 		}
 		if (fd.info == nil && !fd.virtual) || !fd.visible(c, creating) {
@@ -336,7 +390,7 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 				})
 			}
 		}
-		vm.appendField(fv, fd.fieldset)
+		vm.place(fd.tab, fv, fd.fieldset)
 	}
 	for _, n := range t.form.nested {
 		nvm, err := n.buildVM(c, row)
@@ -344,8 +398,13 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 			c.Panel.log.Error("steward: nested form", "relation", n.fieldName(), "err", err)
 			continue
 		}
+		if tab := vm.tabFor(n.tabName()); tab != nil {
+			tab.Nested = append(tab.Nested, nvm)
+			continue
+		}
 		vm.Nested = append(vm.Nested, nvm)
 	}
+	vm.dropEmptyTabs()
 	return vm
 }
 

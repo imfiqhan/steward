@@ -737,6 +737,25 @@ window.htmx = htmx;
       var box = wrap.querySelector("[data-steward-errors]");
       if (box) box.textContent = "";
     });
+    form.querySelectorAll("[data-steward-form-tabs] [role=tab][data-invalid]").forEach(function (tab) {
+      tab.removeAttribute("data-invalid");
+    });
+  }
+
+  // markInvalidTabs flags every form tab holding a field in error and opens the
+  // first, so the focus that follows lands on a control that is showing.
+  function markInvalidTabs(form) {
+    var first = null;
+    form.querySelectorAll("[data-steward-form-tabs] [role=tabpanel]").forEach(function (panel) {
+      if (!panel.querySelector("[aria-invalid]")) return;
+      var tab = form.querySelector('[role=tab][aria-controls="' + CSS.escape(panel.id) + '"]');
+      if (!tab) return;
+      tab.setAttribute("data-invalid", "true");
+      if (!first) first = tab;
+    });
+    if (!first) return;
+    var root = first.closest(".tabs");
+    if (root && typeof root.select === "function") root.select(first);
   }
 
   function showFieldErrors(form, errors) {
@@ -748,6 +767,7 @@ window.htmx = htmx;
       var box = wrap.querySelector("[data-steward-errors]");
       if (box) box.textContent = errors[name].join(" ");
     });
+    markInvalidTabs(form);
     var first = form.querySelector("[aria-invalid]");
     if (first) first.focus();
   }

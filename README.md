@@ -128,7 +128,8 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
       default and showing the current glyph; the grid draws from one cached
       sprite rather than inlining every icon, and `Verify()` reports a name
       set in code that does not resolve
-- [ ] Tabbed form layout
+- [x] Tabbed form layout (`Form.Tab`) — one form across tabs, with the tab
+      holding a failed field marked and opened
 
 ### Detail
 

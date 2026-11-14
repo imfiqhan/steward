@@ -5,24 +5,29 @@
   </div>
   <form class="card" data-steward-form action="{{.Data.Action}}" data-method="{{.Data.Method}}" method="post" novalidate>
     <section class="grid gap-6">
-      {{range .Data.Groups}}
-        {{if .Title}}
-        {{/* Declared fieldsets used to set a value nothing rendered, so the
-             legend never appeared on the page. */}}
-        <fieldset class="steward-fieldset">
-          <legend>{{.Title}}</legend>
-          <div class="steward-form-grid">
-            {{range .Fields}}{{template "form/field.html" .}}{{end}}
-          </div>
-        </fieldset>
-        {{else}}
-        <div class="steward-form-grid">
-          {{range .Fields}}{{template "form/field.html" .}}{{end}}
-        </div>
-        {{end}}
-      {{end}}
+      {{template "form/groups.html" .Data.Groups}}
       {{range .Data.Nested}}
         {{template "form/hasmany.html" .}}
+      {{end}}
+      {{with .Data.Tabs}}
+      <div class="tabs steward-form-tabs" data-steward-form-tabs>
+        <nav role="tablist" aria-orientation="horizontal">
+          {{range $i, $t := .}}
+          <button type="button" role="tab" id="{{$t.ID}}-tab" aria-controls="{{$t.ID}}"
+                  aria-selected="{{if eq $i 0}}true{{else}}false{{end}}"
+                  tabindex="{{if eq $i 0}}0{{else}}-1{{end}}">{{$t.Title}}<span class="steward-tab-error" aria-hidden="true"></span></button>
+          {{end}}
+        </nav>
+        {{range $i, $t := .}}
+        <div role="tabpanel" id="{{$t.ID}}" aria-labelledby="{{$t.ID}}-tab" tabindex="-1"
+             class="grid gap-6"{{if ne $i 0}} hidden{{end}}>
+          {{template "form/groups.html" $t.Groups}}
+          {{range $t.Nested}}
+            {{template "form/hasmany.html" .}}
+          {{end}}
+        </div>
+        {{end}}
+      </div>
       {{end}}
     </section>
     <footer class="flex items-center">
