@@ -30,6 +30,8 @@ type Grid[T any] struct {
 	defaultSort    *Sort
 	reorderURL     string
 	treePath       string
+	quickCreate    []string
+	quickDeclared  string
 
 	off map[string]bool // feature switches (create, delete, filter, ...)
 }
@@ -92,6 +94,23 @@ func (g *Grid[T]) DefaultSort(path string, desc bool) *Grid[T] {
 // with a Resource.Page handler that persists the order.
 func (g *Grid[T]) Reorderable(url string) *Grid[T] {
 	g.reorderURL = url
+	return g
+}
+
+// QuickCreate adds a row above the grid for creating a record from a few of its
+// form's fields without leaving the list:
+//
+//	g.QuickCreate("Title", "Status")
+//
+// Each path must be a field the resource's Form declares, of a kind that fits
+// on one line — text, number, select, switch, date, colour or BelongsTo. The
+// row posts to the ordinary create endpoint, so the form's rules, hooks and the
+// policy all apply; on success the grid reloads with the new row in it. Verify
+// reports a path the form does not have, and a field the form requires on
+// create that the row leaves out, since such a row could never save.
+func (g *Grid[T]) QuickCreate(paths ...string) *Grid[T] {
+	g.quickCreate = append(g.quickCreate, paths...)
+	g.quickDeclared = callerSite()
 	return g
 }
 

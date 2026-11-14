@@ -105,7 +105,8 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
       wide grid scrolls sideways
 - [x] Pinned leading columns (`Column.Pin()`), with the row selector pinned
       beside them
-- [ ] Quick-create row
+- [x] Quick-create row (`Grid.QuickCreate`) through the form's own rules and
+      hooks
 - [x] Quick search backed by a `Searcher` (`Resource.Searchable`), falling back
       to SQL `LIKE` without one
 

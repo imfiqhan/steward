@@ -360,7 +360,7 @@
 
   {{with .Help}}<p class="text-sm text-muted-foreground">{{.}}</p>{{end}}
   <p class="text-sm text-destructive" role="alert" data-steward-errors>
-    {{range .Errors}}{{.}} {{end}}
+    {{- range .Errors}}{{.}} {{end -}}
   </p>
 </div>
 {{end}}

@@ -60,6 +60,16 @@
   <div class="card overflow-visible self-start sm:max-h-full min-h-0" data-size="sm">
     {{template "grid/toolbar.html" .}}
     {{template "grid/filter.html" .}}
+    {{with .Data.QuickCreate}}
+    {{/* Posts to the ordinary create endpoint; _quick asks for a reload of the
+         list instead of a redirect to it. */}}
+    <form class="steward-quick-create" data-steward-form action="{{.Action}}" data-method="POST"
+          method="post" novalidate aria-label="Quick create">
+      <input type="hidden" name="_quick" value="1"/>
+      {{range .Fields}}{{template "form/field.html" .}}{{end}}
+      <button type="submit" class="btn" data-variant="outline" data-steward-submit>{{icon "plus"}} Add</button>
+    </form>
+    {{end}}
     <section class="px-0 min-w-0 flex flex-col flex-auto min-h-0">
       {{template "grid/table.html" .}}
     </section>

@@ -240,6 +240,22 @@ tr.steward-dragging { opacity: 0.5; }
   .steward-form-grid > .steward-span-12 { grid-column: span 12; }
 }
 
+/* A grid's quick-create row: the form's own fields, side by side on one line
+   that wraps when the card is narrow, with the button on the controls' line. */
+.steward-quick-create {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.steward-quick-create > [data-steward-field] { flex: 1 1 10rem; min-width: 10rem; }
+.steward-quick-create > [data-steward-field]:has([role="switch"]) { flex: 0 0 auto; min-width: 0; }
+/* An empty error line still takes the cell's gap, which would put the button
+   below the controls it sits beside. */
+.steward-quick-create [data-steward-errors]:empty { display: none; }
+
 /* The time inputs sit under the calendar, one per end. */
 .steward-daterange-times {
   display: grid;

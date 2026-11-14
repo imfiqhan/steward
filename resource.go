@@ -180,6 +180,9 @@ type typedResource[T any] struct {
 
 	// commandCols are the resolved CommandDisplay paths, in the order given.
 	commandCols []*fieldInfo
+
+	// quickFields are the form fields the grid's QuickCreate row renders.
+	quickFields []*Field[T]
 }
 
 func (t *typedResource[T]) meta() *resourceMeta { return t.res.m }
@@ -518,9 +521,53 @@ func (t *typedResource[T]) compile(a *Panel) error {
 		}
 	}
 
+	t.compileQuickCreate(a)
 	t.verifyActions(a)
 	t.compileDetail(a)
 	return nil
+}
+
+// quickCreateKinds are the field kinds a quick-create row can draw on one
+// line. Uploads, long text and repeaters need the room the full form gives.
+var quickCreateKinds = map[FieldKind]bool{
+	FieldText: true, FieldEmail: true, FieldURL: true, FieldNumber: true,
+	FieldDecimal: true, FieldCurrency: true, FieldSelect: true, FieldSwitch: true,
+	FieldColor: true, FieldDate: true, FieldDatetime: true, FieldTime: true,
+	FieldBelongsTo: true,
+}
+
+// compileQuickCreate resolves the grid's QuickCreate paths to form fields.
+func (t *typedResource[T]) compileQuickCreate(a *Panel) {
+	g := t.grid
+	if len(g.quickCreate) == 0 {
+		return
+	}
+	for _, p := range g.quickCreate {
+		fd := t.form.fieldByPath(p)
+		if fd == nil || fd.divider {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"%s: quick create %q is not a field of the form%s%s",
+				t.res.m.slug, p, at(g.quickDeclared), suggest.Block(p, formFieldPaths(t.form))))
+			continue
+		}
+		if !quickCreateKinds[fd.kind] || fd.rangeTo != "" || fd.rangeOf != "" {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"%s: quick create %q is a %s field, which needs the full form%s",
+				t.res.m.slug, p, kindNames[fd.kind], at(g.quickDeclared)))
+			continue
+		}
+		t.quickFields = append(t.quickFields, fd)
+	}
+	for _, fd := range t.form.fields {
+		if fd.divider || fd.ignored || fd.onlyUpdate || slices.Contains(g.quickCreate, fd.path) {
+			continue
+		}
+		if fd.required || strings.Contains(fd.createRules, "required") {
+			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
+				"%s: quick create leaves out %q, which the form requires on create%s",
+				t.res.m.slug, fd.path, at(g.quickDeclared)))
+		}
+	}
 }
 
 // resolveBelongsTo fills the relation's table/pk/title columns for option

@@ -37,6 +37,12 @@ running panel to a new version.
   appears once something has scrolled beneath. Pinned columns must be the first
   declared and outside any `GroupColumns`, which `Verify()` checks.
 
+- **Quick-create row.** `Grid.QuickCreate("Title", "Status")` draws those form
+  fields in a row above the grid. It posts to the ordinary create endpoint, so
+  rules, hooks and the policy apply, and reloads the grid on success. `Verify()`
+  rejects a path the form lacks, a multi-line kind, and a row that leaves out a
+  field required on create.
+
 ### Fixed
 
 - **The pinned actions column shows its divider.** It was a border, which a

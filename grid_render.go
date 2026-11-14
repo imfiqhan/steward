@@ -402,10 +402,19 @@ type gridVM struct {
 	BatchActions []actionVM
 	ToolActions  []actionVM
 	ReorderURL   string
+	// QuickCreate is the row above the grid for adding a record in place; nil
+	// when the grid has none or the reader may not create.
+	QuickCreate *quickCreateVM
 	// Pinned is set when any column is pinned; the row selector pins with it.
 	Pinned    bool
 	HeaderTop []headTopVM // non-empty → two-row grouped header
 	HeaderSub []headSubVM
+}
+
+// quickCreateVM is the quick-create row: where it posts and what it holds.
+type quickCreateVM struct {
+	Action string
+	Fields []formFieldVM
 }
 
 // headTopVM is one first-row header cell: a group label spanning columns,
@@ -474,6 +483,21 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 			"quicksearch": g.enabled("quicksearch") && len(g.quickSearch) > 0,
 			"actions":     g.enabled("delete") || g.enabled("edit") || g.enabled("view") || len(g.rowActions) > 0,
 		},
+	}
+
+	if len(t.quickFields) > 0 && vm.Features["create"] {
+		qc := &quickCreateVM{Action: c.URL(m.slug)}
+		for _, fd := range t.quickFields {
+			if !fd.visible(c, true) {
+				continue
+			}
+			if fv, ok := t.fieldVM(c, fd, nil, true, "", nil); ok {
+				qc.Fields = append(qc.Fields, fv)
+			}
+		}
+		if len(qc.Fields) > 0 {
+			vm.QuickCreate = qc
+		}
 	}
 
 	for _, col := range g.columns {

@@ -255,140 +255,9 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 		if (fd.info == nil && !fd.virtual) || !fd.visible(c, creating) {
 			continue
 		}
-		fv := formFieldVM{
-			Kind:        kindNames[fd.kind],
-			Name:        fd.path,
-			Label:       fd.label,
-			Required:    fd.required,
-			Disabled:    fd.disabled,
-			ReadOnly:    fd.readOnly,
-			Placeholder: fd.placeholder,
-			Help:        fd.help,
-			Accept:      fd.accept,
-			Fieldset:    fd.fieldset,
-			Span:        fd.span,
-			MinAttr:     fd.boundString(fd.minVal),
-			MaxAttr:     fd.boundString(fd.maxVal),
-			Errors:      errs[fd.path],
-		}
-		if creating && row == nil {
-			if fd.defaultVal != nil {
-				fv.Value = fmt.Sprint(fd.defaultVal)
-			}
-		} else {
-			fv.Value = fd.valueString(row)
-		}
-		// A range's second half has no row of its own: its value rides on the
-		// first, whose control holds both.
-		if fd.rangeOf != "" {
+		fv, ok := t.fieldVM(c, fd, row, creating, rowID, errs)
+		if !ok {
 			continue
-		}
-		if fd.rangeTo != "" {
-			fv.Kind = "daterange"
-			fv.RangeTo = fd.rangeTo
-			fv.WithTime = fd.kind == FieldDatetime
-			if other := t.form.fieldByPath(fd.rangeTo); other != nil {
-				if creating && row == nil {
-					if other.defaultVal != nil {
-						fv.RangeToValue = fmt.Sprint(other.defaultVal)
-					}
-				} else {
-					fv.RangeToValue = other.valueString(row)
-				}
-			}
-		}
-		if fd.kind == FieldPassword {
-			fv.Value = ""
-		}
-		switch fd.kind {
-		case FieldSelect, FieldRadio:
-			opts := fd.choices(c)
-			for val, label := range opts {
-				fv.Options = append(fv.Options, optionVM{Value: val, Label: label, Selected: val == fv.Value})
-			}
-			sortOptions(fv.Options)
-			if fd.kind == FieldSelect {
-				fv.Search = len(fv.Options) > optionSearchLimit
-				if fv.Search {
-					fv.Options = firstPage(fv.Options)
-					fv.OptionsURL = optionsURL(c, m.slug, fd.path)
-				}
-			}
-		case FieldMultiSelect:
-			var selected []string
-			if fd.valuesFn != nil && row != nil {
-				selected = fd.valuesFn(c, row)
-			}
-			opts := fd.choices(c)
-			for val, label := range opts {
-				fv.Options = append(fv.Options, optionVM{Value: val, Label: label, Selected: slices.Contains(selected, val)})
-			}
-			sortOptions(fv.Options)
-			fv.SelectedJSON = selectedJSON(fv.Options)
-			fv.Multiple = true
-			// Past one page, ship the selection plus enough to make the first
-			// open useful and fetch the rest as the reader types. That is what
-			// keeps a field over thousands of rows from carrying all of them.
-			fv.Search = len(fv.Options) > optionSearchLimit
-			if fv.Search {
-				fv.Options = firstPage(fv.Options)
-				fv.OptionsURL = optionsURL(c, m.slug, fd.path)
-			}
-		case FieldTags:
-			// A virtual Tags field has no column to read, so what it opens with
-			// comes from ValuesFunc. The widget reads its hidden input as the
-			// JSON array a Tags column would have held.
-			if fd.valuesFn != nil && row != nil {
-				fv.Value = encodeTagList(fd.valuesFn(c, row))
-			}
-		case FieldIcon:
-			rend := c.Panel.renderer
-			for _, name := range rend.iconNames() {
-				fv.Icons = append(fv.Icons, iconChoiceVM{Name: name, Selected: name == fv.Value})
-			}
-			fv.SpriteURL = c.Panel.url("_assets", rend.assetVersion, spritePath)
-			if fv.Value != "" {
-				fv.CurrentIcon = rend.icon(fv.Value)
-			}
-		case FieldCurrency:
-			fv.Symbol = fd.symbol
-			if fv.Symbol == "" {
-				fv.Symbol = c.Panel.cfg.CurrencySymbol
-			}
-		case FieldMarkdown:
-			fv.RenderURL = previewURL(c, m.slug, fd.path, rowID)
-		case FieldRichtext:
-			// The editor draws its own toolbar, so it needs the sprite the rest
-			// of the panel draws from, and somewhere to put a pasted image.
-			fv.SpriteURL = c.Panel.url("_assets", c.Panel.renderer.assetVersion, spritePath)
-			fv.UploadURL = uploadURL(c, m.slug, fd.path, rowID)
-		case FieldBelongsTo:
-			// Always fetched: the target is a table, and how big it is now says
-			// nothing about how big it will be.
-			fv.Options = t.belongsToOptions(c, fd, fv.Value)
-			fv.Search = true
-			fv.OptionsURL = optionsURL(c, m.slug, fd.path)
-		case FieldFile, FieldImage:
-			fv.UploadURL = uploadURL(c, m.slug, fd.path, rowID)
-			if fv.Value != "" {
-				fv.PreviewURL = c.Panel.DiskURL(fd.disk, fv.Value)
-				fv.FileName = displayFileName(fv.Value)
-			}
-			fv.MaxSizeLabel = sizeLabel(fd.maxSize)
-			fv.AcceptLabel = acceptLabel(fd.accept)
-		case FieldFiles, FieldImages:
-			fv.UploadURL = uploadURL(c, m.slug, fd.path, rowID)
-			fv.MaxSizeLabel = sizeLabel(fd.maxSize)
-			fv.AcceptLabel = acceptLabel(fd.accept)
-			fv.MaxFiles = fd.maxFiles
-			if fv.MaxFiles <= 0 {
-				fv.MaxFiles = defaultMaxFiles
-			}
-			for _, p := range decodeStringList(fv.Value) {
-				fv.Files = append(fv.Files, uploadedVM{
-					Path: p, URL: c.Panel.DiskURL(fd.disk, p), Name: displayFileName(p),
-				})
-			}
 		}
 		vm.place(fd.tab, fv, fd.fieldset)
 	}
@@ -406,6 +275,149 @@ func (t *typedResource[T]) buildFormVM(c *Context, row *T, creating bool, errs m
 	}
 	vm.dropEmptyTabs()
 	return vm
+}
+
+// fieldVM builds one field's view model, as the form or a grid's quick-create
+// row renders it. It reports false for a field drawn inside another's control,
+// the second half of a DateRange.
+func (t *typedResource[T]) fieldVM(c *Context, fd *Field[T], row *T, creating bool, rowID string, errs map[string][]string) (formFieldVM, bool) {
+	m := t.res.m
+	fv := formFieldVM{
+		Kind:        kindNames[fd.kind],
+		Name:        fd.path,
+		Label:       fd.label,
+		Required:    fd.required,
+		Disabled:    fd.disabled,
+		ReadOnly:    fd.readOnly,
+		Placeholder: fd.placeholder,
+		Help:        fd.help,
+		Accept:      fd.accept,
+		Fieldset:    fd.fieldset,
+		Span:        fd.span,
+		MinAttr:     fd.boundString(fd.minVal),
+		MaxAttr:     fd.boundString(fd.maxVal),
+		Errors:      errs[fd.path],
+	}
+	if creating && row == nil {
+		if fd.defaultVal != nil {
+			fv.Value = fmt.Sprint(fd.defaultVal)
+		}
+	} else {
+		fv.Value = fd.valueString(row)
+	}
+	// A range's second half has no row of its own: its value rides on the
+	// first, whose control holds both.
+	if fd.rangeOf != "" {
+		return fv, false
+	}
+	if fd.rangeTo != "" {
+		fv.Kind = "daterange"
+		fv.RangeTo = fd.rangeTo
+		fv.WithTime = fd.kind == FieldDatetime
+		if other := t.form.fieldByPath(fd.rangeTo); other != nil {
+			if creating && row == nil {
+				if other.defaultVal != nil {
+					fv.RangeToValue = fmt.Sprint(other.defaultVal)
+				}
+			} else {
+				fv.RangeToValue = other.valueString(row)
+			}
+		}
+	}
+	if fd.kind == FieldPassword {
+		fv.Value = ""
+	}
+	switch fd.kind {
+	case FieldSelect, FieldRadio:
+		opts := fd.choices(c)
+		for val, label := range opts {
+			fv.Options = append(fv.Options, optionVM{Value: val, Label: label, Selected: val == fv.Value})
+		}
+		sortOptions(fv.Options)
+		if fd.kind == FieldSelect {
+			fv.Search = len(fv.Options) > optionSearchLimit
+			if fv.Search {
+				fv.Options = firstPage(fv.Options)
+				fv.OptionsURL = optionsURL(c, m.slug, fd.path)
+			}
+		}
+	case FieldMultiSelect:
+		var selected []string
+		if fd.valuesFn != nil && row != nil {
+			selected = fd.valuesFn(c, row)
+		}
+		opts := fd.choices(c)
+		for val, label := range opts {
+			fv.Options = append(fv.Options, optionVM{Value: val, Label: label, Selected: slices.Contains(selected, val)})
+		}
+		sortOptions(fv.Options)
+		fv.SelectedJSON = selectedJSON(fv.Options)
+		fv.Multiple = true
+		// Past one page, ship the selection plus enough to make the first
+		// open useful and fetch the rest as the reader types. That is what
+		// keeps a field over thousands of rows from carrying all of them.
+		fv.Search = len(fv.Options) > optionSearchLimit
+		if fv.Search {
+			fv.Options = firstPage(fv.Options)
+			fv.OptionsURL = optionsURL(c, m.slug, fd.path)
+		}
+	case FieldTags:
+		// A virtual Tags field has no column to read, so what it opens with
+		// comes from ValuesFunc. The widget reads its hidden input as the
+		// JSON array a Tags column would have held.
+		if fd.valuesFn != nil && row != nil {
+			fv.Value = encodeTagList(fd.valuesFn(c, row))
+		}
+	case FieldIcon:
+		rend := c.Panel.renderer
+		for _, name := range rend.iconNames() {
+			fv.Icons = append(fv.Icons, iconChoiceVM{Name: name, Selected: name == fv.Value})
+		}
+		fv.SpriteURL = c.Panel.url("_assets", rend.assetVersion, spritePath)
+		if fv.Value != "" {
+			fv.CurrentIcon = rend.icon(fv.Value)
+		}
+	case FieldCurrency:
+		fv.Symbol = fd.symbol
+		if fv.Symbol == "" {
+			fv.Symbol = c.Panel.cfg.CurrencySymbol
+		}
+	case FieldMarkdown:
+		fv.RenderURL = previewURL(c, m.slug, fd.path, rowID)
+	case FieldRichtext:
+		// The editor draws its own toolbar, so it needs the sprite the rest
+		// of the panel draws from, and somewhere to put a pasted image.
+		fv.SpriteURL = c.Panel.url("_assets", c.Panel.renderer.assetVersion, spritePath)
+		fv.UploadURL = uploadURL(c, m.slug, fd.path, rowID)
+	case FieldBelongsTo:
+		// Always fetched: the target is a table, and how big it is now says
+		// nothing about how big it will be.
+		fv.Options = t.belongsToOptions(c, fd, fv.Value)
+		fv.Search = true
+		fv.OptionsURL = optionsURL(c, m.slug, fd.path)
+	case FieldFile, FieldImage:
+		fv.UploadURL = uploadURL(c, m.slug, fd.path, rowID)
+		if fv.Value != "" {
+			fv.PreviewURL = c.Panel.DiskURL(fd.disk, fv.Value)
+			fv.FileName = displayFileName(fv.Value)
+		}
+		fv.MaxSizeLabel = sizeLabel(fd.maxSize)
+		fv.AcceptLabel = acceptLabel(fd.accept)
+	case FieldFiles, FieldImages:
+		fv.UploadURL = uploadURL(c, m.slug, fd.path, rowID)
+		fv.MaxSizeLabel = sizeLabel(fd.maxSize)
+		fv.AcceptLabel = acceptLabel(fd.accept)
+		fv.MaxFiles = fd.maxFiles
+		if fv.MaxFiles <= 0 {
+			fv.MaxFiles = defaultMaxFiles
+		}
+		for _, p := range decodeStringList(fv.Value) {
+			fv.Files = append(fv.Files, uploadedVM{
+				Path: p, URL: c.Panel.DiskURL(fd.disk, p), Name: displayFileName(p),
+			})
+		}
+	}
+	return fv, true
 }
 
 // uploadURL is where a field posts a file. On an edit it carries the record, so
@@ -868,6 +880,14 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 		}
 	}
 
+	// A grid's quick-create row stays on the list and reloads it.
+	if creating && c.R.FormValue("_quick") == "1" {
+		done := t.res.m.title + " created."
+		if savedErr != nil {
+			return c.Envelope(Warning(done).Detail(savedErr.Error()).Refresh())
+		}
+		return c.Envelope(Success(done).Refresh())
+	}
 	// Inline single-field edits stay on the page: toast only, no redirect.
 	if c.R.FormValue("_inline") == "1" {
 		if savedErr != nil {

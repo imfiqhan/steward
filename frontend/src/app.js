@@ -758,10 +758,14 @@ window.htmx = htmx;
     if (root && typeof root.select === "function") root.select(first);
   }
 
+  // showFieldErrors marks each field in error and returns the messages for
+  // fields the form does not draw — a quick-create row carries only some — so
+  // the caller can say them instead of pointing at nothing.
   function showFieldErrors(form, errors) {
+    var unplaced = [];
     Object.keys(errors || {}).forEach(function (name) {
       var wrap = form.querySelector('[data-steward-field="' + CSS.escape(name) + '"]');
-      if (!wrap) return;
+      if (!wrap) { unplaced = unplaced.concat(errors[name]); return; }
       var input = wrap.querySelector("input, select, textarea");
       if (input) input.setAttribute("aria-invalid", "true");
       var box = wrap.querySelector("[data-steward-errors]");
@@ -770,6 +774,7 @@ window.htmx = htmx;
     markInvalidTabs(form);
     var first = form.querySelector("[aria-invalid]");
     if (first) first.focus();
+    return unplaced;
   }
 
   /* ---- Confirm before submitting a form ------------------------------------ */
@@ -821,8 +826,8 @@ window.htmx = htmx;
       credentials: "same-origin"
     }).then(function (resp) { return resp.json(); }).then(function (env) {
       if (env && env.errors) {
-        showFieldErrors(form, env.errors);
-        toast("error", "Please fix the highlighted fields.");
+        var unplaced = showFieldErrors(form, env.errors);
+        toast("error", unplaced.length ? unplaced.join(" ") : "Please fix the highlighted fields.");
         return;
       }
       handleEnvelope(env);
