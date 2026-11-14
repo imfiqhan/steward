@@ -183,7 +183,7 @@ func (r *GormRepository[T]) List(ctx context.Context, q *ListQuery) ([]T, int64,
 		}
 	}
 	for _, s := range q.Sorts {
-		col, serr := r.qcolumn(s.Path)
+		col, serr := r.sortSQL(s.Path)
 		if serr != nil {
 			continue
 		}

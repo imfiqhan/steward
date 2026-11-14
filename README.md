@@ -88,7 +88,8 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
 - [x] Filters and quick search across one-hop relations — `Tags.Tag`,
       `Author.Name` — via subqueries, so counts and pagination stay correct on
       has-many and many-to-many paths
-- [ ] Sorting by a relation column (needs a join; rejected at boot today)
+- [x] Sorting by a to-one relation column (`Author.Name`) via a correlated
+      subquery; to-many paths are rejected at boot
 - [x] Windowed pagination (`1 … 18 19 20 … 37`) with per-page selector
 - [x] CSV export
 - [x] Batch delete and custom row/batch/tool actions, confirmed via
@@ -104,7 +105,8 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
       wide grid scrolls sideways
 - [ ] Fixed (pinned) columns generally
 - [ ] Quick-create row
-- [ ] Quick search backed by a `Searcher` (SQL `LIKE` today)
+- [x] Quick search backed by a `Searcher` (`Resource.Searchable`), falling back
+      to SQL `LIKE` without one
 
 ### Form
 

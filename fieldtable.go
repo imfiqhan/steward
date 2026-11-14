@@ -57,6 +57,16 @@ func (info *fieldInfo) filterable() bool {
 	return info.DBName != "" || info.rel != nil
 }
 
+// sortable reports whether a path can appear in an ORDER BY: a direct column,
+// or a path across a to-one relation (belongs_to, has_one), which orders by a
+// correlated subquery. A to-many path has no single value per row to order by.
+func (info *fieldInfo) sortable() bool {
+	if info.DBName != "" {
+		return true
+	}
+	return info.rel != nil && (info.rel.Kind == schema.BelongsTo || info.rel.Kind == schema.HasOne)
+}
+
 // fieldTable is the single source of truth every builder projects from:
 // parsed once per resource at compile, it validates string field references
 // and supplies labels, kinds, and column names.

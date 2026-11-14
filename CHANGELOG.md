@@ -6,6 +6,14 @@ running panel to a new version.
 
 ## Unreleased
 
+### Added
+
+- **Sorting by a to-one relation column.** `Column("Author.Name").Sortable()`
+  and `DefaultSort("Author.Name", …)` now work for belongs-to and has-one
+  paths, ordering by a correlated subquery so the row set is never multiplied.
+  Has-many and many-to-many paths are still rejected by `Verify()`, now with a
+  message that says why.
+
 ### Fixed
 
 - **Permissions written per operation reach the endpoints that operation

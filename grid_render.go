@@ -108,7 +108,7 @@ func (t *typedResource[T]) parseState(c *Context) *gridState {
 	if s := q.Get("sort"); s != "" {
 		desc := strings.HasPrefix(s, "-")
 		path := strings.TrimPrefix(s, "-")
-		if info, ok := t.ft.byPath[path]; ok && info.DBName != "" {
+		if info, ok := t.ft.byPath[path]; ok && info.sortable() {
 			st.sort = &Sort{Path: path, Desc: desc}
 			sortChosen = true
 		}

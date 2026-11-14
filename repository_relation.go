@@ -223,3 +223,36 @@ func predicateSQLFor(dialect, col string, c Cond) (string, []any, error) {
 		return "", nil, fmt.Errorf("steward: unsupported operator %q", c.Op)
 	}
 }
+
+// sortAlias names the related table inside a sort subquery. The subquery is
+// correlated with the owner table, so the related side needs a name of its own
+// for a self-referencing relation ("Parent.Name") to bind to the right row.
+const sortAlias = "steward_sort"
+
+// sortSQL renders the ORDER BY expression for a field path: the quoted column
+// for a direct field, a correlated scalar subquery for a to-one relation path.
+//
+// The subquery reads one value per owner row, so ordering never multiplies or
+// drops rows the way a JOIN against the relation could. MIN keeps it scalar on
+// a has_one whose child table holds more than one match.
+func (r *GormRepository[T]) sortSQL(path string) (string, error) {
+	info, ok := r.ft.byPath[path]
+	if !ok {
+		return "", fmt.Errorf("steward: unknown field %q on %s", path, r.ft.model.Name)
+	}
+	if info.DBName != "" {
+		return quoteColumn(r.db, info.DBName), nil
+	}
+	if !info.sortable() {
+		return "", fmt.Errorf("steward: field %q is not sortable on %s", path, r.ft.model.Name)
+	}
+	rt := info.rel
+	q := func(name string) string { return quoteColumn(r.db, name) }
+	inner := func(col string) string { return q(sortAlias) + "." + q(col) }
+	where := inner(rt.RemoteCol) + " = " + q(r.ft.model.Table) + "." + q(rt.LocalCol)
+	if rt.SoftDelete != "" {
+		where += " AND " + inner(rt.SoftDelete) + " IS NULL"
+	}
+	return "(SELECT MIN(" + inner(rt.Column) + ") FROM " + q(rt.Table) + " " + q(sortAlias) +
+		" WHERE " + where + ")", nil
+}

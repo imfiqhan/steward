@@ -104,7 +104,7 @@ func (t *typedResource[T]) probeQueries(ctx context.Context, a *Panel) []error {
 
 	// Sorting, which is an expression the database has to accept too.
 	for _, col := range t.grid.columns {
-		if !col.sortable || col.info == nil || col.info.DBName == "" {
+		if !col.sortable || col.info == nil || !col.info.sortable() {
 			continue
 		}
 		run("sorting by "+quote(col.path), col.declaredAt,

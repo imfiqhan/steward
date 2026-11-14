@@ -225,10 +225,9 @@ func TestRelationQuickSearch(t *testing.T) {
 	}
 }
 
-// TestRelationSortIsRejectedAtBoot pins the other half of the fix. Sorting
-// cannot go through a subquery, and it used to be silently ignored at click
-// time; now it fails Verify instead.
-func TestRelationSortIsRejectedAtBoot(t *testing.T) {
+// A to-one relation path sorts through a correlated subquery; a to-many one
+// has no single value per row and is refused at boot.
+func TestRelationSortVerify(t *testing.T) {
 	build := func(t *testing.T, configure func(*steward.Grid[rfArticle])) error {
 		t.Helper()
 		db, err := gorm.Open(sqlite.Open("file:"+t.TempDir()+"/sort.db"), &gorm.Config{})
@@ -253,34 +252,101 @@ func TestRelationSortIsRejectedAtBoot(t *testing.T) {
 		return app.Verify()
 	}
 
-	err := build(t, func(g *steward.Grid[rfArticle]) {
+	if err := build(t, func(g *steward.Grid[rfArticle]) {
 		g.Column("Title")
 		g.Column("Writer.Name").Sortable()
+		g.DefaultSort("Writer.Name", false)
+	}); err != nil {
+		t.Errorf("a belongs-to column should sort: %v", err)
+	}
+
+	err := build(t, func(g *steward.Grid[rfArticle]) {
+		g.Column("Title")
+		g.Column("Labels.Label").Sortable()
 	})
 	if err == nil {
-		t.Error("a Sortable relation column should fail Verify")
+		t.Error("a Sortable many-to-many column should fail Verify")
 	} else if !strings.Contains(err.Error(), "cannot be Sortable") {
 		t.Errorf("unhelpful error: %v", err)
 	}
 
 	err = build(t, func(g *steward.Grid[rfArticle]) {
 		g.Column("Title")
-		g.Column("Writer.Name")
-		g.DefaultSort("Writer.Name", false)
+		g.DefaultSort("Notes.Body", false)
 	})
 	if err == nil {
-		t.Error("a relation DefaultSort should fail Verify")
-	} else if !strings.Contains(err.Error(), "relation path") {
+		t.Error("a has-many DefaultSort should fail Verify")
+	} else if !strings.Contains(err.Error(), "to-many") {
 		t.Errorf("unhelpful error: %v", err)
 	}
+}
 
-	// A relation column that is merely displayed stays fine.
-	if err := build(t, func(g *steward.Grid[rfArticle]) {
-		g.Column("Title")
-		g.Column("Writer.Name")
-		g.Filter(func(f *steward.Filters[rfArticle]) { f.Equal("Writer.Name") })
-	}); err != nil {
-		t.Errorf("displaying and filtering a relation column should be fine: %v", err)
+func TestRelationSortOrdersRows(t *testing.T) {
+	srv, _ := newRelationServer(t)
+
+	got, total := listing(t, srv, "sort=-Writer.Name")
+	if total != 3 || len(got) != 3 {
+		t.Fatalf("sorting changed the row set: %v (total %d)", got, total)
+	}
+	if got[0] != "Old ferry retired" {
+		t.Errorf("descending by writer should put Bob's article first, got %v", got)
+	}
+	got, _ = listing(t, srv, "sort=Writer.Name")
+	if got[2] != "Old ferry retired" {
+		t.Errorf("ascending by writer should put Bob's article last, got %v", got)
+	}
+	// A to-many path is not a sort, so the default order stands.
+	got, _ = listing(t, srv, "sort=Labels.Label")
+	if len(got) != 3 || got[0] != "Ring road update" {
+		t.Errorf("a to-many sort parameter should be ignored, got %v", got)
+	}
+}
+
+type rfFolder struct {
+	ID       uint `gorm:"primaryKey"`
+	Name     string
+	ParentID *uint
+	Parent   *rfFolder `gorm:"foreignKey:ParentID"`
+}
+
+// A self-referencing relation correlates against the same table it reads, so
+// the related side must not resolve to the owner row.
+func TestRelationSortSelfReference(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&rfFolder{}); err != nil {
+		t.Fatal(err)
+	}
+	zeta := rfFolder{Name: "zeta"}
+	alpha := rfFolder{Name: "alpha"}
+	for _, f := range []*rfFolder{&zeta, &alpha} {
+		if err := db.Create(f).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	// "a-child" sits under zeta, "z-child" under alpha: ordering by parent
+	// name reverses the order their own names give.
+	for _, f := range []rfFolder{{Name: "a-child", ParentID: &zeta.ID}, {Name: "z-child", ParentID: &alpha.ID}} {
+		if err := db.Create(&f).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	repo, err := steward.NewGormRepository[rfFolder](db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, _, err := repo.List(t.Context(), &steward.ListQuery{
+		Conds: []steward.Cond{{Path: "ParentID", Op: steward.OpNull, Val: false}},
+		Sorts: []steward.Sort{{Path: "Parent.Name"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 || items[0].Name != "z-child" || items[1].Name != "a-child" {
+		names := []string{}
+		for _, it := range items {
+			names = append(names, it.Name)
+		}
+		t.Errorf("ordering by parent name = %v, want [z-child a-child]", names)
 	}
 }
 

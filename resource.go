@@ -264,9 +264,9 @@ func (t *typedResource[T]) compile(a *Panel) error {
 			if col.info.Relation != "" && !slices.Contains(preloads, col.info.Relation) {
 				preloads = append(preloads, col.info.Relation)
 			}
-			if col.sortable && col.info.DBName == "" {
+			if col.sortable && !col.info.sortable() {
 				a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-					"%s: column %q is a relation path and cannot be Sortable%s%s",
+					"%s: column %q crosses a to-many relation and cannot be Sortable%s%s",
 					t.res.m.slug, col.path, at(col.declaredAt),
 					suggest.Block(col.path, sortablePaths(g))))
 			}
@@ -343,12 +343,11 @@ func (t *typedResource[T]) compile(a *Panel) error {
 		}
 	}
 	if g.defaultSort != nil {
-		// Sorting cannot go through the relation subquery — ORDER BY needs the
-		// column in the result set, which means a join. Reject it at boot
-		// instead of silently ignoring the sort at click time.
-		if info := verify("default sort", g.defaultSort.Path, ""); info != nil && info.DBName == "" {
+		// A to-many path has no single value per row; reject it at boot instead
+		// of silently ignoring the sort at click time.
+		if info := verify("default sort", g.defaultSort.Path, ""); info != nil && !info.sortable() {
 			a.verifyErrs = append(a.verifyErrs, fmt.Errorf(
-				"%s: default sort %q is a relation path, not a column%s",
+				"%s: default sort %q crosses a to-many relation%s",
 				t.res.m.slug, g.defaultSort.Path,
 				suggest.Block(g.defaultSort.Path, sortablePaths(g))))
 		}
@@ -664,7 +663,7 @@ func columnPaths[T any](g *Grid[T]) []string {
 func sortablePaths[T any](g *Grid[T]) []string {
 	out := make([]string, 0, len(g.columns))
 	for _, c := range g.columns {
-		if c.computed || c.info == nil || c.info.DBName == "" {
+		if c.computed || c.info == nil || !c.info.sortable() {
 			continue
 		}
 		out = append(out, c.path)
