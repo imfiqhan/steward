@@ -27,6 +27,14 @@
       {{if .Icon}}{{icon .Icon}}{{end}} {{t .Label}}
     </button>
     {{end}}
+    {{with .Data.Trash}}
+    {{/* Into the trash, or back out of it. The badge counts what is in it. */}}
+    <a class="btn" data-variant="outline" href="{{.URL}}" hx-get="{{.URL}}" hx-target="#page-content"
+       hx-push-url="true" data-steward-trash-toggle>
+      {{if .Active}}{{icon "arrow-left"}} {{t "Back to list"}}{{else}}{{icon "trash-2"}} {{t "Trash"}}{{if .Count}}
+      <span class="badge" data-variant="secondary">{{.Count}}</span>{{end}}{{end}}
+    </a>
+    {{end}}
     {{if .Data.Features.filter}}
     <button type="button" class="btn" data-variant="outline" data-steward-toggle="#grid-filters"
             aria-expanded="{{if .Data.ActiveFilters}}true{{else}}false{{end}}" aria-controls="grid-filters">

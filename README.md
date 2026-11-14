@@ -103,6 +103,8 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
 - [x] Drag-and-drop row reordering (`Grid.Reorderable`)
 - [x] Row actions pinned to the trailing edge, so they stay reachable once a
       wide grid scrolls sideways
+- [x] Trash for soft-deleted models — restore and permanent delete, with
+      `TrashPolicy[T]`; on automatically for `gorm.DeletedAt`
 - [x] Pinned leading columns (`Column.Pin()`), with the row selector pinned
       beside them
 - [x] Quick-create row (`Grid.QuickCreate`) through the form's own rules and

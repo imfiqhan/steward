@@ -183,6 +183,10 @@ type typedResource[T any] struct {
 
 	// quickFields are the form fields the grid's QuickCreate row renders.
 	quickFields []*Field[T]
+
+	// trash is the repository's soft-delete side, nil when the grid has no
+	// trash view.
+	trash Trasher[T]
 }
 
 func (t *typedResource[T]) meta() *resourceMeta { return t.res.m }
@@ -528,6 +532,7 @@ func (t *typedResource[T]) compile(a *Panel) error {
 		}
 	}
 	t.compileQuickCreate(a)
+	t.compileTrash()
 	t.verifyActions(a)
 	t.compileDetail(a)
 	return nil
@@ -682,6 +687,8 @@ func (t *typedResource[T]) registerRoutes(a *Panel, mux *http.ServeMux) {
 	mux.HandleFunc("POST "+base+"/_upload", a.h(t.uploadFile))
 	mux.HandleFunc("POST "+base+"/_preview", a.h(t.previewMarkdown))
 	mux.HandleFunc("POST "+base+"/_action/{name}", a.h(t.dispatchAction))
+	mux.HandleFunc("POST "+base+"/_restore", a.h(t.restoreRows))
+	mux.HandleFunc("POST "+base+"/_force_delete", a.h(t.forceDeleteRows))
 	for _, p := range t.res.pages {
 		mux.HandleFunc(p.method+" "+base+"/"+p.rel, a.h(p.h))
 	}

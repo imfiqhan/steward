@@ -118,7 +118,15 @@ func (r *GormRepository[T]) applyCond(db *gorm.DB, c Cond) (*gorm.DB, error) {
 
 // List implements Repository.
 func (r *GormRepository[T]) List(ctx context.Context, q *ListQuery) ([]T, int64, error) {
+	return r.list(ctx, q, false)
+}
+
+// list is List over live rows, or over soft-deleted ones when trashed is set.
+func (r *GormRepository[T]) list(ctx context.Context, q *ListQuery, trashed bool) ([]T, int64, error) {
 	db := r.base(ctx)
+	if trashed {
+		db = r.trashed(db)
+	}
 	var err error
 	for _, c := range q.Conds {
 		if db, err = r.applyCond(db, c); err != nil {
@@ -269,6 +277,50 @@ func (r *GormRepository[T]) Delete(ctx context.Context, ids []string) error {
 	var zero T
 	return r.base(ctx).Where(quoteColumn(r.db, r.ft.pk.DBName)+" IN ?", ids).Delete(&zero).Error
 }
+
+// softDelete is the model's soft-delete column, "" when it has none.
+func (r *GormRepository[T]) softDelete() string { return softDeleteColumn(r.ft.model) }
+
+// trashed narrows a statement to soft-deleted rows. Unscoped lifts GORM's
+// deleted_at IS NULL clause, which would otherwise contradict this one.
+func (r *GormRepository[T]) trashed(db *gorm.DB) *gorm.DB {
+	return db.Unscoped().Where(quoteColumn(r.db, r.softDelete()) + " IS NOT NULL")
+}
+
+// Trashable implements Trasher.
+func (r *GormRepository[T]) Trashable() bool { return r.softDelete() != "" }
+
+// ListTrashed implements Trasher.
+func (r *GormRepository[T]) ListTrashed(ctx context.Context, q *ListQuery) ([]T, int64, error) {
+	if !r.Trashable() {
+		return nil, 0, nil
+	}
+	return r.list(ctx, q, true)
+}
+
+// Restore implements Trasher.
+func (r *GormRepository[T]) Restore(ctx context.Context, ids []string) error {
+	if !r.Trashable() || len(ids) == 0 {
+		return nil
+	}
+	return r.trashed(r.base(ctx)).
+		Where(quoteColumn(r.db, r.ft.pk.DBName)+" IN ?", ids).
+		Update(r.softDelete(), nil).Error
+}
+
+// ForceDelete implements Trasher. Only rows already in the trash are removed,
+// so a stale request cannot erase a live record.
+func (r *GormRepository[T]) ForceDelete(ctx context.Context, ids []string) error {
+	if !r.Trashable() || len(ids) == 0 {
+		return nil
+	}
+	var zero T
+	return r.trashed(r.base(ctx)).
+		Where(quoteColumn(r.db, r.ft.pk.DBName)+" IN ?", ids).
+		Delete(&zero).Error
+}
+
+var _ Trasher[struct{ ID uint }] = (*GormRepository[struct{ ID uint }])(nil)
 
 // isZeroKey reports whether a keyset cursor is the "start from the beginning"
 // value, so the first batch needs no WHERE at all. A typed zero — uint(0),

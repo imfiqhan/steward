@@ -87,3 +87,18 @@ type Repository[T any] interface {
 	Delete(ctx context.Context, ids []string) error
 	KeyName() string
 }
+
+// Trasher is the optional half of a Repository whose deletes are soft: the
+// grid offers a trash view over what was deleted, with restore and permanent
+// delete. GormRepository implements it, and reports Trashable when the model
+// has a gorm.DeletedAt field.
+type Trasher[T any] interface {
+	// Trashable reports whether deleted rows are kept to be listed.
+	Trashable() bool
+	// ListTrashed is List over deleted rows only.
+	ListTrashed(ctx context.Context, q *ListQuery) (items []T, total int64, err error)
+	// Restore undeletes the deleted rows among ids.
+	Restore(ctx context.Context, ids []string) error
+	// ForceDelete removes the deleted rows among ids for good.
+	ForceDelete(ctx context.Context, ids []string) error
+}

@@ -68,7 +68,8 @@ func (a *Panel) permissionDefs() []permissionDef {
 			permissionDef{key: m.slug + "#update", parent: m.slug, slug: slug + "-update",
 				name: m.title + ": update", path: strings.Join(update, "\n")},
 			permissionDef{key: m.slug + "#delete", parent: m.slug, slug: slug + "-delete",
-				name: m.title + ": delete", path: "DELETE:" + base + "/*"},
+				name: m.title + ": delete",
+				path: "DELETE:" + base + "/*\nPOST:" + base + "/_restore\nPOST:" + base + "/_force_delete"},
 		)
 	}
 	return defs

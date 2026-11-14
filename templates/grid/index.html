@@ -3,7 +3,7 @@
 <div class="p-6 grid grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-4 flex-1 min-h-0">
   <div class="flex flex-wrap items-center gap-2">
     <div>
-      <h2 class="text-2xl font-semibold">{{t .Data.Title}}</h2>
+      <h2 class="text-2xl font-semibold">{{t .Data.Title}}{{if and .Data.Trash .Data.Trash.Active}}<span class="text-muted-foreground"> · {{t "Trash"}}</span>{{end}}</h2>
       <p class="text-sm text-muted-foreground">{{t "%v total" .Data.Total}}</p>
     </div>
     <div class="ms-auto flex items-center gap-2">

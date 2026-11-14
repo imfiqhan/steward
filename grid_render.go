@@ -30,6 +30,8 @@ type gridState struct {
 	searchCapped bool
 	export       string
 	ids          []string
+	// trashed lists the soft-deleted rows instead of the live ones.
+	trashed bool
 	// raw filter input values by param name, echoed back into the panel
 	filterVals map[string]string
 }
@@ -93,6 +95,7 @@ func (t *typedResource[T]) parseState(c *Context) *gridState {
 	g := t.grid
 	q := c.R.URL.Query()
 	st := &gridState{query: &ListQuery{}, filterVals: map[string]string{}}
+	st.trashed = t.trash != nil && q.Get("trashed") == "1"
 
 	st.page, _ = strconv.Atoi(q.Get("page"))
 	st.page = max(st.page, 1)
@@ -189,7 +192,9 @@ func (t *typedResource[T]) parseState(c *Context) *gridState {
 			// An engine, when one is configured and this resource declared what
 			// to index. It ranks; the rows are still read through the repository
 			// so filters, sorts, and the row scope hold.
-			if ids, ok := t.searchIDs(c.Ctx(), phrase, searchWindow); ok {
+			// The engine holds live rows only: a deleted one leaves the
+			// index, so the trash is searched in SQL.
+			if ids, ok := t.searchIDs(c.Ctx(), phrase, searchWindow); ok && !st.trashed {
 				// The engine was asked for a window, not for everything, so a
 				// full one means "at least this many" — the count that follows
 				// counts the window, not the matches.
@@ -402,6 +407,9 @@ type gridVM struct {
 	BatchActions []actionVM
 	ToolActions  []actionVM
 	ReorderURL   string
+	// Trash is the toolbar's link into or out of the trash; nil when the
+	// resource has none.
+	Trash *trashVM
 	// QuickCreate is the row above the grid for adding a record in place; nil
 	// when the grid has none or the reader may not create.
 	QuickCreate *quickCreateVM
@@ -485,6 +493,26 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		},
 	}
 
+	if t.trash != nil {
+		vm.Trash = &trashVM{Active: st.trashed}
+		if st.trashed {
+			vm.Trash.URL = urlWith(c, map[string]string{"trashed": "", "page": ""})
+			vm.Trash.Count = total
+			// The trash restores and erases; nothing else applies to a
+			// deleted row.
+			for _, f := range []string{"create", "edit", "view", "delete", "export"} {
+				vm.Features[f] = false
+			}
+			vm.Features["actions"] = true
+			vm.Features["selector"] = g.enabled("selector")
+			acts := trashActions(c, m.slug)
+			vm.RowActions, vm.BatchActions, vm.ToolActions = acts, acts, nil
+		} else {
+			vm.Trash.URL = urlWith(c, map[string]string{"trashed": "1", "page": ""})
+			vm.Trash.Count = t.trashCount(c)
+		}
+	}
+
 	if len(t.quickFields) > 0 && vm.Features["create"] {
 		qc := &quickCreateVM{Action: c.URL(m.slug)}
 		for _, fd := range t.quickFields {
@@ -524,7 +552,7 @@ func (t *typedResource[T]) buildVM(c *Context, st *gridState, items []T, total i
 		row := &items[i]
 		rv := gridRowVM{Key: t.rowKey(row)}
 		for _, col := range g.columns {
-			rv.Cells = append(rv.Cells, t.renderCell(col, row))
+			rv.Cells = append(rv.Cells, t.renderCell(col, row, !st.trashed))
 		}
 		vm.Rows = append(vm.Rows, rv)
 	}
@@ -632,7 +660,8 @@ func (t *typedResource[T]) rowKey(row *T) string {
 }
 
 // renderCell resolves the value, applies transforms, and presents it.
-func (t *typedResource[T]) renderCell(col *Column[T], row *T) template.HTML {
+// editable is false where an inline editor must not appear: a row in the trash.
+func (t *typedResource[T]) renderCell(col *Column[T], row *T, editable bool) template.HTML {
 	var val any
 	if !col.computed {
 		if col.info == nil {
@@ -645,7 +674,7 @@ func (t *typedResource[T]) renderCell(col *Column[T], row *T) template.HTML {
 			val = v
 		}
 	}
-	if col.inline != inlineNone && !col.computed {
+	if editable && col.inline != inlineNone && !col.computed {
 		return t.renderInlineCell(col, row, val)
 	}
 	raw := val
@@ -738,7 +767,7 @@ func (t *typedResource[T]) index(c *Context) error {
 	}
 
 	if c.WantsJSON() {
-		items, total, err := t.repo.List(c.Ctx(), st.query)
+		items, total, err := t.listRows(c, st)
 		if err != nil {
 			return err
 		}
@@ -753,7 +782,7 @@ func (t *typedResource[T]) index(c *Context) error {
 
 	// Tree mode: whole hierarchy in depth-first order, unless the user is
 	// searching/filtering (flat results make more sense there).
-	if t.grid.treePath != "" && st.search == "" && len(st.query.Conds) == 0 {
+	if t.grid.treePath != "" && st.search == "" && len(st.query.Conds) == 0 && !st.trashed {
 		items, depths, total, err := t.loadTree(c, st)
 		if err != nil {
 			return err
@@ -763,12 +792,32 @@ func (t *typedResource[T]) index(c *Context) error {
 		return c.Panel.render(c, "grid/index.html", t.res.m.title, vm)
 	}
 
-	items, total, err := t.repo.List(c.Ctx(), st.query)
+	items, total, err := t.listRows(c, st)
 	if err != nil {
 		return err
 	}
 	vm := t.buildVM(c, st, items, total)
 	return c.Panel.render(c, "grid/index.html", t.res.m.title, vm)
+}
+
+// listRows reads the page the state asks for, from the trash when it is open.
+func (t *typedResource[T]) listRows(c *Context, st *gridState) ([]T, int64, error) {
+	if st.trashed {
+		return t.trash.ListTrashed(c.Ctx(), st.query)
+	}
+	return t.repo.List(c.Ctx(), st.query)
+}
+
+// trashCount counts the deleted rows the reader could see, for the toolbar.
+func (t *typedResource[T]) trashCount(c *Context) int64 {
+	q := &ListQuery{Page: 1, PerPage: 1}
+	t.applyRowScope(c, q)
+	_, n, err := t.trash.ListTrashed(c.Ctx(), q)
+	if err != nil {
+		c.Panel.log.Warn("steward: counting the trash", "resource", t.res.m.slug, "err", err)
+		return 0
+	}
+	return n
 }
 
 // loadTree fetches every row and orders it depth-first under the parent key.

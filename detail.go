@@ -455,7 +455,7 @@ func (t *typedResource[T]) renderRelation(c *Context, title string, q *ListQuery
 			if col.hidden {
 				continue
 			}
-			cells = append(cells, t.renderCell(col, row))
+			cells = append(cells, t.renderCell(col, row, true))
 		}
 		vm.Rows = append(vm.Rows, cells)
 	}

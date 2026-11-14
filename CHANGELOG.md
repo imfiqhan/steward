@@ -8,6 +8,9 @@ running panel to a new version.
 
 ### Upgrading
 
+- A grid over a model with `gorm.DeletedAt` now shows a **Trash** button. Set
+  `Grid.DisableTrash()` to keep the previous toolbar. Synced permissions'
+  delete rows also grant `_restore` and `_force_delete`.
 - Migration `0010` creates `steward_jobs`, the job queue's table.
 - `worker` no longer refuses to start without `App.Jobs` when a job type is
   registered, and takes `-concurrency N`.
@@ -16,6 +19,13 @@ running panel to a new version.
 - The Permissions list is now a tree over `ParentID`, ordered by `Order`.
 
 ### Added
+
+- **Trash for soft-deleted records.** A grid over a model with
+  `gorm.DeletedAt` gains a Trash view: the deleted rows, with Restore and
+  Delete permanently as row and batch actions. `TrashPolicy[T]` decides them
+  apart from `Delete`; `Grid.DisableTrash()` turns the view off. Restored rows
+  return to the search index. Repositories opt in through `Trasher[T]`, which
+  `GormRepository` implements.
 
 - **Localization.** `Config.Locale: "id"` shows the panel's own text in
   Indonesian — templates, envelopes, flashes, validation messages, the client

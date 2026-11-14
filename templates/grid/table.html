@@ -144,9 +144,15 @@
       <tr>
         <td colspan="100">
           <div class="grid place-items-center gap-2 py-12 text-center">
+            {{if and .Data.Trash .Data.Trash.Active}}
+            {{icon "trash-2"}}
+            <p class="font-medium">{{t "The trash is empty"}}</p>
+            <p class="text-sm text-muted-foreground">{{t "Deleted records appear here until they are restored or deleted permanently."}}</p>
+            {{else}}
             {{icon "database"}}
             <p class="font-medium">{{t "Nothing here yet"}}</p>
             <p class="text-sm text-muted-foreground">{{t "No records match the current view."}}</p>
+            {{end}}
           </div>
         </td>
       </tr>

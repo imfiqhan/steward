@@ -137,6 +137,10 @@ func goKeys(t *testing.T, files []string, builtins bool) []string {
 					add(x.Args[1])
 				}
 			case *ast.KeyValueExpr:
+				// Label: "…" in a view model the template translates.
+				if k, ok := x.Key.(*ast.Ident); ok && k.Name == "Label" {
+					add(x.Value)
+				}
 				// "Error": "…" in template data, and Options values.
 				if k, ok := x.Key.(*ast.BasicLit); ok && k.Kind == token.STRING {
 					if ks, _ := strconv.Unquote(k.Value); ks == "Error" || builtins {
@@ -213,6 +217,8 @@ var untranslated = map[string]bool{
 	"Icon": true, "Menu": true, "Admin": true, "Status": true, "Payload": true,
 	"max": true, "min": true, "%v": true, "key": true,
 	"users": true, "user_id": true, "steward": true,
+	// Pagination link kinds the template switches on, not shown as text.
+	"gap": true, "next": true, "prev": true,
 }
 
 func TestIndonesianCatalogCoversEveryText(t *testing.T) {

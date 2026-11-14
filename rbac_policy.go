@@ -194,6 +194,34 @@ func (a *Panel) withPermission(next http.Handler) http.Handler {
 	})
 }
 
+// requestIDs reads the comma-separated ids a grid action posts. The handler
+// reads the same field after this; ParseForm keeps the parsed body on the
+// request, so it is not consumed twice.
+func requestIDs(r *http.Request) ([]string, bool) {
+	if err := r.ParseForm(); err != nil {
+		return nil, false
+	}
+	var ids []string
+	for _, raw := range r.Form["ids"] {
+		for id := range strings.SplitSeq(raw, ",") {
+			if id = strings.TrimSpace(id); id != "" {
+				ids = append(ids, id)
+			}
+		}
+	}
+	return ids, true
+}
+
+// matchEach reports whether every id's route is allowed for method.
+func matchEach(rules []httpmatch.Rule, method, base string, ids []string) bool {
+	for _, id := range ids {
+		if !httpmatch.Matches(rules, method, base+"/"+url.PathEscape(id)) {
+			return false
+		}
+	}
+	return true
+}
+
 // endpointAllowed authorizes a resource's own endpoints — _upload, _preview,
 // _options, _schema and _action/{name} — through the route of the operation
 // they serve, when no rule names them directly:
@@ -203,6 +231,7 @@ func (a *Panel) withPermission(next http.Handler) http.Handler {
 //	POST {base}/_action/{name}  ids=A,B       as  PUT {base}/A and PUT {base}/B
 //	POST {base}/_action/{name}  (no ids)      as  POST {base}
 //	GET  {base}/_options, _schema             as  GET {base} or GET {base}/create
+//	POST {base}/_restore, _force_delete ids=A as  DELETE {base}/A for every id
 //
 // A permission written per operation (dcat-admin's shape: "POST /posts",
 // "PUT /posts/*") then covers the endpoints that operation's screen calls. It
@@ -227,28 +256,23 @@ func (a *Panel) endpointAllowed(rules []httpmatch.Rule, r *http.Request, rel str
 				httpmatch.Matches(rules, http.MethodGet, base+"/create")
 
 		case r.Method == http.MethodPost && strings.HasPrefix(tail, "_action/"):
-			// The handler reads the same field after this; ParseForm keeps
-			// the parsed body on the request, so it is not consumed twice.
-			if err := r.ParseForm(); err != nil {
+			ids, ok := requestIDs(r)
+			if !ok {
 				return false
-			}
-			var ids []string
-			for _, raw := range r.Form["ids"] {
-				for id := range strings.SplitSeq(raw, ",") {
-					if id = strings.TrimSpace(id); id != "" {
-						ids = append(ids, id)
-					}
-				}
 			}
 			if len(ids) == 0 {
 				return httpmatch.Matches(rules, http.MethodPost, base)
 			}
-			for _, id := range ids {
-				if !httpmatch.Matches(rules, http.MethodPut, base+"/"+url.PathEscape(id)) {
-					return false
-				}
+			return matchEach(rules, http.MethodPut, base, ids)
+
+		case r.Method == http.MethodPost && (tail == "_restore" || tail == "_force_delete"):
+			// Undoing a delete, or finishing one, is as much a delete as the
+			// first was.
+			ids, ok := requestIDs(r)
+			if !ok || len(ids) == 0 {
+				return false
 			}
-			return true
+			return matchEach(rules, http.MethodDelete, base, ids)
 		}
 		return false
 	}
