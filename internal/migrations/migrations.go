@@ -41,6 +41,8 @@ type Tables struct {
 	// table 0008 creates.
 	TenantModel     any
 	InvitationModel any
+	// JobModel is the job queue's table, created by 0010.
+	JobModel any
 	// PermissionModel gains its sync columns (Source, CodeKey, Overridden)
 	// in 0009.
 	PermissionModel any
@@ -190,6 +192,15 @@ func Core(t Tables) []migrate.Migration {
 					}
 				}
 				return nil
+			},
+		},
+		{
+			Name: "0010_create_jobs",
+			Up: func(tx *gorm.DB) error {
+				return tx.Migrator().AutoMigrate(t.JobModel)
+			},
+			Down: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable(t.JobModel)
 			},
 		},
 	}

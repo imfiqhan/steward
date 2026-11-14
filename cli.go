@@ -49,7 +49,7 @@ type App struct {
 // CLI parses os.Args and runs one command:
 //
 //	serve                     start the admin (default)
-//	worker                    run App.Jobs on the scheduler (no HTTP)
+//	worker [-concurrency N]   run App.Jobs on the scheduler and the job queue (no HTTP)
 //	migrate up                apply pending migrations
 //	migrate down [-steps N]   roll back (default: last batch)
 //	migrate status            list migrations
@@ -118,19 +118,36 @@ func runCLI(app App, args []string) error {
 		return http.ListenAndServe(*addr, ServeMux(a))
 
 	case "worker":
-		if app.Jobs == nil {
-			return fmt.Errorf("no jobs registered — set App.Jobs to use the worker")
-		}
-		s := NewIntervalScheduler()
-		if err := app.Jobs(a, s); err != nil {
+		fs := flag.NewFlagSet("worker", flag.ContinueOnError)
+		concurrency := fs.Int("concurrency", 2, "queued jobs run at once")
+		if err := parseFlags(fs, args); err != nil {
 			return err
+		}
+		if err := a.Build(); err != nil {
+			return err
+		}
+		if app.Jobs == nil && len(a.jobTypes) == 0 {
+			return fmt.Errorf("nothing to run — set App.Jobs or register a job type with RegisterJob")
 		}
 		wctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		defer func() { _ = a.Close() }()
-		s.Start(wctx)
-		a.log.Info("steward: worker running", "jobs", len(s.Jobs()))
-		<-wctx.Done()
+		scheduled := 0
+		if app.Jobs != nil {
+			s := NewIntervalScheduler()
+			if err := app.Jobs(a, s); err != nil {
+				return err
+			}
+			s.Start(wctx)
+			scheduled = len(s.Jobs())
+		}
+		a.log.Info("steward: worker running", "scheduled", scheduled,
+			"job_types", len(a.jobTypes), "concurrency", *concurrency)
+		if len(a.jobTypes) > 0 {
+			a.WorkQueue(wctx, *concurrency)
+		} else {
+			<-wctx.Done()
+		}
 		a.log.Info("steward: worker stopping")
 		return nil
 

@@ -116,6 +116,12 @@ type Config struct {
 	// called.
 	DisableQueryProbe bool
 
+	// QueueWorkers runs that many queue workers inside the panel process, for
+	// jobs declared with RegisterJob. Zero leaves the queue to the `worker`
+	// command, which is where it belongs when the panel runs on several
+	// replicas or the jobs are slow.
+	QueueWorkers int
+
 	// SyncPermissions writes a permission tree for every registered resource
 	// at Build: one parent per resource granting all of it, with view, create,
 	// update and delete beneath. Rows it writes are marked as code-owned; an
@@ -273,10 +279,15 @@ type Panel struct {
 	// running one. exportStop ends it, and bg is what Close waits on.
 	exportWake chan struct{}
 	exportStop chan struct{}
-	bg         sync.WaitGroup
-	closeOnce  sync.Once
-	bySlug     map[string]resourceEntry
-	byType     map[reflect.Type]resourceEntry
+	// jobTypes are the registered kinds of queued work; queueWake nudges an
+	// idle queue worker in this process and queueStop ends the panel's own.
+	jobTypes  map[string]jobRunner
+	queueWake chan struct{}
+	queueStop context.CancelFunc
+	bg        sync.WaitGroup
+	closeOnce sync.Once
+	bySlug    map[string]resourceEntry
+	byType    map[reflect.Type]resourceEntry
 
 	// disks are the configured storage disks, always holding at least the
 	// default one.
@@ -374,7 +385,11 @@ func New(cfg Config) (*Panel, error) {
 		codec:  codec,
 		bySlug: map[string]resourceEntry{},
 		byType: map[reflect.Type]resourceEntry{},
-		disks:  disks,
+		// Buffered by one: a wake that finds a worker busy is kept for when it
+		// next waits, rather than lost.
+		jobTypes:  map[string]jobRunner{},
+		queueWake: make(chan struct{}, 1),
+		disks:     disks,
 	}
 	a.tokenLimiter = ratelimit.New(a.tokenRateWindow())
 	a.twoFALimiter = ratelimit.New(twoFactorRateWindow)
@@ -404,6 +419,7 @@ func (a *Panel) Build() error {
 		if a.buildErr == nil {
 			a.warnUnknownClasses()
 			a.startExportWorker()
+			a.startQueueWorkers()
 		}
 	})
 	return a.buildErr
@@ -561,6 +577,7 @@ func (a *Panel) coreTables() migrations.Tables {
 		TenantModel:         &Tenant{},
 		InvitationModel:     &TenantInvitation{},
 		PermissionModel:     &Permission{},
+		JobModel:            &QueuedJob{},
 		AddTenantColumns:    addTenantColumns,
 		DropTenantColumns:   dropTenantColumns,
 		SeedFn:              seedDefaults,
@@ -660,6 +677,9 @@ func (a *Panel) Close() error {
 	a.closeOnce.Do(func() {
 		if a.exportStop != nil {
 			close(a.exportStop)
+		}
+		if a.queueStop != nil {
+			a.queueStop()
 		}
 	})
 	a.bg.Wait()

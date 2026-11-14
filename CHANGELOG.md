@@ -8,6 +8,9 @@ running panel to a new version.
 
 ### Upgrading
 
+- Migration `0010` creates `steward_jobs`, the job queue's table.
+- `worker` no longer refuses to start without `App.Jobs` when a job type is
+  registered, and takes `-concurrency N`.
 - Migration `0009` adds `source`, `code_key` and `overridden` to
   `steward_permissions`. Existing rows read as hand-made (`source = db`).
 - The Permissions list is now a tree over `ParentID`, ordered by `Order`.
@@ -54,6 +57,15 @@ running panel to a new version.
   `steward.EmbedMany(f, "Links", fn)` a slice of them as repeatable rows. Fields
   the embedded form does not declare keep their stored values. `Field.Label`
   names a group, or any field whose builder takes no label.
+
+- **A background job queue.** `steward.RegisterJob(app, "name", fn)` declares a
+  job type with a typed payload; `Dispatch(c, p)`, `Enqueue(ctx, p)` and
+  `EnqueueAt` queue it. The `worker` command runs the queue (or the panel does,
+  with `Config.QueueWorkers`), several workers safely at once. Failed attempts
+  retry with backoff under `Retries(n)`, a panic fails an attempt rather than
+  the worker, a claim left by a dead worker is released, and handlers run in
+  the tenant the job was queued in. **Admin → Jobs** lists the queue and
+  retries a job.
 
 ### Fixed
 

@@ -189,7 +189,8 @@ cover it, and an HTML DSL in Go would be more surface for less flexibility.
       `user:create`
 - [x] Cron scheduler (`@every 10m`, `@daily`, five-field cron) running in a
       separate worker process, deployable independently of the panel
-- [ ] Background job queue (enqueue from the panel, process in the worker)
+- [x] Background job queue (`RegisterJob`, `Dispatch`) with retries, backoff
+      and an admin page, processed by `worker` or in the panel
 - [x] `Cache` (in-memory built in, Redis in `contrib/`), `Storage` (local
       built in, S3 in `contrib/`), SMTP `Mailer`
 - [x] `Searcher` interface with an in-memory full-text implementation

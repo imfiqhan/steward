@@ -23,6 +23,7 @@ func (a *Panel) registerBuiltins() {
 	a.registerMenuResource()
 	a.registerLogResource()
 	a.registerSettingsResource()
+	a.registerJobsResource()
 	if a.TenancyEnabled() {
 		a.registerTenantsResource()
 		if a.invitationsEnabled() {
