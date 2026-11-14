@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
 	steward "github.com/imfiqhan/steward"
@@ -479,5 +480,53 @@ func TestDataCommandHelp(t *testing.T) {
 		if !strings.Contains(want, line) {
 			t.Errorf("the help lacks %q", line)
 		}
+	}
+}
+
+// Describing the catalog changes nothing: no framework migration, no menu
+// sync. Running a command still builds the whole panel.
+func TestCatalogNeedsNoDatabaseWrites(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&mcPost{}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("catalog-no-writes-secret-0000")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[mcPost](app).Slug("posts")
+	if _, err := runCLIWith(t, app, "", "tools"); err != nil {
+		t.Fatalf("tools: %v", err)
+	}
+	if out, err := runCLIWith(t, app, "", "posts:create", "-h"); err != nil || !strings.Contains(out, "--Title") {
+		t.Fatalf("posts:create -h: %v\n%s", err, out)
+	}
+	if db.Migrator().HasTable(&steward.MenuItem{}) || db.Migrator().HasTable(&steward.User{}) {
+		t.Error("tools and -h ran the framework migrations")
+	}
+	if _, err := runCLIWith(t, app, "", "posts:list"); err == nil || !strings.Contains(err.Error(), "no account") {
+		t.Errorf("running a command builds the panel and then asks for an account: %v", err)
+	}
+	if !db.Migrator().HasTable(&steward.User{}) {
+		t.Error("running a command should have built the panel")
+	}
+}
+
+// With a connection opened lazily, the catalog is available while the database
+// server is down.
+func TestCatalogWithTheDatabaseDown(t *testing.T) {
+	db, err := gorm.Open(postgres.Open("host=127.0.0.1 port=1 user=nobody dbname=none sslmode=disable connect_timeout=1"),
+		&gorm.Config{DisableAutomaticPing: true})
+	if err != nil {
+		t.Skipf("the driver connects on open: %v", err)
+	}
+	app, err := steward.New(steward.Config{DB: db, SecretKey: []byte("catalog-db-down-secret-00000")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steward.Register[mcPost](app).Slug("posts")
+	out, err := runCLIWith(t, app, "", "tools")
+	if err != nil || !strings.Contains(out, "posts:create") {
+		t.Errorf("tools with the database down: %v\n%s", err, out)
 	}
 }

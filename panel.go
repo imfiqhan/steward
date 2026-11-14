@@ -330,6 +330,13 @@ type Panel struct {
 	buildErr  error
 	built     bool
 
+	// prepareOnce guards the part of Build that only reads code: built-in
+	// resources registered, every resource compiled, the command catalog
+	// built. It runs inside Build, or alone for a caller that needs only the
+	// catalog.
+	prepareOnce sync.Once
+	prepareErr  error
+
 	verifyErrs []error
 }
 
@@ -447,6 +454,26 @@ func (a *Panel) Build() error {
 	return a.buildErr
 }
 
+// prepare registers the built-in resources, compiles every resource and builds
+// the command catalog. None of it reads or writes the database, which is what
+// lets `tools` and a command's -h answer without migrating, syncing the menu,
+// or reaching a database server at all when the app opens its connection
+// lazily. Build runs it after the framework migrations.
+func (a *Panel) prepare() error {
+	a.prepareOnce.Do(func() {
+		a.registerBuiltins()
+		for _, r := range a.registry {
+			if err := r.compile(a); err != nil {
+				a.prepareErr = fmt.Errorf("steward: compiling resource %q: %w", r.meta().slug, err)
+				return
+			}
+		}
+		a.registerImportJob()
+		a.buildCommands()
+	})
+	return a.prepareErr
+}
+
 // resourceTypeNames lists the model names that are registered resources, for
 // an error naming one that is not.
 func (a *Panel) resourceTypeNames() []string {
@@ -483,22 +510,15 @@ func (a *Panel) Verify() error {
 }
 
 func (a *Panel) build() error {
-	a.registerBuiltins()
-
 	if !a.cfg.DisableAutoMigrate {
 		if _, err := a.MigrationRunner(nil).Up(WithoutTenant(context.Background())); err != nil {
 			return fmt.Errorf("steward: framework migrations: %w", err)
 		}
 	}
 
-	for _, r := range a.registry {
-		if err := r.compile(a); err != nil {
-			return fmt.Errorf("steward: compiling resource %q: %w", r.meta().slug, err)
-		}
+	if err := a.prepare(); err != nil {
+		return err
 	}
-
-	a.registerImportJob()
-	a.buildCommands()
 
 	if err := a.syncMenu(context.Background()); err != nil {
 		return fmt.Errorf("steward: menu sync: %w", err)

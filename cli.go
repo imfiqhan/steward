@@ -110,9 +110,10 @@ func runCLI(app App, args []string) error {
 	}
 	ctx := WithoutTenant(context.Background())
 
-	// A catalog command is known only once the resources have compiled.
+	// A catalog command is known only once the resources have compiled, which
+	// needs no database; running one needs the whole panel.
 	if !slices.Contains(cliCommands, cmd) {
-		if err := a.Build(); err != nil {
+		if err := a.prepare(); err != nil {
 			return err
 		}
 		dc, ok := a.lookupCommand(cmd)
@@ -120,12 +121,20 @@ func runCLI(app App, args []string) error {
 			return fmt.Errorf("unknown command %q%s", cmd,
 				suggest.Block(cmd, append(a.commandNames(), cliCommands...)))
 		}
+		if wantsHelp(args) {
+			writeCommandHelp(os.Stdout, dc)
+			return nil
+		}
+		if err := a.Build(); err != nil {
+			return err
+		}
 		return runDataCommand(ctx, a, dc, args, os.Stdout)
 	}
 
 	switch cmd {
 	case "tools":
-		if err := a.Build(); err != nil {
+		// Describing the catalog changes nothing, so it migrates nothing.
+		if err := a.prepare(); err != nil {
 			return err
 		}
 		return runToolsCommand(a, args, os.Stdout)

@@ -32,7 +32,8 @@ running panel to a new version.
   operation log all apply. Three surfaces read it: `./app <resource>:<op>`
   with flags, `./app mcp` (MCP over stdio), and `{prefix}/_mcp` (MCP over HTTP
   with a bearer token, behind `Config.EnableMCP`). `./app tools` lists the
-  catalog, and `./app <command> -h` describes one command's arguments. `-user`/`-tenant` default to `STEWARD_MCP_USER`/`STEWARD_MCP_TENANT`.
+  catalog, and `./app <command> -h` describes one command's arguments;
+  neither migrates, syncs the menu or queries the database. `-user`/`-tenant` default to `STEWARD_MCP_USER`/`STEWARD_MCP_TENANT`.
   `Resource.DisableMCP()` and `Resource.Describe()` shape it, and `RunCLI` is
   `CLI` without the exit.
 

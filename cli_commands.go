@@ -90,17 +90,25 @@ func writeCommandHelp(out io.Writer, c *command) {
 // helpFlags are the spellings the flag package treats as a request for help.
 var helpFlags = []string{"-h", "-help", "--h", "--help"}
 
+// wantsHelp reports whether a command's arguments ask for its description.
+func wantsHelp(args []string) bool {
+	for _, arg := range args {
+		if slices.Contains(helpFlags, arg) {
+			return true
+		}
+	}
+	return false
+}
+
 // runDataCommand answers one catalog command from the command line: its
 // arguments as flags, its answer as JSON on out. A refusal or a validation
 // failure is returned as the error, which CLI prints and exits 1 on.
 func runDataCommand(ctx context.Context, a *Panel, c *command, args []string, out io.Writer) error {
 	// The flag package's own usage would list every argument as a string, with
 	// no required marks or choices; the catalog knows better.
-	for _, arg := range args {
-		if slices.Contains(helpFlags, arg) {
-			writeCommandHelp(out, c)
-			return nil
-		}
+	if wantsHelp(args) {
+		writeCommandHelp(out, c)
+		return nil
 	}
 	fs := flag.NewFlagSet(c.Name, flag.ContinueOnError)
 	user, tenant := principalFlags(fs)
