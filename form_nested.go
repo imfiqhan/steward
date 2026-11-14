@@ -66,11 +66,17 @@ type nestedVM struct {
 	Label    string
 	Rows     []nestedRowVM
 	Template nestedRowVM // key = __KEY__, cloned client-side
+	// Present marks a repeater whose submission must say it was there even
+	// with every row removed: EmbedMany, which otherwise could not tell an
+	// emptied list from one the form never drew.
+	Present bool
 }
 
 type nestedRowVM struct {
 	Key    string
 	Groups []formGroupVM
+	// Label titles a single Embed's group.
+	Label string
 }
 
 // appendField mirrors formVM.appendField: consecutive fields sharing a

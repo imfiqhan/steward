@@ -122,7 +122,8 @@ Checked items work end-to-end today; unchecked items are on the roadmap.
 - [x] hasMany nested row forms (`steward.HasMany[T,C]`, dcat protocol)
 - [x] Fieldset and divider layout
 - [x] Dirty-field-only updates; 422 inline errors in both HTML and JSON
-- [ ] Embeds (JSON-column nested forms)
+- [x] Embeds (JSON-column nested forms) — `Embed` for a struct, `EmbedMany`
+      for a list of them
 - [x] File/Image/BelongsTo fields inside hasMany rows, through the parent's
       own `_upload` and `_options` endpoints
 - [x] Per-request conditional fields (`Field.Show`) — hidden fields are refused

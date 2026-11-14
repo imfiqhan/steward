@@ -521,6 +521,11 @@ func (t *typedResource[T]) compile(a *Panel) error {
 		}
 	}
 
+	for _, fd := range fm.fields {
+		if fd.embed != nil && fd.info != nil {
+			a.verifyErrs = append(a.verifyErrs, fd.embed.compile(a, t.res.m.slug, fd.spec(), fd.info)...)
+		}
+	}
 	t.compileQuickCreate(a)
 	t.verifyActions(a)
 	t.compileDetail(a)

@@ -44,6 +44,8 @@ const (
 	FieldFiles
 	FieldImages
 	FieldTags
+	FieldEmbed
+	FieldEmbedMany
 )
 
 // kindNames map kinds to template partials and schema strings.
@@ -57,7 +59,7 @@ var kindNames = map[FieldKind]string{
 	FieldImage: "image", FieldMarkdown: "markdown", FieldBelongsTo: "belongsto",
 	FieldMultiSelect: "multiselect", FieldRichtext: "richtext",
 	FieldIcon: "icon", FieldFiles: "files", FieldImages: "images",
-	FieldTags: "tags",
+	FieldTags: "tags", FieldEmbed: "embed", FieldEmbedMany: "embedmany",
 }
 
 // Form configures a resource's create/edit view; write-only until Build.
@@ -440,6 +442,8 @@ type Field[T any] struct {
 	fieldset string
 	tab      string
 	divider  bool
+	// embed is the form an Embed or EmbedMany field renders and decodes.
+	embed embedder
 
 	rules       string
 	createRules string
@@ -541,6 +545,11 @@ func (fd *Field[T]) Placeholder(s string) *Field[T] { fd.placeholder = s; return
 
 // Help renders hint text under the input.
 func (fd *Field[T]) Help(s string) *Field[T] { fd.help = s; return fd }
+
+// Label replaces the label derived from the field's name. It is the same as
+// passing one to the builder, for the builders that take no label argument:
+// Embed and EmbedMany.
+func (fd *Field[T]) Label(s string) *Field[T] { fd.label = s; return fd }
 
 // Disable renders the input disabled (and ignores submissions).
 func (fd *Field[T]) Disable() *Field[T] { fd.disabled = true; fd.ignored = true; return fd }

@@ -92,8 +92,7 @@ func newNestedUploadServer(t *testing.T) (*nuClient, *gorm.DB, string) {
 	srv := serve(t, app)
 	t.Cleanup(srv.Close)
 
-	jar, _ := cookiejar.New(nil)
-	c := &nuClient{t: t, http: &http.Client{Jar: jar}, base: srv.URL + "/admin/nu_decks"}
+	c := newNuClient(t, srv.URL+"/admin/nu_decks")
 	page := c.get("/1/edit")
 	m := comboCSRFRe.FindStringSubmatch(page)
 	if m == nil {
@@ -101,6 +100,12 @@ func newNestedUploadServer(t *testing.T) (*nuClient, *gorm.DB, string) {
 	}
 	c.csrf = m[1]
 	return c, db, dir
+}
+
+// newNuClient is a cookie-keeping client for one resource's routes.
+func newNuClient(t *testing.T, base string) *nuClient {
+	jar, _ := cookiejar.New(nil)
+	return &nuClient{t: t, http: &http.Client{Jar: jar}, base: base}
 }
 
 func (c *nuClient) get(path string) string {

@@ -87,6 +87,9 @@ type formFieldVM struct {
 	// Multiple marks the combobox as a multi-select.
 	Multiple bool
 	Errors   []string
+	// EmbedRow is an Embed's group of fields, EmbedRows an EmbedMany's rows.
+	EmbedRow  *nestedRowVM
+	EmbedRows *nestedVM
 }
 
 // uploadedVM is one file held by a Files or Images field.
@@ -382,6 +385,13 @@ func (t *typedResource[T]) fieldVM(c *Context, fd *Field[T], row *T, creating bo
 		if fv.Symbol == "" {
 			fv.Symbol = c.Panel.cfg.CurrencySymbol
 		}
+	case FieldEmbed, FieldEmbedMany:
+		var current any
+		if row != nil && fd.info != nil {
+			current, _ = fd.info.value(reflect.ValueOf(row))
+		}
+		fv.Value = ""
+		fv.EmbedRow, fv.EmbedRows = fd.embed.view(c, fd.path, fd.label, current)
 	case FieldMarkdown:
 		fv.RenderURL = previewURL(c, m.slug, fd.path, rowID)
 	case FieldRichtext:
@@ -787,6 +797,21 @@ func (t *typedResource[T]) save(c *Context, id string, creating bool) error {
 
 	for _, fd := range f.fields {
 		if fd.info == nil || fd.ignored || !fd.visible(c, creating) {
+			continue
+		}
+		if fd.embed != nil {
+			current, _ := fd.info.value(reflect.ValueOf(m))
+			val, present, eerrs := fd.embed.decode(c, fd.path, current)
+			if !present {
+				continue
+			}
+			if len(eerrs) > 0 {
+				for k, v := range eerrs {
+					errs[k] = append(errs[k], v...)
+				}
+				continue
+			}
+			writes = append(writes, pending{fd, val})
 			continue
 		}
 		raw, present := formValue(c.R, fd.path)

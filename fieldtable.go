@@ -49,6 +49,8 @@ type fieldInfo struct {
 	// report at boot rather than mis-querying.
 	rel   *relTarget
 	index []int // reflect index path to read the value
+	// serializer is the column's gorm serializer ("json"), "" for none.
+	serializer string
 }
 
 // filterable reports whether a path can appear in a WHERE clause: a direct
@@ -79,6 +81,23 @@ type fieldTable struct {
 var schemaCache = &sync.Map{}
 
 func newFieldTable(t reflect.Type, naming schema.Namer) (*fieldTable, error) {
+	ft, err := parseFieldTable(t, naming)
+	if err != nil {
+		return nil, err
+	}
+	if ft.pk == nil {
+		return nil, fmt.Errorf("model %s has no primary key", t.Name())
+	}
+	return ft, nil
+}
+
+// newEmbedTable is newFieldTable for a struct stored inside a column, which has
+// no primary key of its own.
+func newEmbedTable(t reflect.Type, naming schema.Namer) (*fieldTable, error) {
+	return parseFieldTable(t, naming)
+}
+
+func parseFieldTable(t reflect.Type, naming schema.Namer) (*fieldTable, error) {
 	if naming == nil {
 		naming = schema.NamingStrategy{}
 	}
@@ -101,6 +120,8 @@ func newFieldTable(t reflect.Type, naming schema.Namer) (*fieldTable, error) {
 			Nullable: !f.NotNull,
 			Primary:  f.PrimaryKey,
 			index:    f.StructField.Index,
+
+			serializer: f.TagSettings["SERIALIZER"],
 		}
 		ft.byPath[f.Name] = info
 		if f.PrimaryKey && ft.pk == nil {
@@ -130,9 +151,6 @@ func newFieldTable(t reflect.Type, naming schema.Namer) (*fieldTable, error) {
 				index:    append(append([]int{}, rel.Field.StructField.Index...), rf.StructField.Index...),
 			}
 		}
-	}
-	if ft.pk == nil {
-		return nil, fmt.Errorf("model %s has no primary key", t.Name())
 	}
 	return ft, nil
 }

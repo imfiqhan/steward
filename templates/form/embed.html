@@ -1,0 +1,16 @@
+{{/* An Embed: the fields of a struct stored in one column, under a legend.
+     The wrapper spans the row so the group lays out on its own grid. */}}
+<div class="steward-span-12" data-steward-field="{{.Name}}">
+  {{if .EmbedRows}}
+    {{/* Says the list was on the form, so removing every row empties it
+         rather than leaving the column untouched. */}}
+    <input type="hidden" name="_present_{{.Name}}" value="1"/>
+    {{template "form/hasmany.html" .EmbedRows}}
+  {{else}}
+  <fieldset class="steward-fieldset">
+    <legend>{{.Label}}</legend>
+    {{template "form/groups.html" .EmbedRow.Groups}}
+  </fieldset>
+  {{end}}
+  {{with .Help}}<p class="text-sm text-muted-foreground mt-2">{{.}}</p>{{end}}
+</div>

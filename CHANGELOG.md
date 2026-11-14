@@ -49,6 +49,12 @@ running panel to a new version.
   addressed as `Relation.Path`, under the parent's permissions and policy; a
   replaced file in a saved row is removed from storage.
 
+- **Values stored as JSON.** `steward.Embed(f, "Address", fn)` edits a struct
+  held in one `serializer:json` column as a group of fields, and
+  `steward.EmbedMany(f, "Links", fn)` a slice of them as repeatable rows. Fields
+  the embedded form does not declare keep their stored values. `Field.Label`
+  names a group, or any field whose builder takes no label.
+
 ### Fixed
 
 - **The pinned actions column shows its divider.** It was a border, which a

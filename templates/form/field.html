@@ -1,4 +1,4 @@
-{{if .Divider}}<div class="field-separator steward-span-12"><hr role="separator"/></div>{{else}}
+{{if .Divider}}<div class="field-separator steward-span-12"><hr role="separator"/></div>{{else if or (eq .Kind "embed") (eq .Kind "embedmany")}}{{template "form/embed.html" .}}{{else}}
 {{/* steward-span-N is the field's width in twelfths of the row. The class is
      fixed rather than a Tailwind utility because the value comes from Go, and
      Tailwind only emits classes it can find in the sources it scans. */}}
