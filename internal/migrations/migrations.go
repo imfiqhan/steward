@@ -178,7 +178,18 @@ func Core(t Tables) []migrate.Migration {
 			},
 			Down: func(tx *gorm.DB) error {
 				m := tx.Migrator()
-				if m.HasIndex(t.PermissionModel, "CodeKey") {
+				if tx.Name() == "postgres" {
+					// GORM's postgres DropIndex qualifies the name with
+					// CURRENT_SCHEMA in a form PostgreSQL rejects.
+					stmt := &gorm.Statement{DB: tx}
+					if err := stmt.Parse(t.PermissionModel); err != nil {
+						return err
+					}
+					if err := tx.Exec("DROP INDEX IF EXISTS idx_" + stmt.Schema.Table + "_code_key").Error; err != nil {
+						return err
+					}
+				} else if m.HasIndex(t.PermissionModel, "CodeKey") {
+					// SQLite refuses to drop a column an index still covers.
 					if err := m.DropIndex(t.PermissionModel, "CodeKey"); err != nil {
 						return err
 					}
